@@ -182,7 +182,7 @@ void parse_command_line(int argc, char** argv, instance *inst)
 		if ( strcmp(argv[i],"-f") == 0 ) { strcpy(inst->input_file,argv[++i]); continue; } 				// input file
 		if ( strcmp(argv[i],"-time_limit") == 0 ) { inst->timelimit = atof(argv[++i]); continue; }		// total time limit
 		if ( strcmp(argv[i],"-seed") == 0 ) { inst->randomseed = abs(atoi(argv[++i])); continue; } 		// random seed
-        if ( strcmp(argv[i],"-nnodes") == 0 && strcmp(inst->input_file, NULL)!=0) 
+        if ( strcmp(argv[i],"-nnodes") == 0 && strcmp(inst->input_file, "NULL")!=0) 
 			{ inst->nnodes = abs(atoi(argv[++i])); continue; } 											// number of nodes
 		if ( strcmp(argv[i],"-method") == 0 ) { strcpy(inst->method, argv[++i]); continue; } 			// method
 		if ( strcmp(argv[i],"-m") == 0 ) { strcpy(inst->method, argv[++i]); continue; } 				// method

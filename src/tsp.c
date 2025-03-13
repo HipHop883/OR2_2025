@@ -7,9 +7,22 @@
  * @return void
 */
 void read_input(instance *inst) {
-
     if (strcmp(inst->input_file, "NULL") == 0) {
-        // No input file, random nodes already generated
+        // No input file
+		if (inst->nnodes <= 0) {
+            printf("Please provide the number of nodes: ");
+            scanf("%d", &inst->nnodes);
+        }
+        if (inst->randomseed <= 0) {
+            printf("Please provide the seed for the random generator: ");
+            scanf("%d", &inst->randomseed);
+        }
+        generate_random_nodes(inst, inst->nnodes, inst->randomseed);
+
+		if (strcmp(inst->method, "NULL") == 0) {
+			printf("Please provide the method to be used: ");
+			scanf("%s", inst->method);	
+		}
         return;
     }
     
@@ -165,7 +178,7 @@ void parse_command_line(int argc, char** argv, instance *inst)
 { 
 	
 	if ( VERBOSE >= 100 ) printf(" running %s with %d parameters \n", argv[0], argc-1); 
-		
+	
 	// default   
 	strcpy(inst->input_file, "NULL");
 	inst->randomseed = 0;     
@@ -182,26 +195,13 @@ void parse_command_line(int argc, char** argv, instance *inst)
 		if ( strcmp(argv[i],"-f") == 0 ) { strcpy(inst->input_file,argv[++i]); continue; } 				// input file
 		if ( strcmp(argv[i],"-time_limit") == 0 ) { inst->timelimit = atof(argv[++i]); continue; }		// total time limit
 		if ( strcmp(argv[i],"-seed") == 0 ) { inst->randomseed = abs(atoi(argv[++i])); continue; } 		// random seed
-        if ( strcmp(argv[i],"-nnodes") == 0 && strcmp(inst->input_file, "NULL")!=0) 
+        if ( strcmp(argv[i],"-nnodes") == 0 && strcmp(inst->input_file, "NULL")==0) 
 			{ inst->nnodes = abs(atoi(argv[++i])); continue; } 											// number of nodes
 		if ( strcmp(argv[i],"-method") == 0 ) { strcpy(inst->method, argv[++i]); continue; } 			// method
 		if ( strcmp(argv[i],"-m") == 0 ) { strcpy(inst->method, argv[++i]); continue; } 				// method
 		if ( strcmp(argv[i],"-help") == 0 ) { help = 1; continue; } 									// help
 		if ( strcmp(argv[i],"--help") == 0 ) { help = 1; continue; } 									// help
 		help = 1;
-    }    
-    
-    // Without an input file
-    if ( strcmp(inst->input_file, "NULL") == 0) {
-        if (inst->nnodes <= 0) {
-            printf("Please provide the number of nodes: ");
-            scanf("%d", &inst->nnodes);
-        }
-        if (inst->randomseed == 0) {
-            printf("Please provide the seed for the random generator: ");
-            scanf("%d", &inst->randomseed);
-        }
-        generate_random_nodes(inst, inst->nnodes, inst->randomseed);
     }
 
 	if ( help || (VERBOSE >= 10) )		// print current parameters
@@ -213,10 +213,27 @@ void parse_command_line(int argc, char** argv, instance *inst)
 		printf("-method %s\n", inst->method);
 		printf("\nenter -help or --help for help\n");
 		printf("----------------------------------------------------------------------------------------------\n\n");
-	}        
+	}  
 	
 	if ( help ) exit(1);
+/*
+	else if ( strcmp(inst->input_file, "NULL") == 0) { // Without an input file
+        if (inst->nnodes <= 0) {
+            printf("Please provide the number of nodes: ");
+            scanf("%d", &inst->nnodes);
+        }
+        if (inst->randomseed <= 0) {
+            printf("Please provide the seed for the random generator: ");
+            scanf("%d", &inst->randomseed);
+        }
+        generate_random_nodes(inst, inst->nnodes, inst->randomseed);
 
+		if (strcmp(inst->method, "NULL") == 0) {
+			printf("Please provide the method to be used: ");
+			scanf("%s", inst->method);	
+		}
+    }
+*/   
 } 
 
 /**

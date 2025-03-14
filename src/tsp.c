@@ -417,10 +417,9 @@ void nearest_neighbor(instance *inst, double *best_sol) {
 /**
  * Two-opt heuristic
  * @param inst instance
- * @param best_sol best solution path
  * @return void
  */
-void two_opt(instance *inst, double *best_sol) {
+void two_opt(instance *inst) {
 	int nnodes = inst->nnodes;
 	int improved = 1; // flag to indicate if the path has been improved
 	while (improved) {
@@ -428,8 +427,8 @@ void two_opt(instance *inst, double *best_sol) {
 		for (int i = 0; i < nnodes - 1; i++) {	
 			for (int j = i + 1; j < nnodes; j++) {	
 				
-				if (delta(i, j, best_sol, inst) < 0) { 	// if the path is improved
-					swap_path(i, j, best_sol);			// swap nodes i and j
+				if (delta(i, j, inst->best_sol, inst) < 0) { 	// if the path is improved
+					swap_path(i, j, inst->best_sol);			// swap nodes i and j
 					improved = 1;						// set the flag
 				}
 			}

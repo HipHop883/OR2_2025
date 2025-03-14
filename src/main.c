@@ -28,11 +28,11 @@ int main(int argc, char **argv)
 		check_time(&inst, t1);
 	} else if(strcmp(inst.method, "n_n+two_opt") == 0) {
 		nearest_neighbor(&inst, inst.best_sol);			// Nearest neighbor heuristic with two_opt
-		two_opt(&inst, inst.best_sol);					
+		two_opt(&inst);					
 		check_time(&inst, t1);
 	} else if(strcmp(inst.method, "random+two_opt") == 0) {
 		random_path(inst.best_sol, inst.nnodes, inst.randomseed);	// Random path with two_opt
-		two_opt(&inst, inst.best_sol);					
+		two_opt(&inst);					
 		check_time(&inst, t1);
 	} else if(strcmp(inst.method, "random") == 0) {
 		random_path(inst.best_sol, inst.nnodes, inst.randomseed);	// Random path

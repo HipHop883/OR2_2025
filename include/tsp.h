@@ -58,7 +58,8 @@ void check_time(instance *inst, double start_time);
 void write_path_file(instance *inst, double *best_sol, const char *filename);
 
 double cost(int i, int j, instance *inst);
-void nearest_neighbor(instance *inst, double *best_sol);
+double cost_path(instance *inst);
+void nearest_neighbor(instance *inst);
 
 void two_opt(instance *inst);
 double delta(int i, int j, double *path, instance *inst);

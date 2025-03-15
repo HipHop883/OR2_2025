@@ -244,6 +244,8 @@ void parse_command_line(int argc, char** argv, instance *inst)
  * @return void
  */
 void generate_random_nodes(instance *inst, int nnodes, int seed) {
+	if (VERBOSE >=50) printf("Generating random nodes...\n");
+
     inst->nnodes = nnodes;
     inst->xcoord = (double *) calloc(nnodes, sizeof(double));
     inst->ycoord = (double *) calloc(nnodes, sizeof(double));
@@ -253,6 +255,8 @@ void generate_random_nodes(instance *inst, int nnodes, int seed) {
         inst->xcoord[i] = ((double) rand() / RAND_MAX) * MAX_X;
         inst->ycoord[i] = ((double) rand() / RAND_MAX) * MAX_Y;
     }
+
+	if (VERBOSE >=50) printf("Random nodes generated\n");
 }
 
 /**
@@ -383,35 +387,68 @@ double cost(int i, int j, instance *inst) {
 }
 
 /**
+ * cost of the path
+ * @param inst instance
+ * @return cost of the path
+ */
+
+double cost_path(instance *inst) {
+    double cost_p = 0;
+    for (int i = 0; i < inst->nnodes - 1; i++) {
+        double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);
+        
+		if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[i], (int)inst->best_sol[i + 1], edge_cost);
+        cost_p += edge_cost;
+    }
+
+    // Add the cost to return to the starting node
+    double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst);
+    if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[inst->nnodes - 1], (int)inst->best_sol[0], return_cost);
+    cost_p += return_cost;
+    printf("Total cost: %lf\n", cost_p);
+    return cost_p;
+}
+
+/**
  * Nearest neighbor heuristic
  * @param inst instance
  * @return void
 */ 
-void nearest_neighbor(instance *inst, double *best_sol) {
+void nearest_neighbor(instance *inst) {
+    double time = second();
+    if (VERBOSE >= 50) {
+        printf("Applying nearest neighbor heuristic...\n");
+        printf("Starting time: %lf\n", time);
+    }
 
-	int nnodes = inst->nnodes;							// number of nodes
-	int *visited = (int *) calloc(nnodes, sizeof(int)); // visited nodes
-	int current = 0;		// current node
-	visited[current] = 1;	// mark the current node as visited
-	best_sol[0] = current;	// start from the current node
-	for (int i = 1; i < nnodes; i++) { 	
-		double min_cost = CPX_INFBOUND;
-		int next = -1;
-		for (int j = 0; j < nnodes; j++) { 	// find the nearest neighbor
-			if (visited[j] == 0) {
-				double c = cost(current, j, inst);
-				if (c < min_cost) {	// update the nearest neighbor
-					min_cost = c; 	// update the minimum cost
-					next = j;		// update the next node
-				}
-			}
-		}
-		visited[next] = 1;		// mark the next node as visited
-		best_sol[i] = next; 	// update the best solution
-		current = next;			// update the current node
-	}
-	best_sol[nnodes] = best_sol[0];	// return to the initial node
-	free(visited);
+    int nnodes = inst->nnodes;                            // number of nodes
+    int *visited = (int *)calloc(nnodes, sizeof(int));    // visited nodes
+    int current = 0;                                      // current node
+    visited[current] = 1;                                 // mark the current node as visited
+    inst->best_sol[0] = current;                          // start from the current node
+    for (int i = 1; i < nnodes; i++) {
+        double min_cost = CPX_INFBOUND;
+        int next = -1;
+        for (int j = 0; j < nnodes; j++) {  // find the nearest neighbor
+            if (visited[j] == 0) {
+                double c = cost(current, j, inst);
+                if (c < min_cost) {  // update the nearest neighbor
+                    min_cost = c;    // update the minimum cost
+                    next = j;        // update the next node
+                }
+            }
+        }
+        visited[next] = 1;           // mark the next node as visited
+        inst->best_sol[i] = next;    // update the best solution
+        current = next;              // update the current node
+    }
+    inst->best_sol[nnodes] = inst->best_sol[0];  // return to the initial node
+    free(visited);
+
+    if (VERBOSE >= 50) {
+        printf("Nearest neighbor heuristic applied\n");
+        printf("Elapsed time: %lf\n", second() - time);
+    }
 }
 
 /**
@@ -420,20 +457,29 @@ void nearest_neighbor(instance *inst, double *best_sol) {
  * @return void
  */
 void two_opt(instance *inst) {
-	int nnodes = inst->nnodes;
-	int improved = 1; // flag to indicate if the path has been improved
-	while (improved) {
-		improved = 0; 	// reset the flag
-		for (int i = 0; i < nnodes - 1; i++) {	
-			for (int j = i + 1; j < nnodes; j++) {	
-				
-				if (delta(i, j, inst->best_sol, inst) < 0) { 	// if the path is improved
-					swap_path(i, j, inst->best_sol);			// swap nodes i and j
-					improved = 1;						// set the flag
-				}
-			}
-		}
-	}
+    double time = second();
+    if (VERBOSE >= 50) {
+        printf("Applying two-opt heuristic...\n");
+        printf("Starting time: %lf\n", time);
+    }
+    int nnodes = inst->nnodes;
+    int improved = 1;  // flag to indicate if the path has been improved
+    while (improved) {
+        improved = 0;  // reset the flag
+        for (int i = 0; i < nnodes - 1; i++) {
+            for (int j = i + 1; j < nnodes; j++) {
+                if (delta(i, j, inst->best_sol, inst) < 0) {  // if the path is improved
+                    swap_path(i, j, inst->best_sol);          // swap nodes i and j
+                    improved = 1;                             // set the flag
+                }
+            }
+        }
+    }
+
+    if (VERBOSE >= 50) {
+        printf("Two-opt heuristic applied\n");
+        printf("Elapsed time: %lf\n", second() - time);
+    }
 }
 
 /**

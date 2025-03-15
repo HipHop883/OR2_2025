@@ -24,10 +24,10 @@ int main(int argc, char **argv)
     inst.best_sol = (double *) calloc(inst.nnodes + 1, sizeof(double));
 
 	if(strcmp(inst.method, "n_n") == 0) {
-		nearest_neighbor(&inst, inst.best_sol);			// Nearest neighbor heuristic
+		nearest_neighbor(&inst);			// Nearest neighbor heuristic
 		check_time(&inst, t1);
 	} else if(strcmp(inst.method, "n_n+two_opt") == 0) {
-		nearest_neighbor(&inst, inst.best_sol);			// Nearest neighbor heuristic with two_opt
+		nearest_neighbor(&inst);			// Nearest neighbor heuristic with two_opt
 		two_opt(&inst);					
 		check_time(&inst, t1);
 	} else if(strcmp(inst.method, "random+two_opt") == 0) {
@@ -40,6 +40,9 @@ int main(int argc, char **argv)
 	} else {
 		print_error("USAGE: -method [nearest_neighbor|n_n+two_opt|random+two_opt|random]");
 	}
+
+	// Print the cost of the best solution
+	cost_path(&inst);
 
 	/* Print the best solution path
     printf("Best solution path:\n");

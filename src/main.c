@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 		random_path(inst.best_sol, inst.nnodes, inst.randomseed);	// Random path
 		check_time(&inst, t1);
 	} else {
-		print_error("USAGE: -method [nearest_neighbor|n_n+two_opt|random+two_opt|random]");
+		print_error("USAGE: -method [n_n|n_n+two_opt|random+two_opt|random]");
 	}
 
 	// Print the cost of the best solution

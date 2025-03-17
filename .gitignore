@@ -1,11 +1,11 @@
 # Object files
-.o
+*.o
 
 # Executables
-.exe
+*.exe
 
 # Libraries
-.lib
+*.lib
 
 # Latex
 *.aux
@@ -19,3 +19,5 @@
 *.run.xml
 *.synctex.gz
 *.xmpi
+*.fdb_latexmk
+*.fls

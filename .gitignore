@@ -1,0 +1,21 @@
+# Object files
+.o
+
+# Executables
+.exe
+
+# Libraries
+.lib
+
+# Latex
+.aux
+.log
+.out
+.toc
+.pdf
+.bbl
+.bcf
+.blg
+.run.xml
+.synctex.gz
+.xmpi

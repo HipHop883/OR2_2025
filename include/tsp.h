@@ -21,6 +21,8 @@
 #define MAX_X 100
 #define MAX_Y 1000
 
+#define flatten_coords(x, y, N) (x * N + y)
+
 //data structures  
 
 typedef struct {   
@@ -36,11 +38,24 @@ typedef struct {
 	double timelimit;						// overall time limit, in sec.s
 	char input_file[1000];		  			// input file
 	char method[20];						// method to be used
+	double starting_time;					// starting time
+	double *cost_matrix;					// cost matrix
 	
 	//global variables
-	double *best_sol;						// best sol. available
+	int *best_sol;						// best sol. available
 	
-} instance;        
+} instance; 
+
+/*
+ * Data structure to define a solution
+ */
+
+typedef struct
+{
+    int *tour;
+    double cost;
+
+} solution;
 
 void read_input(instance *inst);
 void print_error(const char *err_message);
@@ -49,21 +64,23 @@ void parse_command_line(int argc, char** argv, instance *inst);
 void free_instance(instance *inst);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
-void random_path(double *path, int nnodes, int seed);
-void print_path(instance *inst, double *path, int nnodes);
+void random_path(int *path, int nnodes, int seed);
+void print_path(instance *inst, int *path, int nnodes);
 void print_nodes(instance *inst);
 
-void check_time(instance *inst, double start_time);
+void check_time(instance *inst);
 
-void write_path_file(instance *inst, double *best_sol, const char *filename);
+void write_path_file(instance *inst, int *best_sol, const char *filename);
 
 double cost(int i, int j, instance *inst);
 double cost_path(instance *inst);
 void nearest_neighbor(instance *inst);
 
 void two_opt(instance *inst);
-double delta(int i, int j, double *path, instance *inst);
-void swap_path(int i, int j, double *path);
+double delta(int i, int j, int *path, instance *inst);
+void swap_path(int i, int j, int *path);
+
+int tsp_compute_costs(instance *tsp);
 
 /*
 //inline

@@ -3,7 +3,6 @@
 
 #include <tsp.h>
 
-void two_opt_neighborhood(instance *inst);
-void three_opt(instance *inst);
+int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost);
 
 #endif // VNS_H_

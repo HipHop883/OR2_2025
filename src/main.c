@@ -10,33 +10,34 @@ int main(int argc, char **argv)
 	double t1 = second(); 
 	instance inst;
 	
+	inst.starting_time = t1;	// starting time
+
 	parse_command_line(argc, argv, &inst);     
 	
 	//printf(" file %s has %d non-empty lines\n", inst.input_file, number_of_nonempty_lines(inst.input_file)); exit(1);
 
 	read_input(&inst);  
 	
-	
 	printf("Number of nodes: %d\n", inst.nnodes);
 	//print_nodes(&inst);
 
 	// Allocate memory for best_sol
-    inst.best_sol = (double *) calloc(inst.nnodes + 1, sizeof(double));
+    inst.best_sol = (int *) calloc(inst.nnodes + 1, sizeof(double));
 
 	if(strcmp(inst.method, "n_n") == 0) {
 		nearest_neighbor(&inst);			// Nearest neighbor heuristic
-		check_time(&inst, t1);
+		check_time(&inst);
 	} else if(strcmp(inst.method, "n_n+two_opt") == 0) {
 		nearest_neighbor(&inst);			// Nearest neighbor heuristic with two_opt
 		two_opt(&inst);					
-		check_time(&inst, t1);
+		check_time(&inst);
 	} else if(strcmp(inst.method, "random+two_opt") == 0) {
 		random_path(inst.best_sol, inst.nnodes, inst.randomseed);	// Random path with two_opt
 		two_opt(&inst);					
-		check_time(&inst, t1);
+		check_time(&inst);
 	} else if(strcmp(inst.method, "random") == 0) {
 		random_path(inst.best_sol, inst.nnodes, inst.randomseed);	// Random path
-		check_time(&inst, t1);
+		check_time(&inst);
 	} else {
 		print_error("USAGE: -method [n_n|n_n+two_opt|random+two_opt|random]");
 	}

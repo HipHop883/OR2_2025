@@ -3,6 +3,7 @@
 
 # Executables
 *.exe
+my_program
 
 # Libraries
 *.lib

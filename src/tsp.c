@@ -78,7 +78,8 @@ void read_input(instance *inst) {
 			//if ( do_print ) printf(" ... nnodes %d\n", inst->nnodes); 
 			//inst->demand = (double *) calloc(inst->nnodes, sizeof(double)); 	 
 			inst->xcoord = (double *) calloc(inst->nnodes, sizeof(double)); 	 
-			inst->ycoord = (double *) calloc(inst->nnodes, sizeof(double));    
+			inst->ycoord = (double *) calloc(inst->nnodes, sizeof(double)); 
+			inst->cost_matrix = (double *) calloc(inst->nnodes * inst->nnodes, sizeof(double));   
 			active_section = 0;  
 			continue;
 		}
@@ -157,6 +158,11 @@ void read_input(instance *inst) {
 		    
 	}                
 
+	// Compute cost matrix
+	if (tsp_compute_costs(inst) == -1) {
+		print_error("Error computing cost matrix");
+	}
+
 	fclose(fin);
 }
 
@@ -185,6 +191,7 @@ void parse_command_line(int argc, char** argv, instance *inst)
     inst->timelimit = CPX_INFBOUND;
 	inst->nnodes = 0;
 	strcpy(inst->method, "NULL");
+	inst->cost_matrix = NULL;
 
     int help = 0;
     if ( argc < 1 ) help = 1;	
@@ -287,6 +294,8 @@ void free_instance(instance *inst)
 	free(inst->xcoord);
 	free(inst->ycoord);
 	free(inst->best_sol);
+	//free(inst->method);
+	free(inst->cost_matrix);
 }
 
 /**
@@ -296,7 +305,7 @@ void free_instance(instance *inst)
  * @param seed seed
  * @return void
  */
-void random_path(double *path, int nnodes, int seed) {
+void random_path(int *path, int nnodes, int seed) {
     int nodes[nnodes];
     for (int i = 0; i < nnodes; i++) {
         nodes[i] = i;
@@ -324,9 +333,9 @@ void random_path(double *path, int nnodes, int seed) {
  * @param nnodes number of nodes
  * @return void
  */
-void print_path(instance *inst, double *best_sol, int nnodes) {
+void print_path(instance *inst, int *best_sol, int nnodes) {
     for (int i = 0; i <= nnodes; i++) {
-        int node = (int)best_sol[i];
+        int node = best_sol[i];
         printf("(%d, %d) ", (int) inst->xcoord[node], (int)inst->ycoord[node]);
     }
     printf("\n");
@@ -347,9 +356,9 @@ void print_nodes(instance *inst) {
  * @param start_time start time
  * @return void
  */
-void check_time(instance *inst, double start_time) {
+void check_time(instance *inst) {
 	double current_time = second();
-	if (current_time - start_time > inst->timelimit) {
+	if (current_time - inst->starting_time > inst->timelimit) {
 		print_error("Time limit reached");
 	}
 	return;
@@ -362,12 +371,12 @@ void check_time(instance *inst, double start_time) {
  * @param filename filename
  * @return void
  */
-void write_path_file(instance *inst, double *best_sol, const char *filename) {
+void write_path_file(instance *inst, int *best_sol, const char *filename) {
     FILE *fout = fopen(filename, "w");
     if (fout == NULL) print_error("File not found");
 
     for (int i = 0; i <= inst->nnodes; i++) {
-        int node = (int)best_sol[i];
+        int node = best_sol[i];
         fprintf(fout, "%d %d\n", (int)inst->xcoord[node], (int)inst->ycoord[node]);
     }
 
@@ -431,7 +440,7 @@ void nearest_neighbor(instance *inst) {
         int next = -1;
         for (int j = 0; j < nnodes; j++) {  // find the nearest neighbor
             if (visited[j] == 0) {
-                double c = cost(current, j, inst);
+                double c = inst->cost_matrix[flatten_coords(current, j, nnodes)];
                 if (c < min_cost) {  // update the nearest neighbor
                     min_cost = c;    // update the minimum cost
                     next = j;        // update the next node
@@ -491,8 +500,9 @@ void two_opt(instance *inst) {
  * @return change in the cost of the path when swapping nodes i and j
  */
 
-double delta(int i, int j, double *path, instance *inst) {
-	return (cost(path[i+1], path[j+1], inst) + cost(path[i], path[j], inst)) - (cost(path[i], path[i+1], inst) + cost(path[j], path[j+1], inst));
+double delta(int i, int j, int *path, instance *inst) {
+	return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 
+		  -(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
 }
 
 /**	
@@ -503,7 +513,7 @@ double delta(int i, int j, double *path, instance *inst) {
  * @return void
  */
 
-void swap_path(int i, int j, double *path) {
+void swap_path(int i, int j, int *path) {
 	while (++i < j) {
 		double temp = path[i];
 		path[i] = path[j];
@@ -511,3 +521,27 @@ void swap_path(int i, int j, double *path) {
 		j--;
 	}
 }
+
+
+int tsp_compute_costs(instance *tsp)
+{
+    if (tsp->cost_matrix == NULL || tsp->xcoord == NULL || tsp->ycoord == NULL)
+	{
+		return -1;
+	}
+
+    for (int i = 0; i < tsp->nnodes; i++)
+    {
+        for (int j = 0; j < tsp->nnodes; j++)
+        {
+            double deltax = tsp->xcoord[i] - tsp->xcoord[j];
+            double deltay = tsp->ycoord[i] - tsp->ycoord[j];
+            double dist = sqrt(deltax * deltax + deltay * deltay);
+
+            tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;
+        }
+    }
+
+    return 0;
+}
+

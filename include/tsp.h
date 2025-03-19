@@ -42,7 +42,7 @@ typedef struct {
 	double **cost_matrix;					// cost matrix
 	
 	//global variables
-	int *best_sol;						// best sol. available
+	int *best_sol;							// best sol. available
 	
 } instance; 
 
@@ -52,8 +52,8 @@ typedef struct {
 
 typedef struct
 {
-    int *tour;
-    double cost;
+    int *tour;								// tour of the solution
+    double cost;							// cost of the solution
 
 } solution;
 
@@ -61,24 +61,24 @@ void read_input(instance *inst);
 void print_error(const char *err_message);
 
 void parse_command_line(int argc, char** argv, instance *inst);
-void free_instance(instance *inst);
+void free_instance(instance *inst, solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
-void random_path(int *path, int nnodes, int seed);
-void print_path(instance *inst, int *path, int nnodes);
+void random_path(solution *sol, int nnodes, int seed);
+void print_path(const instance *inst, const solution *sol);
 void print_nodes(instance *inst);
 
-void check_time(instance *inst);
+void check_time(const instance *inst);
 
-void write_path_file(instance *inst, int *best_sol, const char *filename);
+void write_path_file(const instance *inst, const solution *sol, const char *filename);
 
 double cost(int i, int j, instance *inst);
-double cost_path(instance *inst);
-void nearest_neighbor(instance *inst);
+void cost_path(const instance *inst, solution *sol);
+void nearest_neighbor(const instance *inst, solution *sol);
 
-void two_opt(instance *inst);
-double delta(int i, int j, int *path, instance *inst);
-void swap_path(int i, int j, int *path);
+void two_opt(const instance *inst, solution *sol);
+double delta(int i, int j, const solution *sol, const instance *inst);
+void swap_path(int i, int j, solution *sol);
 
 int tsp_compute_costs(instance *tsp);
 

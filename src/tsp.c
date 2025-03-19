@@ -293,7 +293,7 @@ void generate_random_nodes(instance *inst) {
  * @param inst instance
  * @return void
 */
-void free_instance(instance *inst)
+void free_instance(instance *inst, solution *sol)
 {     
 	free(inst->xcoord);
 	inst->xcoord = NULL;
@@ -301,8 +301,8 @@ void free_instance(instance *inst)
 	free(inst->ycoord);
 	inst->ycoord = NULL;
 
-	free(inst->best_sol);
-	inst->best_sol = NULL;
+	free(sol->tour);
+	sol->tour = NULL;
 
 	for (int i = 0; i < inst->nnodes; i++) {
         free(inst->cost_matrix[i]);
@@ -314,12 +314,12 @@ void free_instance(instance *inst)
 
 /**
  * Generate a random path using the Fisher-Yates shuffle algorithm
- * @param path path
+ * @param sol path of the solution
  * @param nnodes number of nodes
  * @param seed seed
  * @return void
  */
-void random_path(int *path, int nnodes, int seed) {
+void random_path(solution *sol, int nnodes, int seed) {
     int nodes[nnodes];
     for (int i = 0; i < nnodes; i++) {
         nodes[i] = i;
@@ -335,25 +335,25 @@ void random_path(int *path, int nnodes, int seed) {
     }
 
     for (int i = 0; i < nnodes; i++) {
-        path[i] = nodes[i];
+        sol->tour[i] = nodes[i];
     }
-    path[nnodes] = path[0]; // Comes back to the initial node
+    sol->tour[nnodes] = sol->tour[0]; // Comes back to the initial node
 }
 
-/**
+/** 
  * Print path
  * @param inst instance
- * @param best_sol best solution path
- * @param nnodes number of nodes
+ * @param sol solution path
  * @return void
- */
-void print_path(instance *inst, int *best_sol, int nnodes) {
-    for (int i = 0; i <= nnodes; i++) {
-        int node = best_sol[i];
+*/
+void print_path(const instance *inst, const solution *sol) {
+    for (int i = 0; i <= inst->nnodes; i++) {
+        int node = sol->tour[i];
         printf("(%d, %d) ", (int) inst->xcoord[node], (int)inst->ycoord[node]);
     }
     printf("\n");
 }
+
 /**
  * Print nodes
  * @param inst instance
@@ -364,13 +364,14 @@ void print_nodes(instance *inst) {
 		printf("Node %d: (%d, %d)\n", i, (int)inst->xcoord[i], (int)inst->ycoord[i]);
 	}
 }
+
 /**
  * Check time
  * @param inst instance
  * @param start_time start time
  * @return void
  */
-void check_time(instance *inst) {
+void check_time(const instance *inst) {
 	double current_time = second();
 	if (current_time - inst->starting_time > inst->timelimit) {
 		print_error("Time limit reached");
@@ -381,16 +382,16 @@ void check_time(instance *inst) {
 /**
  * Write path file
  * @param inst instance
- * @param best_sol best solution path
+ * @param sol solution path
  * @param filename filename
  * @return void
  */
-void write_path_file(instance *inst, int *best_sol, const char *filename) {
+void write_path_file(const instance *inst, const solution *sol, const char *filename) {
     FILE *fout = fopen(filename, "w");
     if (fout == NULL) print_error("File not found");
 
     for (int i = 0; i <= inst->nnodes; i++) {
-        int node = best_sol[i];
+        int node = sol->tour[i];
         fprintf(fout, "%d %d\n", (int)inst->xcoord[node], (int)inst->ycoord[node]);
     }
 
@@ -415,26 +416,26 @@ double cost(int i, int j, instance *inst) {																		// I GUESS TO BE RE
  * @return cost of the path
  */
 
-double cost_path(instance *inst) {
+void cost_path(const instance *inst, solution *sol) {
     double cost_p = 0;
     for (int i = 0; i < inst->nnodes - 1; i++) {
         //double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);															// TO BE REMOVED
         //double edge_cost = inst->cost_matrix[flatten_coords(inst->best_sol[i], inst->best_sol[i + 1], inst->nnodes)]; 					// TO BE REMOVED
-        double edge_cost = inst->cost_matrix[inst->best_sol[i]][inst->best_sol[i + 1]];
+        double edge_cost = inst->cost_matrix[sol->tour[i]][sol->tour[i + 1]];
         
-		if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[i], (int)inst->best_sol[i + 1], edge_cost);
+		if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", sol->tour[i], sol->tour[i + 1], edge_cost);
         cost_p += edge_cost;
     }
 
     // Add the cost to return to the starting node
     //double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst); 											// TO BE REMOVED
     //double return_cost = inst->cost_matrix[flatten_coords(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst->nnodes)]; 		// TO BE REMOVED
-    double return_cost = inst->cost_matrix[inst->best_sol[inst->nnodes - 1]][inst->best_sol[0]];
+    double return_cost = inst->cost_matrix[sol->tour[inst->nnodes - 1]][sol->tour[0]];
 
-    if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[inst->nnodes - 1], (int)inst->best_sol[0], return_cost);
+    if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", sol->tour[inst->nnodes - 1], sol->tour[0], return_cost);
     cost_p += return_cost;
     printf("Total cost: %lf\n", cost_p);
-    return cost_p;
+	sol->cost = cost_p;			// update the cost of the solution
 }
 
 /**
@@ -442,7 +443,7 @@ double cost_path(instance *inst) {
  * @param inst instance
  * @return void
 */ 
-void nearest_neighbor(instance *inst) {
+void nearest_neighbor(const instance *inst, solution *sol) {
     double time = second();
     if (VERBOSE >= 50) {
         printf("Applying nearest neighbor heuristic...\n");
@@ -453,7 +454,8 @@ void nearest_neighbor(instance *inst) {
     int *visited = (int *)calloc(nnodes, sizeof(int));    // visited nodes
     int current = 0;                                      // current node
     visited[current] = 1;                                 // mark the current node as visited
-    inst->best_sol[0] = current;                          // start from the current node
+    sol->tour[0] = current;                          	  // start from the current node
+
     for (int i = 1; i < nnodes; i++) {
         double min_cost = CPX_INFBOUND;
         int next = -1;
@@ -468,10 +470,10 @@ void nearest_neighbor(instance *inst) {
             }
         }
         visited[next] = 1;           // mark the next node as visited
-        inst->best_sol[i] = next;    // update the best solution
+        sol->tour[i] = next;    // update the best solution
         current = next;              // update the current node
     }
-    inst->best_sol[nnodes] = inst->best_sol[0];  // return to the initial node
+    sol->tour[nnodes] = sol->tour[0];  // return to the initial node
     free(visited);
 
     if (VERBOSE >= 50) {
@@ -483,23 +485,24 @@ void nearest_neighbor(instance *inst) {
 /**
  * Two-opt heuristic
  * @param inst instance
+ * @param sol solution path
  * @return void
  */
-void two_opt(instance *inst) {
+void two_opt(const instance *inst, solution *sol) {
     double time = second();
     if (VERBOSE >= 50) {
         printf("Applying two-opt heuristic...\n");
         printf("Starting time: %lf\n", time);
     }
     int nnodes = inst->nnodes;
-    int improved = 1;  // flag to indicate if the path has been improved
+    int improved = 1;  		// flag to indicate if the path has been improved
     while (improved) {
-        improved = 0;  // reset the flag
+        improved = 0;  		// reset the flag
         for (int i = 0; i < nnodes - 1; i++) {
             for (int j = i + 1; j < nnodes; j++) {
-                if (delta(i, j, inst->best_sol, inst) < 0) {  // if the path is improved
-                    swap_path(i, j, inst->best_sol);          // swap nodes i and j
-                    improved = 1;                             // set the flag
+                if (delta(i, j, sol, inst) < 0) {  // if the path is improved
+                    swap_path(i, j, sol);          // swap nodes i and j
+                    improved = 1;                  // set the flag
                 }
             }
         }
@@ -515,17 +518,17 @@ void two_opt(instance *inst) {
  * Calculate the change in the cost of the path when swapping nodes i and j
  * @param i node i
  * @param j node j
- * @param path path
+ * @param sol solution path
  * @param inst instance
  * @return change in the cost of the path when swapping nodes i and j
  */
 
-double delta(int i, int j, int *path, instance *inst) {
+double delta(int i, int j, const solution *sol, const instance *inst) {
 	/*return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 				// TO BE REMOVED
 		-(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
 	*/
-	return (inst->cost_matrix[path[i+1]][path[j+1]] + inst->cost_matrix[path[i]][path[j]] 
-		-(inst->cost_matrix[path[i]][path[i+1]] + inst->cost_matrix[path[j]][path[j+1]]));
+	return (inst->cost_matrix[sol->tour[i+1]][sol->tour[j+1]] + inst->cost_matrix[sol->tour[i]][sol->tour[j]] 
+		-(inst->cost_matrix[sol->tour[i]][sol->tour[i+1]] + inst->cost_matrix[sol->tour[j]][sol->tour[j+1]]));
 }
 
 /**	
@@ -536,11 +539,11 @@ double delta(int i, int j, int *path, instance *inst) {
  * @return void
  */
 
-void swap_path(int i, int j, int *path) {
+void swap_path(int i, int j, solution *sol) {
 	while (++i < j) {
-		double temp = path[i];
-		path[i] = path[j];
-		path[j] = temp;
+		double temp = sol->tour[i];
+		sol->tour[i] = sol->tour[j];
+		sol->tour[j] = temp;
 		j--;
 	}
 }

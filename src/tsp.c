@@ -404,14 +404,16 @@ double cost(int i, int j, instance *inst) {
 double cost_path(instance *inst) {
     double cost_p = 0;
     for (int i = 0; i < inst->nnodes - 1; i++) {
-        double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);
+        //double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);
+        double edge_cost = inst->cost_matrix[flatten_coords(inst->best_sol[i], inst->best_sol[i + 1], inst->nnodes)];
         
 		if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[i], (int)inst->best_sol[i + 1], edge_cost);
         cost_p += edge_cost;
     }
 
     // Add the cost to return to the starting node
-    double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst);
+    //double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst);
+    double return_cost = inst->cost_matrix[flatten_coords(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst->nnodes)];
     if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[inst->nnodes - 1], (int)inst->best_sol[0], return_cost);
     cost_p += return_cost;
     printf("Total cost: %lf\n", cost_p);

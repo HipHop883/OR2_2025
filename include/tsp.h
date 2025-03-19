@@ -46,9 +46,9 @@ typedef struct {
 	
 } instance; 
 
-/*
+/**
  * Data structure to define a solution
- */
+*/
 
 typedef struct
 {

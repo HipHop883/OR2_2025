@@ -12,7 +12,7 @@
  */
 int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
 {
-    if (!tsp || !output_solution || !output_cost  || tsp->nnodes <= 0) //|| !tsp->cost_matrix DA AGGIUNGERE
+    if (!tsp || !output_solution || !output_cost  || tsp->nnodes <= 0 || !tsp->cost_matrix) 
     {
         return 1;
     }

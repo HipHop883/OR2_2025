@@ -3,6 +3,6 @@
 
 #include <tsp.h>
 
-int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost);
+int tsp_solve_vns(const instance *tsp, solution *sol);
 
 #endif // VNS_H_

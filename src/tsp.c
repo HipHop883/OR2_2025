@@ -4,9 +4,9 @@
 /** 
  * Read input data
  * @param inst instance
- * @return void
+ * @return 0 if the input data is read successfully, 1 otherwise
 */
-void read_input(instance *inst) {
+int read_input(instance *inst) {
     if (strcmp(inst->input_file, "NULL") == 0) {
         // No input file
 		if (inst->nnodes <= 0) {
@@ -23,11 +23,15 @@ void read_input(instance *inst) {
 			printf("Please provide the method to be used: ");
 			scanf("%s", inst->method);	
 		}
-        return;
+        return EXIT_SUCCESS;
     }
     
     FILE *fin = fopen(inst->input_file, "r");
-    if (fin == NULL) print_error("File not found");
+    if (fin == NULL) 
+	{
+		print_error("File not found");
+		return EXIT_FAILURE;
+	}
 
     inst->nnodes = -1;
 
@@ -64,7 +68,11 @@ void read_input(instance *inst) {
 		if ( strncmp(par_name, "TYPE", 4) == 0 ) 
 		{
 			token1 = strtok(NULL, " :");  
-			if ( strncmp(token1, "TSP",3) != 0 ) print_error(" format error:  only TYPE == TSP implemented so far!!!!!!"); 
+			if ( strncmp(token1, "TSP",3) != 0 ) 
+			{
+				print_error(" format error:  only TYPE == TSP implemented so far!!!!!!"); 
+				return EXIT_FAILURE;
+			}
 			active_section = 0;
 			continue;
 		}
@@ -72,7 +80,10 @@ void read_input(instance *inst) {
 
 		if ( strncmp(par_name, "DIMENSION", 9) == 0 ) 
 		{
-			if ( inst->nnodes >= 0 ) print_error(" repeated DIMENSION section in input file");
+			if ( inst->nnodes >= 0 ) {
+				print_error(" repeated DIMENSION section in input file");
+				return EXIT_FAILURE;
+			}
 			token1 = strtok(NULL, " :");
 			inst->nnodes = atoi(token1);
 			//if ( do_print ) printf(" ... nnodes %d\n", inst->nnodes); 
@@ -91,28 +102,42 @@ void read_input(instance *inst) {
 		if ( strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0 ) 
 		{
 			token1 = strtok(NULL, " :");
-			if ( strncmp(token1, "ATT", 3) != 0 ) print_error(" format error:  only EDGE_WEIGHT_TYPE == ATT implemented so far!!!!!!"); 
+			if ( strncmp(token1, "ATT", 3) != 0 ) 
+			{
+				print_error(" format error:  only EDGE_WEIGHT_TYPE == ATT implemented so far!!!!!!"); 
+				return EXIT_FAILURE;
+			}
 			active_section = 0;
 			continue;
 		}            
 		
 		if ( strncmp(par_name, "NODE_COORD_SECTION", 18) == 0 ) 
 		{
-			if ( inst->nnodes <= 0 ) print_error(" ... DIMENSION section should appear before NODE_COORD_SECTION section");
+			if ( inst->nnodes <= 0 ) 
+			{
+				print_error(" ... DIMENSION section should appear before NODE_COORD_SECTION section");
+				return EXIT_FAILURE;
+			}
 			active_section = 1;   
 			continue;
 		}
 		/*
 		if ( strncmp(par_name, "DEMAND_SECTION", 14) == 0 ) 
 		{
-			if ( inst->nnodes <= 0 ) print_error(" ... DIMENSION section should appear before DEMAND_SECTION section");
+			if ( inst->nnodes <= 0 ) {
+			print_error(" ... DIMENSION section should appear before DEMAND_SECTION section");
+			return EXIT_FAILURE;
+			}
 			active_section = 2;
 			continue;
 		}  
         
 		if ( strncmp(par_name, "DEPOT_SECTION", 13) == 0 )  
 		{
-			if ( inst->depot >= 0 ) print_error(" ... DEPOT_SECTION repeated??");
+			if ( inst->depot >= 0 ) {
+			print_error(" ... DEPOT_SECTION repeated??");
+			return EXIT_FAILURE;
+			}
 			active_section = 3;   
 			continue;
 		}
@@ -128,7 +153,11 @@ void read_input(instance *inst) {
 		if ( active_section == 1 ) // within NODE_COORD_SECTION
 		{
 			int i = atoi(par_name) - 1; 
-			if ( i < 0 || i >= inst->nnodes ) print_error(" ... unknown node in NODE_COORD_SECTION section");     
+			if ( i < 0 || i >= inst->nnodes ) 
+			{
+				print_error(" ... unknown node in NODE_COORD_SECTION section");     
+				return EXIT_FAILURE;
+			}
 			token1 = strtok(NULL, " :,");
 			token2 = strtok(NULL, " :,");
 			inst->xcoord[i] = atof(token1);
@@ -140,7 +169,10 @@ void read_input(instance *inst) {
 		if ( active_section == 2 ) // within DEMAND_SECTION
 		{
 			int i = atoi(par_name) - 1; 
-			if ( i < 0 || i >= inst->nnodes ) print_error(" ... unknown node in NODE_COORD_SECTION section");     
+			if ( i < 0 || i >= inst->nnodes ) {
+			print_error(" ... unknown node in NODE_COORD_SECTION section");     
+			return EXIT_FAILURE;
+			}	
 			token1 = strtok(NULL, " :,");
 			inst->demand[i] = atof(token1);
 			if ( do_print ) printf(" ... node %4d has demand %10.5lf\n", i+1, inst->demand[i]); 
@@ -151,7 +183,11 @@ void read_input(instance *inst) {
 		{
 			int i = atoi(par_name) - 1; 
 			if ( i < 0 || i >= inst->nnodes ) continue;
-			if ( inst->depot >= 0 ) print_error(" ... multiple depots not supported in DEPOT_SECTION");     
+			if ( inst->depot >= 0 ) 
+			{
+			print_error(" ... multiple depots not supported in DEPOT_SECTION");     
+			return EXIT_FAILURE;
+			}	
 			inst->depot = i;
 			if ( do_print ) printf(" ... depot node %d\n", inst->depot+1); 
 			continue;
@@ -159,32 +195,35 @@ void read_input(instance *inst) {
 		*/
 		printf(" final active section %d\n", active_section);
 		print_error(" ... wrong format for the current simplified parser!!!!!!!!!");     
+		return EXIT_FAILURE;
 		    
 	}                
 
 	// Compute cost matrix
-	if (tsp_compute_costs(inst) == -1) {
+	if (tsp_compute_costs(inst) != 0) {
 		print_error("Error computing cost matrix");
+		return EXIT_FAILURE;
 	}
 
 	fclose(fin);
+	return EXIT_SUCCESS;
 }
 
-/*
+/**
  * Print error message
  * @param err_message error message
  * @return void
 */
-void print_error(const char *err_message) { printf("\n\n ERROR: %s \n\n", err_message); fflush(NULL); exit(1); }
+void print_error(const char *err_message) { fprintf(stderr, "\n\n ERROR: %s \n\n", err_message);}
 
-/* 
+/** 
  * Parse command line
  * @param argc number of arguments
  * @param argv arguments
  * @param inst instance
- * @return void
+ * @return 0 if the command line is parsed successfully, 1 otherwise
 */
-void parse_command_line(int argc, char** argv, instance *inst) 
+int parse_command_line(int argc, char** argv, instance *inst) 
 { 
 	
 	if ( VERBOSE >= 100 ) printf(" running %s with %d parameters \n", argv[0], argc-1); 
@@ -245,6 +284,7 @@ void parse_command_line(int argc, char** argv, instance *inst)
 		}
     }
 */   
+	return EXIT_SUCCESS;
 } 
 
 /**
@@ -288,7 +328,7 @@ void generate_random_nodes(instance *inst) {
 }
 */
 
-/* 
+/** 
  * Free instance
  * @param inst instance
  * @return void
@@ -301,15 +341,14 @@ void free_instance(instance *inst, solution *sol)
 	free(inst->ycoord);
 	inst->ycoord = NULL;
 
-	free(sol->tour);
-	sol->tour = NULL;
-
 	for (int i = 0; i < inst->nnodes; i++) {
         free(inst->cost_matrix[i]);
 	}
 	free(inst->cost_matrix);
 	inst->cost_matrix = NULL;
 
+	free(sol->tour);
+	sol->tour = NULL;
 }
 
 /**
@@ -317,9 +356,9 @@ void free_instance(instance *inst, solution *sol)
  * @param sol path of the solution
  * @param nnodes number of nodes
  * @param seed seed
- * @return void
+ * @return 0 if the random path is generated successfully, 1 otherwise
  */
-void random_path(solution *sol, int nnodes, int seed) {
+int random_path(solution *sol, int nnodes, int seed) {
     int nodes[nnodes];
     for (int i = 0; i < nnodes; i++) {
         nodes[i] = i;
@@ -338,6 +377,7 @@ void random_path(solution *sol, int nnodes, int seed) {
         sol->tour[i] = nodes[i];
     }
     sol->tour[nnodes] = sol->tour[0]; // Comes back to the initial node
+	return EXIT_SUCCESS;
 }
 
 /** 
@@ -347,7 +387,8 @@ void random_path(solution *sol, int nnodes, int seed) {
  * @return void
 */
 void print_path(const instance *inst, const solution *sol) {
-    for (int i = 0; i <= inst->nnodes; i++) {
+    for (int i = 0; i <= inst->nnodes; i++) 
+	{
         int node = sol->tour[i];
         printf("(%d, %d) ", (int) inst->xcoord[node], (int)inst->ycoord[node]);
     }
@@ -369,14 +410,15 @@ void print_nodes(instance *inst) {
  * Check time
  * @param inst instance
  * @param start_time start time
- * @return void
+ * @return 0 if the time limit is not reached, 1 otherwise
  */
-void check_time(const instance *inst) {
+int check_time(const instance *inst) {
 	double current_time = second();
 	if (current_time - inst->starting_time > inst->timelimit) {
 		print_error("Time limit reached");
+		exit(1);
 	}
-	return;
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -384,11 +426,15 @@ void check_time(const instance *inst) {
  * @param inst instance
  * @param sol solution path
  * @param filename filename
- * @return void
+ * @return 0 if the path file is written successfully, 1 otherwise
  */
-void write_path_file(const instance *inst, const solution *sol, const char *filename) {
+int write_path_file(const instance *inst, const solution *sol, const char *filename) {
     FILE *fout = fopen(filename, "w");
-    if (fout == NULL) print_error("File not found");
+    if (fout == NULL) 
+	{
+		print_error("File not found");
+		return EXIT_FAILURE;
+	}
 
     for (int i = 0; i <= inst->nnodes; i++) {
         int node = sol->tour[i];
@@ -396,6 +442,7 @@ void write_path_file(const instance *inst, const solution *sol, const char *file
     }
 
     fclose(fout);
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -413,10 +460,11 @@ double cost(int i, int j, instance *inst) {																		// I GUESS TO BE RE
 /**
  * cost of the path
  * @param inst instance
- * @return cost of the path
+ * @param sol solution path
+ * @return 0 if the cost of the path is calculated successfully, 1 otherwise
  */
 
-void cost_path(const instance *inst, solution *sol) {
+int cost_path(const instance *inst, solution *sol) {
     double cost_p = 0;
     for (int i = 0; i < inst->nnodes - 1; i++) {
         //double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);															// TO BE REMOVED
@@ -436,14 +484,17 @@ void cost_path(const instance *inst, solution *sol) {
     cost_p += return_cost;
     printf("Total cost: %lf\n", cost_p);
 	sol->cost = cost_p;			// update the cost of the solution
+
+	return EXIT_SUCCESS;
 }
 
 /**
  * Nearest neighbor heuristic
  * @param inst instance
- * @return void
+ * @param sol solution path
+ * @return 0 if the nearest neighbor heuristic is applied successfully, 1 otherwise
 */ 
-void nearest_neighbor(const instance *inst, solution *sol) {
+int nearest_neighbor(const instance *inst, solution *sol) {
     double time = second();
     if (VERBOSE >= 50) {
         printf("Applying nearest neighbor heuristic...\n");
@@ -480,15 +531,17 @@ void nearest_neighbor(const instance *inst, solution *sol) {
         printf("Nearest neighbor heuristic applied\n");
         printf("Elapsed time: %lf\n", second() - time);
     }
+
+	return EXIT_SUCCESS;
 }
 
 /**
  * Two-opt heuristic
  * @param inst instance
  * @param sol solution path
- * @return void
+ * @return 0 if the two-opt heuristic is applied successfully, 1 otherwise
  */
-void two_opt(const instance *inst, solution *sol) {
+int two_opt(const instance *inst, solution *sol) {
     double time = second();
     if (VERBOSE >= 50) {
         printf("Applying two-opt heuristic...\n");
@@ -512,6 +565,8 @@ void two_opt(const instance *inst, solution *sol) {
         printf("Two-opt heuristic applied\n");
         printf("Elapsed time: %lf\n", second() - time);
     }
+	
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -535,10 +590,9 @@ double delta(int i, int j, const solution *sol, const instance *inst) {
  * Swap nodes i and j in the path
  * @param i node i
  * @param j node j
- * @param path path
+ * @param sol solution path
  * @return void
  */
-
 void swap_path(int i, int j, solution *sol) {
 	while (++i < j) {
 		double temp = sol->tour[i];
@@ -549,6 +603,12 @@ void swap_path(int i, int j, solution *sol) {
 }
 
 
+
+/**
+ * Compute the cost matrix
+ * @param tsp instance
+ * @return 0 if the cost matrix is computed successfully, 1 otherwise
+ */
 int tsp_compute_costs(instance *tsp)
 {
     if (tsp->cost_matrix == NULL || tsp->xcoord == NULL || tsp->ycoord == NULL)
@@ -571,4 +631,69 @@ int tsp_compute_costs(instance *tsp)
 
     return 0;
 }
+
+/**
+ * Run the method
+ * @param inst instance
+ * @param sol solution path
+ * @return 0 if the method is run successfully, 1 otherwise
+ */
+int run_method(instance *inst, solution *sol)
+{
+	if(strcmp(inst->method, "n_n") == 0) {
+		if(nearest_neighbor(inst, sol)) 			// Nearest neighbor heuristic
+		{
+			print_error("Error applying nearest neighbor heuristic");
+			return EXIT_FAILURE;
+		}
+		if(check_time(inst)) 
+		{
+			return EXIT_FAILURE;
+		}
+	} else if(strcmp(inst->method, "n_n+two_opt") == 0) {
+		if(nearest_neighbor(inst, sol))			// Nearest neighbor heuristic with two_opt
+		{
+			print_error("Error applying nearest neighbor heuristic");
+			return EXIT_FAILURE;
+		}
+		if(two_opt(inst, sol)) 
+		{
+			print_error("Error applying 2-opt");
+			return EXIT_FAILURE;
+		}
+		if (check_time(inst))
+		{
+			return EXIT_FAILURE;
+		}
+	} else if(strcmp(inst->method, "random+two_opt") == 0) {			// Random path with two_opt
+		if(random_path(sol, inst->nnodes, inst->randomseed))
+		{
+			print_error("Error generating random path");
+			return EXIT_FAILURE;
+		}	
+		if(two_opt(inst, sol))
+		{
+			print_error("Error applying 2-opt");
+			return EXIT_FAILURE;
+		}
+		if (check_time(inst))
+		{
+			return EXIT_FAILURE;
+		}
+	} else if(strcmp(inst->method, "random") == 0) {
+		random_path(sol, inst->nnodes, inst->randomseed);	// Random path
+		if (check_time(inst)) 
+		{
+			return EXIT_FAILURE;
+		}
+	} else {
+		print_error("USAGE: -method [n_n|n_n+two_opt|random+two_opt|random]");
+		return EXIT_FAILURE;
+	}
+
+	// Print the cost of the best solution
+	cost_path(inst, sol);
+	return EXIT_SUCCESS;
+}
+
 

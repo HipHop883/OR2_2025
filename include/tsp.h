@@ -1,5 +1,4 @@
 #ifndef TSP_H_  
-
 #define TSP_H_
 
 #include <stdio.h>
@@ -21,7 +20,8 @@
 #define MAX_X 100
 #define MAX_Y 1000
 
-#define flatten_coords(x, y, N) (x * N + y)
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
 
 //data structures  
 
@@ -42,7 +42,7 @@ typedef struct {
 	double **cost_matrix;					// cost matrix
 	
 	//global variables
-	int *best_sol;							// best sol. available
+	//int *best_sol;							// best sol. available				//I GUESS TO BE REMOVED
 	
 } instance; 
 
@@ -57,30 +57,32 @@ typedef struct
 
 } solution;
 
-void read_input(instance *inst);
+int read_input(instance *inst);
 void print_error(const char *err_message);
 
-void parse_command_line(int argc, char** argv, instance *inst);
+int parse_command_line(int argc, char** argv, instance *inst);
 void free_instance(instance *inst, solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
-void random_path(solution *sol, int nnodes, int seed);
+int random_path(solution *sol, int nnodes, int seed);
 void print_path(const instance *inst, const solution *sol);
 void print_nodes(instance *inst);
 
-void check_time(const instance *inst);
+int check_time(const instance *inst);
 
-void write_path_file(const instance *inst, const solution *sol, const char *filename);
+int write_path_file(const instance *inst, const solution *sol, const char *filename);
 
 double cost(int i, int j, instance *inst);
-void cost_path(const instance *inst, solution *sol);
-void nearest_neighbor(const instance *inst, solution *sol);
+int cost_path(const instance *inst, solution *sol);
+int nearest_neighbor(const instance *inst, solution *sol);
 
-void two_opt(const instance *inst, solution *sol);
+int two_opt(const instance *inst, solution *sol);
 double delta(int i, int j, const solution *sol, const instance *inst);
 void swap_path(int i, int j, solution *sol);
 
 int tsp_compute_costs(instance *tsp);
+
+int run_method(instance *inst, solution *sol);
 
 /*
 //inline

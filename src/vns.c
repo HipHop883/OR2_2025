@@ -4,13 +4,12 @@
  * Solve the TSP instance using the VNS algorithm. Starting from a greedy solution, we apply
  * intensification (2-opt improvement) and diversification (3-opt kicks) until the time limit is reached.
  * @param tsp TSP instance
- * @param output_solution output solution
- * @param output_cost output cost
+ * @param sol solution
  * @return 0 if the solution is found, 1 otherwise
  */
-int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
+int tsp_solve_vns(const instance *tsp, solution *sol)
 {
-    if (!tsp || !output_solution || !output_cost  || tsp->nnodes <= 0 || !tsp->cost_matrix) 
+    if (!tsp || !sol->tour || !sol->cost  || tsp->nnodes <= 0 || !tsp->cost_matrix) 
     {
         return 1;
     }
@@ -20,16 +19,18 @@ int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
 
     if (!current_solution || !best_solution)
     {
-        perror("Memory allocation failed");
+        print_error("Memory allocation failed");
         free(current_solution);
+        current_solution = NULL;
         free(best_solution);
+        best_solution = NULL;
         return 1;
     }
 
     double current_cost = 1e30;
     double best_cost = 1e30;
 
-    tsp->starting_time = second();
+    //tsp->starting_time = second();
 
     // Get an initial solution using the greedy algorithm.
     // we run 2opt in the while loop.
@@ -43,7 +44,7 @@ int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
     memcpy(best_solution, current_solution, sizeof(int) * tsp->nnodes);
     best_cost = current_cost;
 
-    tsp->starting_time = second();
+    //tsp->starting_time = second();
 
     // VNS parameters for diversification: number of 3-opt kicks.
     int min_kicks = 1;
@@ -83,8 +84,8 @@ int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
     }
 
     // Copy the best found solution to the output parameters.
-    memcpy(output_solution, best_solution, sizeof(int) * tsp->nnodes);
-    *output_cost = best_cost;
+    memcpy(sol->tour, best_solution, sizeof(int) * tsp->nnodes);
+    sol->cost = best_cost;
 
     free(current_solution);
     current_solution = NULL;

@@ -79,7 +79,11 @@ void read_input(instance *inst) {
 			//inst->demand = (double *) calloc(inst->nnodes, sizeof(double)); 	 
 			inst->xcoord = (double *) calloc(inst->nnodes, sizeof(double)); 	 
 			inst->ycoord = (double *) calloc(inst->nnodes, sizeof(double)); 
-			inst->cost_matrix = (double *) calloc(inst->nnodes * inst->nnodes, sizeof(double));   
+			inst->cost_matrix = (double **) calloc(inst->nnodes, sizeof(double));
+			for (int i = 0; i < inst->nnodes; i++) {
+				inst->cost_matrix[i] = (double *) calloc(inst->nnodes, sizeof(double));
+			}
+
 			active_section = 0;  
 			continue;
 		}
@@ -292,10 +296,20 @@ void generate_random_nodes(instance *inst) {
 void free_instance(instance *inst)
 {     
 	free(inst->xcoord);
+	inst->xcoord = NULL;
+
 	free(inst->ycoord);
+	inst->ycoord = NULL;
+
 	free(inst->best_sol);
-	//free(inst->method);
+	inst->best_sol = NULL;
+
+	for (int i = 0; i < inst->nnodes; i++) {
+        free(inst->cost_matrix[i]);
+	}
 	free(inst->cost_matrix);
+	inst->cost_matrix = NULL;
+
 }
 
 /**
@@ -405,7 +419,8 @@ double cost_path(instance *inst) {
     double cost_p = 0;
     for (int i = 0; i < inst->nnodes - 1; i++) {
         //double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);
-        double edge_cost = inst->cost_matrix[flatten_coords(inst->best_sol[i], inst->best_sol[i + 1], inst->nnodes)];
+        //double edge_cost = inst->cost_matrix[flatten_coords(inst->best_sol[i], inst->best_sol[i + 1], inst->nnodes)];
+        double edge_cost = inst->cost_matrix[inst->best_sol[i]][inst->best_sol[i + 1]];
         
 		if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[i], (int)inst->best_sol[i + 1], edge_cost);
         cost_p += edge_cost;
@@ -413,7 +428,9 @@ double cost_path(instance *inst) {
 
     // Add the cost to return to the starting node
     //double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst);
-    double return_cost = inst->cost_matrix[flatten_coords(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst->nnodes)];
+    //double return_cost = inst->cost_matrix[flatten_coords(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst->nnodes)];
+    double return_cost = inst->cost_matrix[inst->best_sol[inst->nnodes - 1]][inst->best_sol[0]];
+
     if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[inst->nnodes - 1], (int)inst->best_sol[0], return_cost);
     cost_p += return_cost;
     printf("Total cost: %lf\n", cost_p);
@@ -442,7 +459,8 @@ void nearest_neighbor(instance *inst) {
         int next = -1;
         for (int j = 0; j < nnodes; j++) {  // find the nearest neighbor
             if (visited[j] == 0) {
-                double c = inst->cost_matrix[flatten_coords(current, j, nnodes)];
+                //double c = inst->cost_matrix[flatten_coords(current, j, nnodes)];
+                double c = inst->cost_matrix[current][j];
                 if (c < min_cost) {  // update the nearest neighbor
                     min_cost = c;    // update the minimum cost
                     next = j;        // update the next node
@@ -503,8 +521,11 @@ void two_opt(instance *inst) {
  */
 
 double delta(int i, int j, int *path, instance *inst) {
-	return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 
-		  -(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
+	/*return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 
+		-(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
+	*/
+	return (inst->cost_matrix[path[i+1]][path[j+1]] + inst->cost_matrix[path[i]][path[j]] 
+		-(inst->cost_matrix[path[i]][path[i+1]] + inst->cost_matrix[path[j]][path[j+1]]));
 }
 
 /**	
@@ -540,7 +561,8 @@ int tsp_compute_costs(instance *tsp)
             double deltay = tsp->ycoord[i] - tsp->ycoord[j];
             double dist = sqrt(deltax * deltax + deltay * deltay);
 
-            tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;
+            //tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;
+            tsp->cost_matrix[i][j] = dist;
         }
     }
 

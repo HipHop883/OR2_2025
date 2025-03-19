@@ -39,7 +39,7 @@ typedef struct {
 	char input_file[1000];		  			// input file
 	char method[20];						// method to be used
 	double starting_time;					// starting time
-	double *cost_matrix;					// cost matrix
+	double **cost_matrix;					// cost matrix
 	
 	//global variables
 	int *best_sol;						// best sol. available

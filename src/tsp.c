@@ -405,7 +405,7 @@ void write_path_file(instance *inst, int *best_sol, const char *filename) {
  * @return cost of the edge between nodes i and j
  */
 
-double cost(int i, int j, instance *inst) {
+double cost(int i, int j, instance *inst) {																		// I GUESS TO BE REMOVED
 	return sqrt(pow(inst->xcoord[i] - inst->xcoord[j], 2) + pow(inst->ycoord[i] - inst->ycoord[j], 2));
 }
 
@@ -418,8 +418,8 @@ double cost(int i, int j, instance *inst) {
 double cost_path(instance *inst) {
     double cost_p = 0;
     for (int i = 0; i < inst->nnodes - 1; i++) {
-        //double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);
-        //double edge_cost = inst->cost_matrix[flatten_coords(inst->best_sol[i], inst->best_sol[i + 1], inst->nnodes)];
+        //double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);															// TO BE REMOVED
+        //double edge_cost = inst->cost_matrix[flatten_coords(inst->best_sol[i], inst->best_sol[i + 1], inst->nnodes)]; 					// TO BE REMOVED
         double edge_cost = inst->cost_matrix[inst->best_sol[i]][inst->best_sol[i + 1]];
         
 		if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[i], (int)inst->best_sol[i + 1], edge_cost);
@@ -427,8 +427,8 @@ double cost_path(instance *inst) {
     }
 
     // Add the cost to return to the starting node
-    //double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst);
-    //double return_cost = inst->cost_matrix[flatten_coords(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst->nnodes)];
+    //double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst); 											// TO BE REMOVED
+    //double return_cost = inst->cost_matrix[flatten_coords(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst->nnodes)]; 		// TO BE REMOVED
     double return_cost = inst->cost_matrix[inst->best_sol[inst->nnodes - 1]][inst->best_sol[0]];
 
     if (VERBOSE >= 70) printf("Cost from node %d to node %d: %lf\n", (int)inst->best_sol[inst->nnodes - 1], (int)inst->best_sol[0], return_cost);
@@ -521,7 +521,7 @@ void two_opt(instance *inst) {
  */
 
 double delta(int i, int j, int *path, instance *inst) {
-	/*return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 
+	/*return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 				// TO BE REMOVED
 		-(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
 	*/
 	return (inst->cost_matrix[path[i+1]][path[j+1]] + inst->cost_matrix[path[i]][path[j]] 
@@ -561,7 +561,7 @@ int tsp_compute_costs(instance *tsp)
             double deltay = tsp->ycoord[i] - tsp->ycoord[j];
             double dist = sqrt(deltax * deltax + deltay * deltay);
 
-            //tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;
+            //tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;						// TO BE REMOVED
             tsp->cost_matrix[i][j] = dist;
         }
     }

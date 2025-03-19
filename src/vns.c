@@ -1,6 +1,4 @@
 #include <../include/vns.h>
-#include <../include/tsp.h>
-
 
 /**
  * Solve the TSP instance using the VNS algorithm. Starting from a greedy solution, we apply
@@ -31,7 +29,7 @@ int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
     double current_cost = 1e30;
     double best_cost = 1e30;
 
-    tsp->starting_time = now();
+    tsp->starting_time = second();
 
     // Get an initial solution using the greedy algorithm.
     // we run 2opt in the while loop.
@@ -45,7 +43,7 @@ int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
     memcpy(best_solution, current_solution, sizeof(int) * tsp->nnodes);
     best_cost = current_cost;
 
-    tsp->starting_time = now();
+    tsp->starting_time = second();
 
     // VNS parameters for diversification: number of 3-opt kicks.
     int min_kicks = 1;
@@ -53,7 +51,7 @@ int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
 
     while (1)
     {
-        if (tsp->timelimit > 0 && (tsp->starting_time + tsp->timelimit) < now())
+        if (tsp->timelimit > 0 && (tsp->starting_time + tsp->timelimit) < second())
         {
             break;
         }
@@ -89,7 +87,9 @@ int tsp_solve_vns(instance *tsp, int *output_solution, double *output_cost)
     *output_cost = best_cost;
 
     free(current_solution);
+    current_solution = NULL;
     free(best_solution);
+    best_solution = NULL;
 
     return 0;
 }

@@ -27,6 +27,8 @@ int main(int argc, char **argv)
 
 	// Run the method and print the cost of the solution
 	if (run_method(&inst, &sol)) print_error("Error running method\n");
+
+	printf("The total cost is: %lf\n", sol.cost);
 	
 	/* Print the best solution path
     printf("Best solution path:\n");

@@ -1,4 +1,4 @@
-#include "../include/tsp.h"
+#include "tsp.h"
 #include "chrono.h"
 //unset GTK_PATH to avoid conflict with gnuplot
 
@@ -13,20 +13,17 @@ int main(int argc, char **argv)
 	
 	inst.starting_time = t1;	// starting time
 
-	if (parse_command_line(argc, argv, &inst)) print_error("Error parsing command line");
-	
-	//printf(" file %s has %d non-empty lines\n", inst.input_file, number_of_nonempty_lines(inst.input_file)); exit(1);
+	if (parse_command_line(argc, argv, &inst)) print_error("Parsing command line failed");
 
-	if(read_input(&inst)) print_error("Error reading input");
+	if(read_input(&inst)) print_error("Reading input failed");
 	
 	printf("Number of nodes: %d\n", inst.nnodes);
-	//print_nodes(&inst);
 
 	// Allocate memory for the solution path
     sol.tour = (int *) calloc(inst.nnodes + 1, sizeof(int));
 
 	// Run the method and print the cost of the solution
-	if (run_method(&inst, &sol)) print_error("Error running method\n");
+	if (run_method(&inst, &sol)) print_error("Method running failed\n");
 
 	printf("The total cost is: %lf\n", sol.cost);
 	

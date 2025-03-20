@@ -1,4 +1,5 @@
-#include <../include/vns.h>
+#include <vns.h>
+#include <tsp.h>
 #include <chrono.h>
 
 #define LARGE 1e30
@@ -26,7 +27,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
     if (current_sol->tour == NULL || best_sol->tour == NULL)
     {
         print_error("Memory allocation failed");
-        return 1;
+        return EXIT_FAILURE;
     }
 
     current_sol->cost = LARGE;
@@ -38,11 +39,12 @@ int tsp_solve_vns(instance *tsp, solution *sol)
     // we run 2opt in the while loop.
     if (nearest_neighbor(tsp, current_sol) != 0)
     {
+        print_error("Nearest neighbor heuristic failed in vns");
         free(current_sol->tour);
         free(current_sol);
         free(best_sol->tour);
         free(best_sol);
-        return -1;
+        return EXIT_FAILURE;
     }
 
     memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (tsp->nnodes + 1));
@@ -56,13 +58,14 @@ int tsp_solve_vns(instance *tsp, solution *sol)
     {
         if (tsp->timelimit > 0 && (tsp->starting_time + tsp->timelimit) < second())
         {
+            printf("Time limit reached vns\n");
             break;
         }
-
+        
         // Intensification phase: apply 2-opt improvement until no further improvement is found.
         if (two_opt(tsp, current_sol) != 0)
         {
-            break;
+            print_error("2-opt failed in vns");
         }
 
         // Update the best solution if the current solution is improved.
@@ -78,7 +81,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
         {
             if (tsp_3opt_solution(tsp, current_sol) != 0)
             {
-                break;
+                print_error("3-opt failed in vns");
             }
         }
 
@@ -144,15 +147,19 @@ int tsp_3opt_solution(instance *tsp, solution *sol)
 {
     if (!tsp->cost_matrix || tsp->nnodes <= 0)
     {
+        print_error("Invalid TSP instance in tsp_3opt_solution");
         return -1;
     }
-
+    if (VERBOSE >= 50) {
+        printf("Applying three-opt solution...\n");
+	}
     int positions[3];
     generate_3opt_positions(tsp, positions);
 
     int *temp_tour = (int *)malloc(sizeof(int) * (tsp->nnodes + 1));
     if (temp_tour == NULL)
     {
+        print_error("Memory allocation failed in tsp_3opt_solution");
         return -1;
     }
 
@@ -165,6 +172,8 @@ int tsp_3opt_solution(instance *tsp, solution *sol)
     // Recompute and update the solution cost.
     sol->cost = cost_path(tsp, sol);
 
+    printf("Three-opt solution applied\n");
+	printf("--------------------------------------------\n");
     return 0;
 }
 

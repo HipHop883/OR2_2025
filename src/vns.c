@@ -12,7 +12,7 @@
  */
 int tsp_solve_vns(instance *tsp, solution *sol)
 {
-    if (!tsp || !sol->tour || tsp->nnodes <= 0 || !tsp->cost_matrix) 
+    if (!tsp || !sol->tour || tsp->nnodes <= 0 || !tsp->cost_matrix)
     {
         return 1;
     }
@@ -32,7 +32,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
     current_sol->cost = LARGE;
     best_sol->cost = LARGE;
 
-    //tsp->starting_time = second();
+    // tsp->starting_time = second();
 
     // Get an initial solution using the greedy algorithm.
     // we run 2opt in the while loop.
@@ -104,7 +104,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
  * Generate 3-opt positions: fills positions[0..2] with valid indices for a 3-opt move.
  * @param tsp TSP instance
  * @param positions array of 3 integers
- * @return void 
+ * @return void
  */
 static void generate_3opt_positions(instance *tsp, int *positions)
 {
@@ -137,7 +137,7 @@ static int compar(const void *a, const void *b)
 }
 
 /**
- * Recompute the solution cost after applying a 3-opt swap. 
+ * Recompute the solution cost after applying a 3-opt swap.
  * @param tsp TSP instance
  * @param solution solution path
  * @return 0 if the solution cost is recomputed successfully, -1 otherwise

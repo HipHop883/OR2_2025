@@ -1,29 +1,42 @@
 #ifndef TSP_H_
 #define TSP_H_
 
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // #include <cplex.h>
 #include <pthread.h>
 
-#define VERBOSE 50 // printing level  (=10 only incumbent, =20 little output, =50-60 good, =70 verbose, >=100 cplex log)
+/*
+ * printing level:
+ *     - 10 only incumbent,
+ *     - 20 little output
+ *     - 50-60 good,
+ *     - 70 verbose,
+ *     - 100 cplex log
+ */
+#define VERBOSE 50
 
-// hard-wired parameters
-#define XSMALL 1e-5	 // 1e-4*	// tolerance used to decide ingerality of 0-1 var.s
-#define EPSILON 1e-9 // 1e-9		// very small numerical tolerance
+#define EPSILON 1e-9 // very small numerical tolerance
+#define XSMALL 1e-5	 // tolerance used to decide ingerality of 0-1 var.s
 #define CPX_INFBOUND 1.0E+20
-// #define TICKS_PER_SECOND 	  1000.0  	// cplex's ticks on Intel Core i7 quadcore @2.3GHZ
 
-#define MAX_X 100
-#define MAX_Y 1000
+#define RANDOM_MAX_X 10000
+#define RANDOM_MAX_Y 10000
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
-// data structures
+/*
+ * Data structure to define a solution
+ */
+typedef struct
+{
+	int *tour;
+	double cost;
+} solution;
 
 typedef struct
 {
@@ -33,30 +46,17 @@ typedef struct
 	double *xcoord;
 	double *ycoord;
 
-	// parameters
+	// computed data
+	double starting_time; // starting time
+	double **cost_matrix; // cost matrix
 
-	int randomseed;
-	double timelimit;	   // overall time limit, in sec.s
+	// parameters
 	char input_file[1000]; // input file
 	char method[20];	   // method to be used
-	double starting_time;  // starting time
-	double **cost_matrix;  // cost matrix
-
-	// global variables
-	// int *best_sol;							// best sol. available				//I GUESS TO BE REMOVED
+	double timelimit;	   // overall time limit, in sec.s
+	int randomseed;
 
 } instance;
-
-/**
- * Data structure to define a solution
- */
-
-typedef struct
-{
-	int *tour;	 // tour of the solution
-	double cost; // cost of the solution
-
-} solution;
 
 int read_input(instance *inst);
 void print_error(const char *err_message);

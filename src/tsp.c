@@ -10,145 +10,150 @@
  */
 int load_instance(instance *inst)
 {
+	allocate_buffers(inst);
+
 	// No need to check anything, we already do it parsing command line arguments
 	if (strcmp(inst->input_file, "NULL") == 0)
 	{
 		generate_random_nodes(inst, inst->nnodes, inst->randomseed);
-
-		return EXIT_SUCCESS;
 	}
-
-	FILE *fin = fopen(inst->input_file, "r");
-	if (fin == NULL)
+	else
 	{
-		print_error("File not found");
-		return EXIT_FAILURE;
-	}
 
-	inst->nnodes = -1;
-
-	char line[100];
-	char *par_name;
-	char *token1;
-	char *token2;
-
-	int active_section = 0; // =1 NODE_COORD_SECTION, =2 DEMAND_SECTION, =3 DEPOT_SECTION
-
-	// int do_print = ( VERBOSE >= 1000 );
-
-	while (fgets(line, sizeof(line), fin) != NULL)
-	{
-		if (VERBOSE >= 2000)
+		FILE *fin = fopen(inst->input_file, "r");
+		if (fin == NULL)
 		{
-			printf("%s", line);
-			fflush(NULL);
-		}
-		if (strlen(line) <= 1)
-			continue; // skip empty lines
-		par_name = strtok(line, " :");
-		if (VERBOSE >= 3000)
-		{
-			printf("parameter \"%s\" ", par_name);
-			fflush(NULL);
+			print_error("File not found:");
+			return EXIT_FAILURE;
 		}
 
-		if (strncmp(par_name, "NAME", 4) == 0)
-		{
-			active_section = 0;
-			continue;
-		}
+		inst->nnodes = -1;
 
-		if (strncmp(par_name, "COMMENT", 7) == 0)
-		{
-			active_section = 0;
-			token1 = strtok(NULL, "");
-			// if ( VERBOSE >= 10 ) printf(" ... solving instance %s with model %d\n\n", token1, inst->model_type);
-			continue;
-		}
+		char line[100];
+		char *par_name;
+		char *token1;
+		char *token2;
 
-		if (strncmp(par_name, "TYPE", 4) == 0)
+		int active_section = 0; // =1 NODE_COORD_SECTION, =2 DEMAND_SECTION, =3 DEPOT_SECTION
+
+		// int do_print = ( VERBOSE >= 1000 );
+
+		while (fgets(line, sizeof(line), fin) != NULL)
 		{
-			token1 = strtok(NULL, " :");
-			if (strncmp(token1, "TSP", 3) != 0)
+			if (VERBOSE >= 2000)
 			{
-				print_error(" format error:  only TYPE == TSP implemented so far!!!!!!");
-				return EXIT_FAILURE;
+				printf("%s", line);
+				fflush(NULL);
 			}
-			active_section = 0;
-			continue;
-		}
-
-		if (strncmp(par_name, "DIMENSION", 9) == 0)
-		{
-			if (inst->nnodes >= 0)
+			if (strlen(line) <= 1)
+				continue; // skip empty lines
+			par_name = strtok(line, " :");
+			if (VERBOSE >= 3000)
 			{
-				print_error(" repeated DIMENSION section in input file");
-				return EXIT_FAILURE;
-			}
-			token1 = strtok(NULL, " :");
-			inst->nnodes = atoi(token1);
-			// if ( do_print ) printf(" ... nnodes %d\n", inst->nnodes);
-			// inst->demand = (double *) calloc(inst->nnodes, sizeof(double));
-			inst->xcoord = (double *)calloc(inst->nnodes, sizeof(double));
-			inst->ycoord = (double *)calloc(inst->nnodes, sizeof(double));
-			inst->cost_matrix = (double **)calloc(inst->nnodes, sizeof(double));
-			for (int i = 0; i < inst->nnodes; i++)
-			{
-				inst->cost_matrix[i] = (double *)calloc(inst->nnodes, sizeof(double));
+				printf("parameter \"%s\" ", par_name);
+				fflush(NULL);
 			}
 
-			active_section = 0;
-			continue;
-		}
-
-		if (strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0)
-		{
-			token1 = strtok(NULL, " :");
-			if (strncmp(token1, "ATT", 3) != 0)
+			if (strncmp(par_name, "NAME", 4) == 0)
 			{
-				print_error(" format error:  only EDGE_WEIGHT_TYPE == ATT implemented so far!!!!!!");
-				return EXIT_FAILURE;
+				active_section = 0;
+				continue;
 			}
-			active_section = 0;
-			continue;
-		}
 
-		if (strncmp(par_name, "NODE_COORD_SECTION", 18) == 0)
-		{
-			if (inst->nnodes <= 0)
+			if (strncmp(par_name, "COMMENT", 7) == 0)
 			{
-				print_error(" ... DIMENSION section should appear before NODE_COORD_SECTION section");
-				return EXIT_FAILURE;
+				active_section = 0;
+				token1 = strtok(NULL, "");
+				// if ( VERBOSE >= 10 ) printf(" ... solving instance %s with model %d\n\n", token1, inst->model_type);
+				continue;
 			}
-			active_section = 1;
-			continue;
-		}
 
-		if (strncmp(par_name, "EOF", 3) == 0)
-		{
-			active_section = 0;
-			break;
-		}
-
-		if (active_section == 1) // within NODE_COORD_SECTION
-		{
-			int i = atoi(par_name) - 1;
-			if (i < 0 || i >= inst->nnodes)
+			if (strncmp(par_name, "TYPE", 4) == 0)
 			{
-				print_error(" ... unknown node in NODE_COORD_SECTION section");
-				return EXIT_FAILURE;
+				token1 = strtok(NULL, " :");
+				if (strncmp(token1, "TSP", 3) != 0)
+				{
+					print_error(" format error:  only TYPE == TSP implemented so far!!!!!!");
+					return EXIT_FAILURE;
+				}
+				active_section = 0;
+				continue;
 			}
-			token1 = strtok(NULL, " :,");
-			token2 = strtok(NULL, " :,");
-			inst->xcoord[i] = atof(token1);
-			inst->ycoord[i] = atof(token2);
-			// if ( do_print ) printf(" ... node %4d at coordinates ( %15.7lf , %15.7lf )\n", i+1, inst->xcoord[i], inst->ycoord[i]);
-			continue;
+
+			if (strncmp(par_name, "DIMENSION", 9) == 0)
+			{
+				if (inst->nnodes >= 0)
+				{
+					print_error(" repeated DIMENSION section in input file");
+					return EXIT_FAILURE;
+				}
+				token1 = strtok(NULL, " :");
+				inst->nnodes = atoi(token1);
+				// if ( do_print ) printf(" ... nnodes %d\n", inst->nnodes);
+				// inst->demand = (double *) calloc(inst->nnodes, sizeof(double));
+				inst->xcoord = (double *)calloc(inst->nnodes, sizeof(double));
+				inst->ycoord = (double *)calloc(inst->nnodes, sizeof(double));
+				inst->cost_matrix = (double **)calloc(inst->nnodes, sizeof(double));
+				for (int i = 0; i < inst->nnodes; i++)
+				{
+					inst->cost_matrix[i] = (double *)calloc(inst->nnodes, sizeof(double));
+				}
+
+				active_section = 0;
+				continue;
+			}
+
+			if (strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0)
+			{
+				token1 = strtok(NULL, " :");
+				if (strncmp(token1, "ATT", 3) != 0)
+				{
+					print_error(" format error:  only EDGE_WEIGHT_TYPE == ATT implemented so far!!!!!!");
+					return EXIT_FAILURE;
+				}
+				active_section = 0;
+				continue;
+			}
+
+			if (strncmp(par_name, "NODE_COORD_SECTION", 18) == 0)
+			{
+				if (inst->nnodes <= 0)
+				{
+					print_error(" ... DIMENSION section should appear before NODE_COORD_SECTION section");
+					return EXIT_FAILURE;
+				}
+				active_section = 1;
+				continue;
+			}
+
+			if (strncmp(par_name, "EOF", 3) == 0)
+			{
+				active_section = 0;
+				break;
+			}
+
+			if (active_section == 1) // within NODE_COORD_SECTION
+			{
+				int i = atoi(par_name) - 1;
+				if (i < 0 || i >= inst->nnodes)
+				{
+					print_error(" ... unknown node in NODE_COORD_SECTION section");
+					return EXIT_FAILURE;
+				}
+				token1 = strtok(NULL, " :,");
+				token2 = strtok(NULL, " :,");
+				inst->xcoord[i] = atof(token1);
+				inst->ycoord[i] = atof(token2);
+				// if ( do_print ) printf(" ... node %4d at coordinates ( %15.7lf , %15.7lf )\n", i+1, inst->xcoord[i], inst->ycoord[i]);
+				continue;
+			}
+
+			printf(" final active section %d\n", active_section);
+			print_error(" ... wrong format for the current simplified parser!!!!!!!!!");
+			return EXIT_FAILURE;
 		}
 
-		printf(" final active section %d\n", active_section);
-		print_error(" ... wrong format for the current simplified parser!!!!!!!!!");
-		return EXIT_FAILURE;
+		fclose(fin);
 	}
 
 	// Compute cost matrix
@@ -158,7 +163,6 @@ int load_instance(instance *inst)
 		return EXIT_FAILURE;
 	}
 
-	fclose(fin);
 	return EXIT_SUCCESS;
 }
 
@@ -869,11 +873,11 @@ int two_opt(const instance *inst, solution *sol)
 		}
 		tsp->ycoord = (double *)calloc(tsp->nnodes, sizeof(double));
 
-		if (tsp->cost_matrix)
+		tsp->cost_matrix = calloc(tsp->nnodes, sizeof(double *));
+		for (int i = 0; i < tsp->nnodes; i++)
 		{
-			free(tsp->cost_matrix);
+			tsp->cost_matrix[i] = calloc(tsp->nnodes, sizeof(double));
 		}
-		tsp->cost_matrix = (double **)calloc(tsp->nnodes * tsp->nnodes, sizeof(double));
 
 		// if (tsp->best_sol.tour)
 		// {

@@ -58,8 +58,10 @@ typedef struct
 
 } instance;
 
+void init(instance *inst);
 int read_input(instance *inst);
 void print_error(const char *err_message);
+void allocate_buffers(instance *tsp);
 
 int parse_command_line(int argc, char **argv, instance *inst);
 void free_instance(instance *inst, solution *sol);

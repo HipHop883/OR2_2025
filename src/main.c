@@ -9,6 +9,7 @@ int main(int argc, char **argv)
 		printf("Usage: %s -help for help\n", argv[0]);
 		exit(1);
 	}
+
 	if (VERBOSE >= 2)
 	{
 		for (int a = 0; a < argc; a++)
@@ -18,14 +19,14 @@ int main(int argc, char **argv)
 
 	double t1 = second();
 	instance inst;
+	init(&inst);
 	solution sol;
 
-	inst.starting_time = t1; // starting time
-
 	if (parse_command_line(argc, argv, &inst))
+	{
 		print_error("Error parsing command line");
-
-	// printf(" file %s has %d non-empty lines\n", inst.input_file, number_of_nonempty_lines(inst.input_file)); exit(1);
+		return -1;
+	}
 
 	if (read_input(&inst))
 		print_error("Error reading input");
@@ -74,7 +75,7 @@ int main(int argc, char **argv)
 
 	if (VERBOSE >= 1)
 	{
-		printf("... TSP problem solved in %lf sec.s\n", t2 - t1);
+		printf("... TSP problem solved in %lf sec.s\n", t2 - inst.starting_time);
 	}
 
 	// free memory

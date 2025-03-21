@@ -9,7 +9,7 @@ CFLAGS = -Iinclude
 TARGET = my_program
 
 # Source files
-SRCS = src/main.c src/tsp.c src/chrono.c src/vns.c src/tabu.c
+SRCS = src/main.c src/tsp.c src/chrono.c src/vns.c src/tsp_greedy.c src/tabu.c
 
 # Object files
 OBJS = $(SRCS:.c=.o)

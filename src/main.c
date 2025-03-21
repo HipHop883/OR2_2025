@@ -1,5 +1,7 @@
 #include "tsp.h"
+#include "tsp_greedy.h"
 #include "chrono.h"
+
 // unset GTK_PATH to avoid conflict with gnuplot
 
 int main(int argc, char **argv)

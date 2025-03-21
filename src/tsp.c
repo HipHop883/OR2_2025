@@ -1,6 +1,8 @@
 #include "tsp.h"
+#include "tsp.h"
 #include "chrono.h"
 #include "vns.h"
+#include "tsp_greedy.h"
 
 /**
  * Load instance data from file or generate randomly
@@ -576,60 +578,6 @@ int cost_path(const instance *inst, solution *sol)
 }
 
 /**
- * Nearest neighbor heuristic
- * @param inst instance
- * @param sol solution path
- * @return 0 if the nearest neighbor heuristic is applied successfully, 1 otherwise
- */
-int nearest_neighbor(const instance *inst, solution *sol)
-{
-	double time = second();
-	if (VERBOSE >= 50)
-	{
-		printf("Applying nearest neighbor heuristic...\n");
-	}
-
-	int nnodes = inst->nnodes;						   // number of nodes
-	int *visited = (int *)calloc(nnodes, sizeof(int)); // visited nodes
-	int current = 0;								   // current node
-	visited[current] = 1;							   // mark the current node as visited
-	sol->tour[0] = current;							   // start from the current node
-
-	for (int i = 1; i < nnodes; i++)
-	{
-		double min_cost = CPX_INFBOUND;
-		int next = -1;
-		for (int j = 0; j < nnodes; j++)
-		{ // find the nearest neighbor
-			if (visited[j] == 0)
-			{
-				// double c = inst->cost_matrix[flatten_coords(current, j, nnodes)];
-				double c = inst->cost_matrix[current][j];
-				if (c < min_cost)
-				{				  // update the nearest neighbor
-					min_cost = c; // update the minimum cost
-					next = j;	  // update the next node
-				}
-			}
-		}
-		visited[next] = 1;	 // mark the next node as visited
-		sol->tour[i] = next; // update the best solution
-		current = next;		 // update the current node
-	}
-	sol->tour[nnodes] = sol->tour[0]; // return to the initial node
-	free(visited);
-
-	if (VERBOSE >= 50)
-	{
-		printf("Nearest neighbor heuristic applied\n");
-		printf("Elapsed time: %lf\n", second() - time);
-		printf("--------------------------------------------\n");
-	}
-	cost_path(inst, sol);
-	return EXIT_SUCCESS;
-}
-
-/**
  * Two-opt heuristic
  * @param inst instance
  * @param sol solution path
@@ -643,23 +591,9 @@ int two_opt(const instance *inst, solution *sol)
 		printf("Applying two-opt heuristic...\n");
 	}
 	int nnodes = inst->nnodes;
-	int *best_tour = (int *)malloc((nnodes + 1) * sizeof(int)); // best tour found so far
-	if (!best_tour)
-	{
-		print_error("Memory allocation failed");
-		return EXIT_FAILURE;
-	}
-
-	memcpy(best_tour, sol->tour, sizeof(int) * (nnodes + 1)); // copy the current tour to the best tour
-	int improved = 1;										  // flag to indicate if the path has been improved
-
+	int improved = 1; // flag to indicate if the path has been improved
 	while (improved)
 	{
-		if (check_time(inst))
-		{
-			memcpy(sol->tour, best_tour, sizeof(int) * (nnodes + 1)); // restore the best tour found so far
-			break;
-		}
 		improved = 0; // reset the flag
 		for (int i = 0; i < nnodes - 1; i++)
 		{
@@ -672,236 +606,213 @@ int two_opt(const instance *inst, solution *sol)
 				}
 			}
 		}
-		memcpy(best_tour, sol->tour, sizeof(int) * (nnodes + 1)); // update the best tour found so far
 	}
 
 	if (VERBOSE >= 50)
 	{
 		printf("Two-opt heuristic applied\n");
 		printf("Elapsed time: %lf\n", second() - time);
-		int nnodes = inst->nnodes;
-		int improved = 1; // flag to indicate if the path has been improved
-		while (improved)
-		{
-			improved = 0; // reset the flag
-			for (int i = 0; i < nnodes - 1; i++)
-			{
-				for (int j = i + 1; j < nnodes; j++)
-				{
-					if (delta(i, j, sol, inst) < 0)
-					{						  // if the path is improved
-						swap_path(i, j, sol); // swap nodes i and j
-						improved = 1;		  // set the flag
-					}
-				}
-			}
-		}
-
-		if (VERBOSE >= 50)
-		{
-			printf("Two-opt heuristic applied\n");
-			printf("Elapsed time: %lf\n", second() - time);
-			printf("--------------------------------------------\n");
-		}
-
-		free(best_tour);
-		cost_path(inst, sol);
-
-		return EXIT_SUCCESS;
+		printf("--------------------------------------------\n");
 	}
 
-	/**
-	 * Calculate the change in the cost of the path when swapping nodes i and j
-	 * @param i node i
-	 * @param j node j
-	 * @param sol solution path
-	 * @param inst instance
-	 * @return change in the cost of the path when swapping nodes i and j
-	 */
-	double delta(int i, int j, const solution *sol, const instance *inst)
+	free(best_tour);
+	cost_path(inst, sol);
+
+	return EXIT_SUCCESS;
+}
+
+/**
+ * Calculate the change in the cost of the path when swapping nodes i and j
+ * @param i node i
+ * @param j node j
+ * @param sol solution path
+ * @param inst instance
+ * @return change in the cost of the path when swapping nodes i and j
+ */
+double delta(int i, int j, const solution *sol, const instance *inst)
+{
+	/*return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 				// TO BE REMOVED
+		-(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
+	*/
+	return (inst->cost_matrix[sol->tour[i + 1]][sol->tour[j + 1]] + inst->cost_matrix[sol->tour[i]][sol->tour[j]] - (inst->cost_matrix[sol->tour[i]][sol->tour[i + 1]] + inst->cost_matrix[sol->tour[j]][sol->tour[j + 1]]));
+}
+
+/**
+ * Swap nodes i and j in the path
+ * @param i node i
+ * @param j node j
+ * @param sol solution path
+ * @return void
+ */
+void swap_path(int i, int j, solution *sol)
+{
+	while (++i < j)
 	{
-		/*return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 				// TO BE REMOVED
-			-(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
-		*/
-		return (inst->cost_matrix[sol->tour[i + 1]][sol->tour[j + 1]] + inst->cost_matrix[sol->tour[i]][sol->tour[j]] - (inst->cost_matrix[sol->tour[i]][sol->tour[i + 1]] + inst->cost_matrix[sol->tour[j]][sol->tour[j + 1]]));
+		double temp = sol->tour[i];
+		sol->tour[i] = sol->tour[j];
+		sol->tour[j] = temp;
+		j--;
+	}
+}
+
+/**
+ * Compute the cost matrix
+ * @param tsp instance
+ * @return 0 if the cost matrix is computed successfully, 1 otherwise
+ */
+int tsp_compute_costs(instance *tsp)
+{
+	if (tsp->cost_matrix == NULL || tsp->xcoord == NULL || tsp->ycoord == NULL)
+	{
+		return -1;
 	}
 
-	/**
-	 * Swap nodes i and j in the path
-	 * @param i node i
-	 * @param j node j
-	 * @param sol solution path
-	 * @return void
-	 */
-	void swap_path(int i, int j, solution *sol)
+	for (int i = 0; i < tsp->nnodes; i++)
 	{
-		while (++i < j)
+		for (int j = 0; j < tsp->nnodes; j++)
 		{
-			double temp = sol->tour[i];
-			sol->tour[i] = sol->tour[j];
-			sol->tour[j] = temp;
-			j--;
+			double deltax = tsp->xcoord[i] - tsp->xcoord[j];
+			double deltay = tsp->ycoord[i] - tsp->ycoord[j];
+			double dist = sqrt(deltax * deltax + deltay * deltay);
+
+			// tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;						// TO BE REMOVED
+			tsp->cost_matrix[i][j] = dist;
 		}
 	}
 
-	/**
-	 * Compute the cost matrix
-	 * @param tsp instance
-	 * @return 0 if the cost matrix is computed successfully, 1 otherwise
-	 */
-	int tsp_compute_costs(instance * tsp)
+	return 0;
+}
+
+/**
+ * Run the method
+ * @param inst instance
+ * @param sol solution path
+ * @return 0 if the method is run successfully, 1 otherwise
+ */
+int run_method(instance *inst, solution *sol)
+{
+	if (strcmp(inst->method, "n_n") == 0)
 	{
-		if (tsp->cost_matrix == NULL || tsp->xcoord == NULL || tsp->ycoord == NULL)
+		if (nearest_neighbor(inst, sol)) // Nearest neighbor heuristic
 		{
-			return -1;
-		}
-
-		for (int i = 0; i < tsp->nnodes; i++)
-		{
-			for (int j = 0; j < tsp->nnodes; j++)
-			{
-				double deltax = tsp->xcoord[i] - tsp->xcoord[j];
-				double deltay = tsp->ycoord[i] - tsp->ycoord[j];
-				double dist = sqrt(deltax * deltax + deltay * deltay);
-
-				// tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;						// TO BE REMOVED
-				tsp->cost_matrix[i][j] = dist;
-			}
-		}
-
-		return 0;
-	}
-
-	/**
-	 * Run the method
-	 * @param inst instance
-	 * @param sol solution path
-	 * @return 0 if the method is run successfully, 1 otherwise
-	 */
-	int run_method(instance * inst, solution * sol)
-	{
-		if (strcmp(inst->method, "n_n") == 0)
-		{
-			if (nearest_neighbor(inst, sol)) // Nearest neighbor heuristic
-			{
-				print_error("Error applying nearest neighbor heuristic");
-				return EXIT_FAILURE;
-			}
-			if (check_time(inst))
-			{
-				return EXIT_FAILURE;
-			}
-		}
-		else if (strcmp(inst->method, "n_n+two_opt") == 0)
-		{
-			if (nearest_neighbor(inst, sol)) // Nearest neighbor heuristic with two_opt
-			{
-				print_error("Nearest neighbor heuristic failed");
-				return EXIT_FAILURE;
-			}
-			if (two_opt(inst, sol))
-			{
-				print_error("Error applying 2-opt");
-				return EXIT_FAILURE;
-			}
-			if (check_time(inst))
-			{
-				return EXIT_FAILURE;
-			}
-		}
-		else if (strcmp(inst->method, "random+two_opt") == 0)
-		{ // Random path with two_opt
-			if (random_path(sol, inst->nnodes, inst->randomseed))
-			{
-				print_error("Error generating random path");
-				return EXIT_FAILURE;
-			}
-			if (two_opt(inst, sol))
-			{
-				print_error("Error applying 2-opt");
-				return EXIT_FAILURE;
-			}
-			if (check_time(inst))
-			{
-				return EXIT_FAILURE;
-			}
-		}
-		else if (strcmp(inst->method, "random") == 0)
-		{
-			random_path(sol, inst->nnodes, inst->randomseed); // Random path
-			if (check_time(inst))
-			{
-				print_error("VNS failed");
-				return EXIT_FAILURE;
-			}
-		}
-		else if (strcmp(inst->method, "vns") == 0)
-		{ // VNS
-			if (tsp_solve_vns(inst, sol))
-			{
-				print_error("Error applying VNS");
-				return EXIT_FAILURE;
-			}
-			if (check_time(inst))
-			{
-				return EXIT_FAILURE;
-			}
-		}
-		else
-		{
-			print_error("Invalid method\n");
-			print_error("USAGE: -method [n_n|n_n+two_opt|random+two_opt|random]");
+			print_error("Error applying nearest neighbor heuristic");
 			return EXIT_FAILURE;
 		}
-
-		// Print the cost of the best solution
-		cost_path(inst, sol);
-		return EXIT_SUCCESS;
+		if (check_time(inst))
+		{
+			return EXIT_FAILURE;
+		}
 	}
-
-	void allocate_buffers(instance * tsp)
+	else if (strcmp(inst->method, "n_n+two_opt") == 0)
 	{
-		if (tsp->xcoord)
+		if (nearest_neighbor(inst, sol)) // Nearest neighbor heuristic with two_opt
 		{
-			free(tsp->xcoord);
+			print_error("Nearest neighbor heuristic failed");
+			return EXIT_FAILURE;
 		}
-		tsp->xcoord = (double *)calloc(tsp->nnodes, sizeof(double));
-
-		if (tsp->ycoord)
+		if (two_opt(inst, sol))
 		{
-			free(tsp->ycoord);
+			print_error("Error applying 2-opt");
+			return EXIT_FAILURE;
 		}
-		tsp->ycoord = (double *)calloc(tsp->nnodes, sizeof(double));
-
-		tsp->cost_matrix = calloc(tsp->nnodes, sizeof(double *));
-		for (int i = 0; i < tsp->nnodes; i++)
+		if (check_time(inst))
 		{
-			tsp->cost_matrix[i] = calloc(tsp->nnodes, sizeof(double));
+			return EXIT_FAILURE;
 		}
-
-		// if (tsp->best_sol.tour)
-		// {
-		// 	free(tsp->best_sol.tour);
-		// }
-		// tsp->best_sol.tour = (int *)calloc(tsp->nnodes, sizeof(double));
 	}
-
-	void init(instance * inst)
+	else if (strcmp(inst->method, "random+two_opt") == 0)
+	{ // Random path with two_opt
+		if (random_path(sol, inst->nnodes, inst->randomseed))
+		{
+			print_error("Error generating random path");
+			return EXIT_FAILURE;
+		}
+		if (two_opt(inst, sol))
+		{
+			print_error("Error applying 2-opt");
+			return EXIT_FAILURE;
+		}
+		if (check_time(inst))
+		{
+			return EXIT_FAILURE;
+		}
+	}
+	else if (strcmp(inst->method, "random") == 0)
 	{
-		memset(inst, 0, sizeof(instance));
-
-		inst->nnodes = 0;
-		inst->xcoord = NULL;
-		inst->ycoord = NULL;
-
-		inst->cost_matrix = NULL;
-		// inst->best_sol.tour = NULL;
-		// inst->best_sol.cost = CPX_INFBOUND;
-
-		strcpy(inst->input_file, "NULL");
-		strcpy(inst->method, "NULL");
-		inst->timelimit = CPX_INFBOUND;
-		inst->randomseed = 0;
-
-		inst->starting_time = second();
+		random_path(sol, inst->nnodes, inst->randomseed); // Random path
+		if (check_time(inst))
+		{
+			print_error("VNS failed");
+			return EXIT_FAILURE;
+		}
 	}
+	else if (strcmp(inst->method, "vns") == 0)
+	{ // VNS
+		if (tsp_solve_vns(inst, sol))
+		{
+			print_error("Error applying VNS");
+			return EXIT_FAILURE;
+		}
+		if (check_time(inst))
+		{
+			return EXIT_FAILURE;
+		}
+	}
+	else
+	{
+		print_error("Invalid method\n");
+		print_error("USAGE: -method [n_n|n_n+two_opt|random+two_opt|random]");
+		return EXIT_FAILURE;
+	}
+
+	// Print the cost of the best solution
+	cost_path(inst, sol);
+	return EXIT_SUCCESS;
+}
+
+void allocate_buffers(instance *tsp)
+{
+	if (tsp->xcoord)
+	{
+		free(tsp->xcoord);
+	}
+	tsp->xcoord = (double *)calloc(tsp->nnodes, sizeof(double));
+
+	if (tsp->ycoord)
+	{
+		free(tsp->ycoord);
+	}
+	tsp->ycoord = (double *)calloc(tsp->nnodes, sizeof(double));
+
+	tsp->cost_matrix = calloc(tsp->nnodes, sizeof(double *));
+	for (int i = 0; i < tsp->nnodes; i++)
+	{
+		tsp->cost_matrix[i] = calloc(tsp->nnodes, sizeof(double));
+	}
+
+	// if (tsp->best_sol.tour)
+	// {
+	// 	free(tsp->best_sol.tour);
+	// }
+	// tsp->best_sol.tour = (int *)calloc(tsp->nnodes, sizeof(double));
+}
+
+void init(instance *inst)
+{
+	memset(inst, 0, sizeof(instance));
+
+	inst->nnodes = 0;
+	inst->xcoord = NULL;
+	inst->ycoord = NULL;
+
+	inst->cost_matrix = NULL;
+	// inst->best_sol.tour = NULL;
+	// inst->best_sol.cost = CPX_INFBOUND;
+
+	strcpy(inst->input_file, "NULL");
+	strcpy(inst->method, "NULL");
+	inst->timelimit = CPX_INFBOUND;
+	inst->randomseed = 0;
+
+	inst->starting_time = second();
+}

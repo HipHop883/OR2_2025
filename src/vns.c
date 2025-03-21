@@ -1,5 +1,5 @@
-#include <vns.h>
-#include <chrono.h>
+#include "vns.h"
+#include "chrono.h"
 
 #define LARGE 1e30
 
@@ -60,7 +60,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
             printf("Time limit reached vns\n");
             break;
         }
-        
+
         // Intensification phase: apply 2-opt improvement until no further improvement is found.
         if (two_opt(tsp, current_sol) != 0)
         {
@@ -149,9 +149,10 @@ int tsp_3opt_solution(instance *tsp, solution *sol)
         print_error("Invalid TSP instance in tsp_3opt_solution");
         return -1;
     }
-    if (VERBOSE >= 50) {
+    if (VERBOSE >= 50)
+    {
         printf("Applying three-opt solution...\n");
-	}
+    }
     int positions[3];
     generate_3opt_positions(tsp, positions);
 
@@ -172,7 +173,7 @@ int tsp_3opt_solution(instance *tsp, solution *sol)
     sol->cost = cost_path(tsp, sol);
 
     printf("Three-opt solution applied\n");
-	printf("--------------------------------------------\n");
+    printf("--------------------------------------------\n");
     return 0;
 }
 

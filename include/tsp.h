@@ -77,7 +77,6 @@ int write_path_file(const instance *inst, const solution *sol, const char *filen
 
 double cost(int i, int j, instance *inst);
 int cost_path(const instance *inst, solution *sol);
-int nearest_neighbor(const instance *inst, solution *sol);
 
 int two_opt(const instance *inst, solution *sol);
 double delta(int i, int j, const solution *sol, const instance *inst);

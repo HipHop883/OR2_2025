@@ -33,8 +33,8 @@ int main(int argc, char **argv)
 		print_error("Error reading input");
 		return -1;
 	}
+
 	printf("Number of nodes: %d\n", inst.nnodes);
-	// print_nodes(&inst);
 
 	// Allocate memory for the solution path
 	sol.tour = (int *)calloc(inst.nnodes + 1, sizeof(int));

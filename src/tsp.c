@@ -3,32 +3,18 @@
 #include "vns.h"
 
 /**
- * Read input data
+ * Load instance data from file or generate randomly
+ *
  * @param inst instance
  * @return 0 if the input data is read successfully, 1 otherwise
  */
-int read_input(instance *inst)
+int load_instance(instance *inst)
 {
+	// No need to check anything, we already do it parsing command line arguments
 	if (strcmp(inst->input_file, "NULL") == 0)
 	{
-		// No input file
-		if (inst->nnodes <= 0)
-		{
-			printf("Please provide the number of nodes: ");
-			scanf("%d", &inst->nnodes);
-		}
-		if (inst->randomseed <= 0)
-		{
-			printf("Please provide the seed for the random generator: ");
-			scanf("%d", &inst->randomseed);
-		}
 		generate_random_nodes(inst, inst->nnodes, inst->randomseed);
 
-		if (strcmp(inst->method, "NULL") == 0)
-		{
-			printf("Please provide the method to be used: ");
-			scanf("%s", inst->method);
-		}
 		return EXIT_SUCCESS;
 	}
 
@@ -137,27 +123,6 @@ int read_input(instance *inst)
 			active_section = 1;
 			continue;
 		}
-		/*
-		if ( strncmp(par_name, "DEMAND_SECTION", 14) == 0 )
-		{
-			if ( inst->nnodes <= 0 ) {
-			print_error(" ... DIMENSION section should appear before DEMAND_SECTION section");
-			return EXIT_FAILURE;
-			}
-			active_section = 2;
-			continue;
-		}
-
-		if ( strncmp(par_name, "DEPOT_SECTION", 13) == 0 )
-		{
-			if ( inst->depot >= 0 ) {
-			print_error(" ... DEPOT_SECTION repeated??");
-			return EXIT_FAILURE;
-			}
-			active_section = 3;
-			continue;
-		}
-		*/
 
 		if (strncmp(par_name, "EOF", 3) == 0)
 		{
@@ -180,34 +145,7 @@ int read_input(instance *inst)
 			// if ( do_print ) printf(" ... node %4d at coordinates ( %15.7lf , %15.7lf )\n", i+1, inst->xcoord[i], inst->ycoord[i]);
 			continue;
 		}
-		/*
-		if ( active_section == 2 ) // within DEMAND_SECTION
-		{
-			int i = atoi(par_name) - 1;
-			if ( i < 0 || i >= inst->nnodes ) {
-			print_error(" ... unknown node in NODE_COORD_SECTION section");
-			return EXIT_FAILURE;
-			}
-			token1 = strtok(NULL, " :,");
-			inst->demand[i] = atof(token1);
-			if ( do_print ) printf(" ... node %4d has demand %10.5lf\n", i+1, inst->demand[i]);
-			continue;
-		}
 
-		if ( active_section == 3 ) // within DEPOT_SECTION
-		{
-			int i = atoi(par_name) - 1;
-			if ( i < 0 || i >= inst->nnodes ) continue;
-			if ( inst->depot >= 0 )
-			{
-			print_error(" ... multiple depots not supported in DEPOT_SECTION");
-			return EXIT_FAILURE;
-			}
-			inst->depot = i;
-			if ( do_print ) printf(" ... depot node %d\n", inst->depot+1);
-			continue;
-		}
-		*/
 		printf(" final active section %d\n", active_section);
 		print_error(" ... wrong format for the current simplified parser!!!!!!!!!");
 		return EXIT_FAILURE;

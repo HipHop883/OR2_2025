@@ -59,7 +59,7 @@ typedef struct
 } instance;
 
 void init(instance *inst);
-int read_input(instance *inst);
+int load_instance(instance *inst);
 void print_error(const char *err_message);
 void allocate_buffers(instance *tsp);
 

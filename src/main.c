@@ -28,9 +28,11 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (read_input(&inst))
+	if (load_instance(&inst))
+	{
 		print_error("Error reading input");
-
+		return -1;
+	}
 	printf("Number of nodes: %d\n", inst.nnodes);
 	// print_nodes(&inst);
 

@@ -1,5 +1,4 @@
 #include <vns.h>
-#include <tsp.h>
 #include <chrono.h>
 
 #define LARGE 1e30

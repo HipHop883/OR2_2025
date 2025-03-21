@@ -23,8 +23,8 @@
 #define XSMALL 1e-5	 // tolerance used to decide ingerality of 0-1 var.s
 #define CPX_INFBOUND 1.0E+20
 
-#define RANDOM_MAX_X 10000
-#define RANDOM_MAX_Y 10000
+#define MAX_X 10000
+#define MAX_Y 10000
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1

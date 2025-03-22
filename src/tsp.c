@@ -1,7 +1,7 @@
 #include "tsp.h"
 #include "tsp.h"
 #include "chrono.h"
-#include "vns.h"
+#include "tsp_heuristics.h"
 #include "tsp_greedy.h"
 
 /**

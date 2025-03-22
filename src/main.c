@@ -33,6 +33,7 @@ int main(int argc, char **argv)
 	if (load_instance(&inst))
 	{
 		print_error("Error reading input");
+		free_instance(&inst, &sol);
 		return -1;
 	}
 
@@ -43,7 +44,11 @@ int main(int argc, char **argv)
 
 	// Run the method and print the cost of the solution
 	if (run_method(&inst, &sol))
+	{
 		print_error("Error running method\n");
+		free_instance(&inst, &sol);
+		return -1;
+	}
 
 	printf("The total cost is: %lf\n", sol.cost);
 

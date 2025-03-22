@@ -381,24 +381,6 @@ void generate_random_nodes(instance *inst, int nnodes, int seed)
 }
 
 /**
- * Generate random nodes
- * @param inst instance
- * @return void
-
-void generate_random_nodes(instance *inst) {
-	srand(7654321 + inst->randomseed);
-
-	inst->nnodes = (int) (rand() % RAND_MAX)*1000;
-	inst->xcoord = (double *) calloc(inst->nnodes, sizeof(double));
-	inst->ycoord = (double *) calloc(inst->nnodes, sizeof(double));
-	for (int i = 0; i < inst->nnodes; i++) {
-		inst->xcoord[i] = ((double) rand() / RAND_MAX) * MAX_X;
-		inst->ycoord[i] = ((double) rand() / RAND_MAX) * MAX_Y;
-	}
-}
-*/
-
-/**
  * Free instance
  * @param inst instance
  * @return void

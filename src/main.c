@@ -83,11 +83,11 @@ int main(int argc, char **argv)
 		{
 			print_error("Error opening Gnuplot. Make sure Gnuplot is installed and in your PATH.");
 		}
+	}
 
-		if (VERBOSE >= 1)
-		{
-			printf("... TSP problem solved in %lf sec.s\n", t2 - inst.starting_time);
-		}
+	if (VERBOSE >= 1)
+	{
+		printf("... TSP problem solved in %lf sec.s\n", t2 - inst.starting_time);
 	}
 
 	// free memory

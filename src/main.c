@@ -1,6 +1,6 @@
 #include "tsp.h"
 #include "tsp_greedy.h"
-#include "chrono.h"
+#include "utils.h"
 
 // unset GTK_PATH to avoid conflict with gnuplot
 

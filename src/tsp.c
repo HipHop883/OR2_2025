@@ -1,6 +1,5 @@
 #include "tsp.h"
-#include "tsp.h"
-#include "chrono.h"
+#include "utils.h"
 #include "tsp_heuristics.h"
 #include "tsp_greedy.h"
 
@@ -371,11 +370,10 @@ void generate_random_nodes(instance *inst, int nnodes, int seed)
 	inst->xcoord = (double *)calloc(nnodes, sizeof(double));
 	inst->ycoord = (double *)calloc(nnodes, sizeof(double));
 
-	srand(seed);
 	for (int i = 0; i < nnodes; i++)
 	{
-		inst->xcoord[i] = ((double)rand() / RAND_MAX) * MAX_X;
-		inst->ycoord[i] = ((double)rand() / RAND_MAX) * MAX_Y;
+		inst->xcoord[i] = rand01(seed) * MAX_X;
+		inst->ycoord[i] = rand01(seed) * MAX_Y;
 	}
 
 	if (VERBOSE >= 50)
@@ -840,17 +838,6 @@ static void generate_3opt_positions(instance *tsp, int *positions)
 			break;
 		}
 	}
-}
-
-/**
- * Compare two integers for qsort
- * @param a integer a
- * @param b integer b
- * @return the difference between a and b
- */
-static int compar(const void *a, const void *b)
-{
-	return (*(int *)a - *(int *)b);
 }
 
 /**

@@ -22,3 +22,20 @@ double second()
     double t = myWallTime();
     return t;
 }
+
+double rand01(int seed)
+{
+    srand(seed);
+    return (double)rand() / RAND_MAX;
+}
+
+/**
+ * Compare two integers for qsort
+ * @param a integer a
+ * @param b integer b
+ * @return the difference between a and b
+ */
+int compar(const void *a, const void *b)
+{
+    return (*(int *)a - *(int *)b);
+}

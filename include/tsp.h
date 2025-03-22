@@ -86,6 +86,14 @@ int tsp_compute_costs(instance *tsp);
 
 int run_method(instance *inst, solution *sol);
 
+static void generate_3opt_positions(instance *tsp, int *positions);
+
+static int compar(const void *a, const void *b);
+
+int tsp_3opt_solution(instance *tsp, solution *sol);
+
+static void tsp_3opt_swap(instance *tsp, solution *current_sol, int *temp_tour, int *positions);
+
 /*
 //inline
 inline int imax(int i1, int i2) { return ( i1 > i2 ) ? i1 : i2; }

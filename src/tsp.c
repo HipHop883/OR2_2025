@@ -816,3 +816,103 @@ void init(instance *inst)
 
 	inst->starting_time = second();
 }
+
+/**
+ * Generate 3-opt positions: fills positions[0..2] with valid indices for a 3-opt move.
+ * @param tsp TSP instance
+ * @param positions array of 3 integers
+ * @return void
+ */
+static void generate_3opt_positions(instance *tsp, int *positions)
+{
+	while (1)
+	{
+		positions[0] = rand() % tsp->nnodes;
+		positions[1] = rand() % tsp->nnodes;
+		positions[2] = rand() % tsp->nnodes;
+		qsort(positions, 3, sizeof(int), compar);
+
+		// Ensure the positions are sufficiently apart:
+		if (positions[1] > positions[0] + 1 &&
+			positions[2] > positions[1] + 1 &&
+			positions[2] + 1 < tsp->nnodes)
+		{
+			break;
+		}
+	}
+}
+
+/**
+ * Compare two integers for qsort
+ * @param a integer a
+ * @param b integer b
+ * @return the difference between a and b
+ */
+static int compar(const void *a, const void *b)
+{
+	return (*(int *)a - *(int *)b);
+}
+
+/**
+ * Recompute the solution cost after applying a 3-opt swap.
+ * @param tsp TSP instance
+ * @param solution solution path
+ * @return 0 if the solution cost is recomputed successfully, -1 otherwise
+ */
+int tsp_3opt_solution(instance *tsp, solution *sol)
+{
+	if (!tsp->cost_matrix || tsp->nnodes <= 0)
+	{
+		return -1;
+	}
+
+	int positions[3];
+	generate_3opt_positions(tsp, positions);
+
+	int *temp_tour = (int *)malloc(sizeof(int) * (tsp->nnodes + 1));
+	if (temp_tour == NULL)
+	{
+		return -1;
+	}
+
+	// Apply the 3-opt swap using the generated positions.
+	tsp_3opt_swap(tsp, sol, temp_tour, positions);
+	memcpy(sol->tour, temp_tour, sizeof(int) * (tsp->nnodes + 1));
+
+	free(temp_tour);
+
+	// Recompute and update the solution cost.
+	sol->cost = cost_path(tsp, sol);
+
+	return 0;
+}
+
+/**
+ * Perform a 3-opt swap on the current solution, storing the result in the new solution.
+ * @param tsp TSP instance
+ * @param current_sol current solution
+ * @param new_tour new solution path
+ * @param positions array of 3 integers
+ * @return void
+ */
+static void tsp_3opt_swap(instance *tsp, solution *current_sol, int *new_tour, int *positions)
+{
+	// Copy segment from index 0 to positions[0] unchanged.
+	memcpy(new_tour, current_sol->tour, sizeof(int) * (positions[0] + 1));
+	int pos = positions[0] + 1;
+
+	// Reverse the segment between positions[0]+1 and positions[1].
+	for (int i = positions[1]; i >= positions[0] + 1; i--)
+	{
+		new_tour[pos++] = current_sol->tour[i];
+	}
+
+	// Reverse the segment between positions[1]+1 and positions[2].
+	for (int i = positions[2]; i >= positions[1] + 1; i--)
+	{
+		new_tour[pos++] = current_sol->tour[i];
+	}
+
+	// Copy the remainder of the tour from positions[2]+1 to the end.
+	memcpy(new_tour + pos, current_sol->tour + positions[2] + 1, sizeof(int) * (tsp->nnodes - positions[2] - 1));
+}

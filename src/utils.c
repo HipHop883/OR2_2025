@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 199309L
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * Get current time in seconds
@@ -38,4 +39,17 @@ double rand01(int seed)
 int compar(const void *a, const void *b)
 {
     return (*(int *)a - *(int *)b);
+}
+
+int plot(int argc, char **argv)
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strcmp(argv[i], "--plot") || !strcmp(argv[i], "-p"))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
 }

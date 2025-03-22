@@ -60,31 +60,34 @@ int main(int argc, char **argv)
 	double t2 = second();
 
 	// Plot the solution path using Gnuplot
-	FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
-	if (gnuplotPipe)
+	if (plot(argc, argv))
 	{
-		fprintf(gnuplotPipe, "set xlabel 'X'\n");
-		fprintf(gnuplotPipe, "set ylabel 'Y'\n");
-		fprintf(gnuplotPipe, "set grid\n");
-		fprintf(gnuplotPipe, "set key top right\n"); // Enable legend and set position
-		fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s'\n", inst.method);
-		for (int i = 0; i <= inst.nnodes; i++)
+		FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
+		if (gnuplotPipe)
 		{
-			int node = sol.tour[i];
-			fprintf(gnuplotPipe, "%lf %lf\n", inst.xcoord[node], inst.ycoord[node]);
+			fprintf(gnuplotPipe, "set xlabel 'X'\n");
+			fprintf(gnuplotPipe, "set ylabel 'Y'\n");
+			fprintf(gnuplotPipe, "set grid\n");
+			fprintf(gnuplotPipe, "set key top right\n"); // Enable legend and set position
+			fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s'\n", inst.method);
+			for (int i = 0; i <= inst.nnodes; i++)
+			{
+				int node = sol.tour[i];
+				fprintf(gnuplotPipe, "%lf %lf\n", inst.xcoord[node], inst.ycoord[node]);
+			}
+			fprintf(gnuplotPipe, "e\n");
+			fflush(gnuplotPipe);
+			pclose(gnuplotPipe);
 		}
-		fprintf(gnuplotPipe, "e\n");
-		fflush(gnuplotPipe);
-		pclose(gnuplotPipe);
-	}
-	else
-	{
-		print_error("Error opening Gnuplot. Make sure Gnuplot is installed and in your PATH.");
-	}
+		else
+		{
+			print_error("Error opening Gnuplot. Make sure Gnuplot is installed and in your PATH.");
+		}
 
-	if (VERBOSE >= 1)
-	{
-		printf("... TSP problem solved in %lf sec.s\n", t2 - inst.starting_time);
+		if (VERBOSE >= 1)
+		{
+			printf("... TSP problem solved in %lf sec.s\n", t2 - inst.starting_time);
+		}
 	}
 
 	// free memory

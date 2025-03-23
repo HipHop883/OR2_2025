@@ -1,66 +1,69 @@
-#ifndef TSP_H_  
+#ifndef TSP_H_
 #define TSP_H_
 
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h> 
+#include <string.h>
 
-//#include <cplex.h>  
-#include <pthread.h>  
+// #include <cplex.h>
+#include <pthread.h>
 
-#define VERBOSE				    50		// printing level  (=10 only incumbent, =20 little output, =50-60 good, =70 verbose, >=100 cplex log)
+/*
+ * printing level:
+ *     - 10 only incumbent,
+ *     - 20 little output
+ *     - 50-60 good,
+ *     - 70 verbose,
+ *     - 100 cplex log
+ */
+#define VERBOSE 50
 
-//hard-wired parameters
-#define XSMALL		  		  1e-5 		// 1e-4*	// tolerance used to decide ingerality of 0-1 var.s
-#define EPSILON		  		  1e-9		// 1e-9		// very small numerical tolerance 
-#define CPX_INFBOUND  		  1.0E+20
-//#define TICKS_PER_SECOND 	  1000.0  	// cplex's ticks on Intel Core i7 quadcore @2.3GHZ
-                                 
-#define MAX_X 100
-#define MAX_Y 1000
+#define EPSILON 1e-9 // very small numerical tolerance
+#define XSMALL 1e-5	 // tolerance used to decide ingerality of 0-1 var.s
+#define CPX_INFBOUND 1.0E+20
+
+#define MAX_X 10000
+#define MAX_Y 10000
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
-//data structures  
-
-typedef struct {   
-	
-	//input data
-	int nnodes; 	   
-	double *xcoord;
-	double *ycoord;
-
-	// parameters 
- 
-	int randomseed;
-	double timelimit;						// overall time limit, in sec.s
-	char input_file[1000];		  			// input file
-	char method[20];						// method to be used
-	double starting_time;					// starting time
-	double **cost_matrix;					// cost matrix
-	
-	//global variables
-	//int *best_sol;							// best sol. available				//I GUESS TO BE REMOVED
-	
-} instance; 
-
-/**
+/*
  * Data structure to define a solution
-*/
+ */
+typedef struct
+{
+	int *tour;
+	double cost;
+} solution;
 
 typedef struct
 {
-    int *tour;								// tour of the solution
-    double cost;							// cost of the solution
 
-} solution;
+	// input data
+	int nnodes;
+	double *xcoord;
+	double *ycoord;
 
-int read_input(instance *inst);
+	// computed data
+	double starting_time; // starting time
+	double **cost_matrix; // cost matrix
+
+	// parameters
+	char input_file[1000]; // input file
+	char method[20];	   // method to be used
+	double timelimit;	   // overall time limit, in sec.s
+	int randomseed;
+
+} instance;
+
+void init(instance *inst);
+int load_instance(instance *inst);
 void print_error(const char *err_message);
+void allocate_buffers(instance *tsp);
 
-int parse_command_line(int argc, char** argv, instance *inst);
+int parse_command_line(int argc, char **argv, instance *inst);
 void free_instance(instance *inst, solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
@@ -74,7 +77,6 @@ int write_path_file(const instance *inst, const solution *sol, const char *filen
 
 double cost(int i, int j, instance *inst);
 int cost_path(const instance *inst, solution *sol);
-int nearest_neighbor(const instance *inst, solution *sol);
 
 int two_opt(const instance *inst, solution *sol);
 double delta(int i, int j, const solution *sol, const instance *inst);
@@ -84,11 +86,17 @@ int tsp_compute_costs(instance *tsp);
 
 int run_method(instance *inst, solution *sol);
 
+static void generate_3opt_positions(instance *tsp, int *positions);
+
+int tsp_3opt_solution(instance *tsp, solution *sol);
+
+static void tsp_3opt_swap(instance *tsp, solution *current_sol, int *temp_tour, int *positions);
+
 /*
 //inline
-inline int imax(int i1, int i2) { return ( i1 > i2 ) ? i1 : i2; } 
-inline double dmin(double d1, double d2) { return ( d1 < d2 ) ? d1 : d2; } 
-inline double dmax(double d1, double d2) { return ( d1 > d2 ) ? d1 : d2; } 
+inline int imax(int i1, int i2) { return ( i1 > i2 ) ? i1 : i2; }
+inline double dmin(double d1, double d2) { return ( d1 < d2 ) ? d1 : d2; }
+inline double dmax(double d1, double d2) { return ( d1 > d2 ) ? d1 : d2; }
 */
 
-#endif   /* TSP_H_ */ 
+#endif /* TSP_H_ */

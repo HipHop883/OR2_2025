@@ -195,8 +195,13 @@ int tsp_solve_tabu(instance *inst, solution *sol)
 
     while(second() - inst->starting_time < inst->timelimit)
     {
-        two_opt_random(inst, current_sol, tabu, iter);
-        current_sol->cost = cost_path(inst, current_sol);
+        if (two_opt_random(inst, current_sol, tabu, iter) == -1)
+            print_error("Error in two opt random");
+        if (cost_path(inst, current_sol))
+        {
+            print_error("computing cost_path");
+            return -1;
+        }
 
         if (current_sol->cost < best_sol->cost)
         {
@@ -262,7 +267,7 @@ static int two_opt_random(instance *tsp, solution *sol, tabuList *tabu, int iter
             j = temp;
         }
         
-        if (!check_tabu_list(tabu, i, j, iter))     //check if the move (i, j) is in the tabu list
+        if (!check_tabu_list(tabu, i, j, iter))         //check if the move (i, j) is in the tabu list
         {
             if (tabu->size < tabu->tenure) 
             {

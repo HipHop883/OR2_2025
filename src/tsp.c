@@ -448,7 +448,8 @@ void print_path(const instance *inst, const solution *sol)
 	for (int i = 0; i <= inst->nnodes; i++)
 	{
 		int node = sol->tour[i];
-		printf("(%d, %d) ", (int)inst->xcoord[node], (int)inst->ycoord[node]);
+		printf("(%d)", node);
+		//printf("(%d, %d) ", (int)inst->xcoord[node], (int)inst->ycoord[node]);
 	}
 	printf("\n");
 }
@@ -606,7 +607,7 @@ void swap_path(int i, int j, solution *sol)
 {
 	while (++i < j)
 	{
-		double temp = sol->tour[i];
+		int temp = sol->tour[i];
 		sol->tour[i] = sol->tour[j];
 		sol->tour[j] = temp;
 		j--;
@@ -708,6 +709,14 @@ int run_method(instance *inst, solution *sol)
 		if (tsp_solve_vns(inst, sol))
 		{
 			print_error("Error applying VNS");
+			return EXIT_FAILURE;
+		}
+	}
+	else if (strcmp(inst->method, "tabu") == 0)	// TABU SEARCH
+	{
+		if (tsp_solve_tabu(inst, sol))
+		{
+			print_error("Error applying Tabu Search");
 			return EXIT_FAILURE;
 		}
 	}

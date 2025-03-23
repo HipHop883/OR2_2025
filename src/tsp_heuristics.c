@@ -36,7 +36,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
 
     // Get an initial solution using the greedy algorithm.
     // we run 2opt in the while loop.
-    if (solve_greedy(tsp, current_sol) != 0)
+    if (nearest_neighbor(tsp, current_sol, 0) != 0)
     {
         print_error("Nearest neighbor heuristic failed in vns");
         free(current_sol->tour);
@@ -115,40 +115,58 @@ int tsp_solve_tabu(instance *inst, solution *sol)
 
     int nnodes = inst->nnodes;
 
-    tabuList *tabu;
+    tabuList *tabu = (tabuList *)malloc(sizeof(tabuList));
+    if (!tabu) {
+        fprintf(stderr, "memory allocation failed for tabu struct.\n");
+        return 1;
+    }
     tabu->tenure = MIN_TENURE;                                            //tenure initialized to the minimum value
     tabu->tabu_list = (int **) calloc(tabu->tenure, sizeof(int));         //tabu list allocated
     for(int i = 0; i < tabu->tenure; i++)
     {
         tabu->tabu_list[i] = (int *) calloc(2, sizeof(int));
-    }
-
-    if (tabu->tabu_list == NULL)
-    {
-        fprintf(stderr, "memory allocation failed for tabu list.\n");
-        return 1;
-    }
-
-    // Initialize the tabu list
-    for(int i = 0; i < tabu->tenure; i++)
-    {
+        if (tabu->tabu_list[i] == NULL)
+        {
+            fprintf(stderr, "memory allocation failed for tabu list.\n");
+            // Free allocated memory
+            for (int j = 0; j < i; j++) {
+                free(tabu->tabu_list[j]);
+            }
+            free(tabu->tabu_list);
+            free(tabu);
+            return 1;
+        }
+        // Initialize the tabu list
         tabu->tabu_list[i][0] = -1;
         tabu->tabu_list[i][1] = -1;
     }
+
+    // Number of elements in the list
+    tabu->size = 0;
 
     // Get an initial solution using the greedy algorithm.
     if (nearest_neighbor(inst, sol, 0) != 0)
     {
         print_error("Nearest neighbor heuristic failed in tabu");
+        free_tabu(tabu);
+        return 1;
+    }
+
+    if (two_opt(inst, sol) != 0)
+    {
+        print_error("Two Opt failed in tabu");
+        free_tabu(tabu);
         return 1;
     }
 
     // Copy the initial solution to the best solution
     solution *best_sol = (solution *) malloc(sizeof(solution));
     best_sol->tour = (int *) malloc((nnodes + 1) * sizeof(int));
-    if (!best_sol->tour)
+    if (!best_sol->tour || !best_sol)
     {
         print_error("Memory allocation failed");
+        free_tabu(tabu);
+        free(best_sol);
         return 1;
     }
     memcpy(best_sol->tour, sol->tour, (nnodes + 1) * sizeof(int));
@@ -157,30 +175,59 @@ int tsp_solve_tabu(instance *inst, solution *sol)
     // Copy the initial solution to the current solution
     solution *current_sol = (solution *) malloc(sizeof(solution));
     current_sol->tour = (int *) malloc((nnodes + 1) * sizeof(int));
-    if (!current_sol->tour)
+    if (!current_sol->tour || !current_sol)
     {
         print_error("Memory allocation failed");
+        free_tabu(tabu);
+        free(best_sol->tour);
+        free(best_sol);
+        free(current_sol);
         return 1;
     }
     memcpy(current_sol->tour, sol->tour, (nnodes + 1) * sizeof(int));
     current_sol->cost = sol->cost;
+    printf("Inital cost: %lf\n", best_sol->cost);
+    printf("Initial current cost: %lf\n", current_sol->cost);
+
 
     // Initialize the number of iterations
-    int iter = 0;
+    int iter = 0;    
+
+    while(second() - inst->starting_time < inst->timelimit)
+    {
+        two_opt_random(inst, current_sol, tabu, iter);
+        current_sol->cost = cost_path(inst, current_sol);
+
+        if (current_sol->cost < best_sol->cost)
+        {
+            memcpy(best_sol->tour, current_sol->tour, (inst->nnodes + 1) * sizeof(int));
+            best_sol->cost = current_sol->cost;
+        }
+        iter++;
+    }
+
+    // Copy the best found solution to the output parameters.
+    memcpy(sol->tour, best_sol->tour, sizeof(int) * (inst->nnodes + 1));
+    sol->cost = best_sol->cost;
 
     //free memory
-    for(int i = 0; i < tabu->tenure; i++) free(tabu->tabu_list[i]);
-    free(tabu->tabu_list);
-    free(tabu);
+    free_tabu(tabu);
+    free(best_sol->tour);
+    free(best_sol);
+    free(current_sol->tour);
+    free(current_sol);
+
+    return 0;
 }
 
 /** 
  * Apply a 2-opt random move on the current solution.
  * @param tsp TSP instance
  * @param sol solution
+ * @param tabu tabu list struct
  * @return 0 if the 2-opt move is applied successfully, 1 if the move is in the tabu list, -1 otherwise
  */
-static int two_opt_random(instance *tsp, solution *sol, tabuList *tabu)
+static int two_opt_random(instance *tsp, solution *sol, tabuList *tabu, int iter)
 {
     if (!tsp->cost_matrix || tsp->nnodes <= 0)
     {
@@ -194,40 +241,49 @@ static int two_opt_random(instance *tsp, solution *sol, tabuList *tabu)
         return -1;
     }
 
-    int i = rand() % tsp->nnodes;
-    int j = rand() % tsp->nnodes;
+    int i, j;
+    int max_attempts = tsp->nnodes * tsp->nnodes;
+    int attempts = 0;
 
-    if (i == j)
+    while (attempts < max_attempts) 
     {
-        j = (j + 1) % tsp->nnodes;
+        i = rand() % tsp->nnodes;
+        j = rand() % tsp->nnodes;
+
+        if (i == j)
+        {
+            j = (j + 1) % tsp->nnodes;
+        }
+
+        if (i > j)
+        {
+            int temp = i;
+            i = j;
+            j = temp;
+        }
+        
+        if (!check_tabu_list(tabu, i, j, iter))     //check if the move (i, j) is in the tabu list
+        {
+            if (tabu->size < tabu->tenure) 
+            {
+                swap_path(i, j, sol);                   //swap nodes i and j
+                tabu->tabu_list[tabu->size][0] = i;     //add the move (i, j) to the tabu list
+                tabu->tabu_list[tabu->size][1] = j;
+                tabu->size++;
+            }
+
+            if (cost_path(tsp, sol))
+            {
+                print_error("Error computing the (two opt random) cost of the solution");
+                return -1;
+            }
+
+            return 0;
+        }   
+        attempts++;
     }
 
-    if (i > j)
-    {
-        int temp = i;
-        i = j;
-        j = temp;
-    }
-    
-    if (!check_tabu_list(tabu, i, j))           //check if the move (i, j) is in the tabu list
-    {
-        swap_path(i, j, sol);                   //swap nodes i and j
-        tabu->tabu_list[tabu->size][0] = i;     //add the move (i, j) to the tabu list
-        tabu->tabu_list[tabu->size][1] = j;
-        tabu->size++;
-    }
-    else 
-    {
-        two_opt_random(tsp, sol, tabu);         //recursive call
-    }
-
-    if (cost_path(tsp, sol))
-    {
-        print_error("Error computing the (two opt random) cost of the solution");
-        return -1;
-    }
-
-    return 0;
+    return -1;     // Can't find a tabu move
 }
 
 /**
@@ -237,35 +293,34 @@ static int two_opt_random(instance *tsp, solution *sol, tabuList *tabu)
  * @param j node j
  * @return 1 if the move (i, j) is in the tabu list, 0 otherwise
  */
-int check_tabu_list(tabuList *tabu, int i, int j)
+int check_tabu_list(tabuList *tabu, int i, int j, int iter) 
 {
-    if(tabu->size >= tabu->tenure)
-    {
-        if(tabu->tenure < MAX_TENURE)
-        {
-            if(increase_list(tabu))
-            {
-                print_error("Error increasing the tabu list");
-                return 1;
-            }
-        }
-        else if (tabu->size >= MAX_TENURE)
-        {
-           if(decrease_list(tabu))
-           {
-               print_error("Error decreasing the tabu list");
-               return 1;
-           }
-        }
-    }
-
-    for(int k = 0; k < tabu->size; k++)
-    {
-        if(tabu->tabu_list[k][0] == i && tabu->tabu_list[k][1] == j)
-        {
+    for (int k = 0; k < tabu->size; k++) {
+        if (tabu->tabu_list[k][0] == i && tabu->tabu_list[k][1] == j) {         // (i, j) is in the tabu list
             return 1;
         }
     }
+    if (iter >= MIN_TENURE) 
+    {
+        int cycle = (iter - MIN_TENURE) % ((MAX_TENURE - MIN_TENURE) * 2); // Cycle of 2*(MAX_TENURE-MIN_TENURE) iterations (half increase + half decrease)
+
+        if (cycle < MAX_TENURE - MIN_TENURE) { // Increase for the first half iterations
+            if (tabu->tenure < MAX_TENURE) {
+                if (increase_list(tabu) != 0) {
+                    print_error("Error increasing the tabu list");
+                    return -1; // It is a tabu move
+                }
+            }
+        } else { // Decrease for other MAX_TENURE-MIN_TENURE iterations
+            if (tabu->tenure > MIN_TENURE) {
+                if (decrease_list(tabu) != 0) {
+                    print_error("Error decreasing the tabu list");
+                    return -1; // In case of error it is a tabu move
+                }
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -284,7 +339,7 @@ int increase_list(tabuList *tabu)
     int **temp;    
     
     //reallocating memory for the tabu list
-    temp = (int **) realloc(tabu->tabu_list, tabu->tenure * sizeof(int));
+    temp = (int **) realloc(tabu->tabu_list, tabu->tenure * sizeof(int *));
     
     //check if memory allocation failed
     if(!temp)
@@ -300,6 +355,8 @@ int increase_list(tabuList *tabu)
         print_error("Memory allocation failed");
         return -1;
     }
+    temp[tabu->tenure-1][0] = -1;
+    temp[tabu->tenure-1][1] = -1;
 
     tabu->tabu_list = temp;
 
@@ -313,27 +370,34 @@ int increase_list(tabuList *tabu)
  */
 int decrease_list(tabuList *tabu)
 {
-    if (tabu->tenure <= 0 || tabu->tabu_list == NULL) {
+    if (tabu->tenure < MIN_TENURE || tabu->tabu_list == NULL) {
         print_error("Invalid tabu list");
         return -1;
     }
 
     free(tabu->tabu_list[0]);
-    tabu->size--;
 
-    for(int i = 0; i < tabu->size; i++)
+    for(int i = 1; i < tabu->tenure; i++)
     {
-        tabu->tabu_list[i] = tabu->tabu_list[i + 1];
+        tabu->tabu_list[i - 1] = tabu->tabu_list[i];
     }
 
+    tabu->size--;
     tabu->tenure--;
-    int **temp;
+
+    // Check if tenure == 0
+    if (tabu->tenure == 0) {
+        free(tabu->tabu_list);
+        tabu->tabu_list = NULL;
+        print_error("TENURE == 0");
+        return -1;
+    }
 
     //reallocating memory for the tabu list
-    temp = (int **) realloc(tabu->tabu_list, tabu->tenure * sizeof(int));
+    int **temp = (int **) realloc(tabu->tabu_list, tabu->tenure * sizeof(int *));
     
     //check if memory allocation failed
-    if(!temp)
+    if(!temp && tabu->tenure > 0)
     {
         print_error("Memory allocation failed");
         return -1;
@@ -342,4 +406,15 @@ int decrease_list(tabuList *tabu)
     tabu->tabu_list = temp;
 
     return 0;
+}
+
+/**
+ * Method to free the tabu list struct
+ * @param tabu tabu list struct
+ * @return void
+ */
+void free_tabu(tabuList *tabu) {
+    for(int i = 0; i < tabu->tenure; i++) free(tabu->tabu_list[i]);
+        free(tabu->tabu_list);
+        free(tabu);
 }

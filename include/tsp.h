@@ -75,7 +75,6 @@ int check_time(const instance *inst);
 
 int write_path_file(const instance *inst, const solution *sol, const char *filename);
 
-double cost(int i, int j, instance *inst);
 int cost_path(const instance *inst, solution *sol);
 
 int two_opt(const instance *inst, solution *sol);

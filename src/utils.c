@@ -7,20 +7,13 @@
  * Get current time in seconds
  * @return current time in seconds
  */
-double myWallTime()
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (double)ts.tv_sec + 1.0e-9 * ((double)ts.tv_nsec);
-}
-
-/**
- * Get current time in seconds
- * @return current time in seconds
- */
 double second()
 {
-    double t = myWallTime();
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    double t = (double)ts.tv_sec + 1.0e-9 * ((double)ts.tv_nsec);
+
     return t;
 }
 

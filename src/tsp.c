@@ -651,7 +651,7 @@ int run_method(instance *inst, solution *sol)
 {
 	if (strcmp(inst->method, "n_n") == 0)
 	{
-		if (nearest_neighbor(inst, sol)) // Nearest neighbor heuristic
+		if (solve_greedy(inst, sol)) // Nearest neighbor heuristic
 		{
 			print_error("Error applying nearest neighbor heuristic");
 			return EXIT_FAILURE;
@@ -663,7 +663,7 @@ int run_method(instance *inst, solution *sol)
 	}
 	else if (strcmp(inst->method, "n_n+two_opt") == 0)
 	{
-		if (nearest_neighbor(inst, sol)) // Nearest neighbor heuristic with two_opt
+		if (solve_greedy(inst, sol)) // Nearest neighbor heuristic with two_opt
 		{
 			print_error("Nearest neighbor heuristic failed");
 			return EXIT_FAILURE;

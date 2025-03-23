@@ -2,25 +2,50 @@
 #include "tsp.h"
 #include "tsp_greedy.h"
 
+int solve_greedy(const instance *inst, solution *best_sol)
+{
+    solution current_sol;
+    current_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
+
+    double best_cost = CPX_INFBOUND;
+
+    for (int i = 0; i < inst->nnodes; i++)
+    {
+        int start_node = rand() % inst->nnodes;
+        nearest_neighbor(inst, &current_sol, start_node);
+
+        double current_cost = cost_path(inst, &current_sol);
+        if (current_cost < best_cost)
+        {
+            best_cost = current_cost;
+            memcpy(best_sol->tour, current_sol.tour, (inst->nnodes + 1) * sizeof(int));
+        }
+    }
+
+    free(current_sol.tour);
+
+    return EXIT_SUCCESS;
+}
+
 /**
  * Nearest neighbor heuristic
  * @param inst instance
  * @param sol solution path
  * @return 0 if the nearest neighbor heuristic is applied successfully, 1 otherwise
  */
-int nearest_neighbor(const instance *inst, solution *sol)
+int nearest_neighbor(const instance *inst, solution *sol, int start_node)
 {
     double time = second();
     if (VERBOSE >= 50)
     {
-        printf("Applying nearest neighbor heuristic...\n");
+        printf("Applying nearest neighbor heuristic from node %d...\n", start_node);
     }
 
-    int nnodes = inst->nnodes;                         // number of nodes
-    int *visited = (int *)calloc(nnodes, sizeof(int)); // visited nodes
-    int current = 0;                                   // current node
-    visited[current] = 1;                              // mark the current node as visited
-    sol->tour[0] = current;                            // start from the current node
+    int nnodes = inst->nnodes;
+    int *visited = (int *)calloc(nnodes, sizeof(int));
+    int current = start_node;
+    visited[current] = 1;
+    sol->tour[0] = current;
 
     for (int i = 1; i < nnodes; i++)
     {
@@ -30,7 +55,6 @@ int nearest_neighbor(const instance *inst, solution *sol)
         { // find the nearest neighbor
             if (visited[j] == 0)
             {
-                // double c = inst->cost_matrix[flatten_coords(current, j, nnodes)];
                 double c = inst->cost_matrix[current][j];
                 if (c < min_cost)
                 {                 // update the nearest neighbor
@@ -39,11 +63,11 @@ int nearest_neighbor(const instance *inst, solution *sol)
                 }
             }
         }
-        visited[next] = 1;   // mark the next node as visited
-        sol->tour[i] = next; // update the best solution
-        current = next;      // update the current node
+        visited[next] = 1;
+        sol->tour[i] = next;
+        current = next;
     }
-    sol->tour[nnodes] = sol->tour[0]; // return to the initial node
+    sol->tour[nnodes] = sol->tour[0]; // Close the tour by returning to the starting node
     free(visited);
 
     if (VERBOSE >= 50)
@@ -52,6 +76,8 @@ int nearest_neighbor(const instance *inst, solution *sol)
         printf("Elapsed time: %lf\n", second() - time);
         printf("--------------------------------------------\n");
     }
+
     cost_path(inst, sol);
+
     return EXIT_SUCCESS;
 }

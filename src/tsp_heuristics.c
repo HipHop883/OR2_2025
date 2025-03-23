@@ -36,7 +36,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
 
     // Get an initial solution using the greedy algorithm.
     // we run 2opt in the while loop.
-    if (nearest_neighbor(tsp, current_sol) != 0)
+    if (solve_greedy(tsp, current_sol) != 0)
     {
         print_error("Nearest neighbor heuristic failed in vns");
         free(current_sol->tour);

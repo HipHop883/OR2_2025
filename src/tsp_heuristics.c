@@ -187,8 +187,6 @@ int tsp_solve_tabu(instance *inst, solution *sol)
     memcpy(current_sol->tour, sol->tour, (nnodes + 1) * sizeof(int));
     current_sol->cost = sol->cost;
     printf("Inital cost: %lf\n", best_sol->cost);
-    printf("Initial current cost: %lf\n", current_sol->cost);
-
 
     // Initialize the number of iterations
     int iter = 0;    
@@ -202,7 +200,7 @@ int tsp_solve_tabu(instance *inst, solution *sol)
             print_error("computing cost_path");
             return -1;
         }
-
+        
         if (current_sol->cost < best_sol->cost)
         {
             memcpy(best_sol->tour, current_sol->tour, (inst->nnodes + 1) * sizeof(int));
@@ -308,7 +306,6 @@ int check_tabu_list(tabuList *tabu, int i, int j, int iter)
     if (iter >= MIN_TENURE) 
     {
         int cycle = (iter - MIN_TENURE) % ((MAX_TENURE - MIN_TENURE) * 2); // Cycle of 2*(MAX_TENURE-MIN_TENURE) iterations (half increase + half decrease)
-
         if (cycle < MAX_TENURE - MIN_TENURE) { // Increase for the first half iterations
             if (tabu->tenure < MAX_TENURE) {
                 if (increase_list(tabu) != 0) {
@@ -316,8 +313,9 @@ int check_tabu_list(tabuList *tabu, int i, int j, int iter)
                     return -1; // It is a tabu move
                 }
             }
-        } else { // Decrease for other MAX_TENURE-MIN_TENURE iterations
-            if (tabu->tenure > MIN_TENURE) {
+        } 
+        else { // Decrease for other MAX_TENURE-MIN_TENURE iterations
+            if (tabu->size > MIN_TENURE && tabu->tenure > MIN_TENURE) { // Check tabu->size before calling decrease_list
                 if (decrease_list(tabu) != 0) {
                     print_error("Error decreasing the tabu list");
                     return -1; // In case of error it is a tabu move
@@ -379,10 +377,10 @@ int decrease_list(tabuList *tabu)
         print_error("Invalid tabu list");
         return -1;
     }
+    if (tabu->size > 0)           // Check if there are elements to remove
+        free(tabu->tabu_list[0]);
 
-    free(tabu->tabu_list[0]);
-
-    for(int i = 1; i < tabu->tenure; i++)
+    for(int i = 1; i < tabu->size; i++)                                                         //  <  SIZE OR TENURE?
     {
         tabu->tabu_list[i - 1] = tabu->tabu_list[i];
     }

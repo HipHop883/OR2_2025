@@ -710,10 +710,6 @@ int run_method(instance *inst, solution *sol)
 			print_error("Error applying VNS");
 			return EXIT_FAILURE;
 		}
-		if (check_time(inst))
-		{
-			return EXIT_FAILURE;
-		}
 	}
 	else
 	{

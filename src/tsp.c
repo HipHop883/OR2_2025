@@ -35,7 +35,7 @@ int load_instance(instance *inst)
 		char *token1;
 		char *token2;
 
-		int active_section = 0; // =1 NODE_COORD_SECTION, =2 DEMAND_SECTION, =3 DEPOT_SECTION
+		int active_section = 0; // =0 GENERAL SETTINGS, =1 NODE_COORD_SECTION
 
 		// int do_print = ( VERBOSE >= 1000 );
 
@@ -510,18 +510,6 @@ int write_path_file(const instance *inst, const solution *sol, const char *filen
 }
 
 /**
- * cost of the edge between nodes i and j
- * @param i node i
- * @param j node j
- * @param inst instance
- * @return cost of the edge between nodes i and j
- */
-double cost(int i, int j, instance *inst)
-{ // I GUESS TO BE REMOVED
-	return sqrt(pow(inst->xcoord[i] - inst->xcoord[j], 2) + pow(inst->ycoord[i] - inst->ycoord[j], 2));
-}
-
-/**
  * cost of the path
  * @param inst instance
  * @param sol solution path
@@ -532,8 +520,6 @@ int cost_path(const instance *inst, solution *sol)
 	double cost_p = 0;
 	for (int i = 0; i < inst->nnodes - 1; i++)
 	{
-		// double edge_cost = cost(inst->best_sol[i], inst->best_sol[i + 1], inst);															// TO BE REMOVED
-		// double edge_cost = inst->cost_matrix[flatten_coords(inst->best_sol[i], inst->best_sol[i + 1], inst->nnodes)]; 					// TO BE REMOVED
 		double edge_cost = inst->cost_matrix[sol->tour[i]][sol->tour[i + 1]];
 
 		if (VERBOSE >= 70)
@@ -542,10 +528,6 @@ int cost_path(const instance *inst, solution *sol)
 	}
 
 	// Add the cost to return to the starting node
-	double return_cost = inst->cost_matrix[sol->tour[inst->nnodes - 1]][sol->tour[0]];
-	// Add the cost to return to the starting node
-	// double return_cost = cost(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst); 											// TO BE REMOVED
-	// double return_cost = inst->cost_matrix[flatten_coords(inst->best_sol[inst->nnodes - 1], inst->best_sol[0], inst->nnodes)]; 		// TO BE REMOVED
 	double return_cost = inst->cost_matrix[sol->tour[inst->nnodes - 1]][sol->tour[0]];
 
 	if (VERBOSE >= 70)
@@ -611,9 +593,6 @@ int two_opt(const instance *inst, solution *sol)
  */
 double delta(int i, int j, const solution *sol, const instance *inst)
 {
-	/*return (inst->cost_matrix[flatten_coords(path[i+1], path[j+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[i], path[j], inst->nnodes)] 				// TO BE REMOVED
-		-(inst->cost_matrix[flatten_coords(path[i], path[i+1], inst->nnodes)] + inst->cost_matrix[flatten_coords(path[j], path[j+1], inst->nnodes)]));
-	*/
 	return (inst->cost_matrix[sol->tour[i + 1]][sol->tour[j + 1]] + inst->cost_matrix[sol->tour[i]][sol->tour[j]] - (inst->cost_matrix[sol->tour[i]][sol->tour[i + 1]] + inst->cost_matrix[sol->tour[j]][sol->tour[j + 1]]));
 }
 
@@ -655,7 +634,6 @@ int tsp_compute_costs(instance *tsp)
 			double deltay = tsp->ycoord[i] - tsp->ycoord[j];
 			double dist = sqrt(deltax * deltax + deltay * deltay);
 
-			// tsp->cost_matrix[flatten_coords(i, j, tsp->nnodes)] = dist;						// TO BE REMOVED
 			tsp->cost_matrix[i][j] = dist;
 		}
 	}

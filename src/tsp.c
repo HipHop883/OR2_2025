@@ -577,7 +577,6 @@ int two_opt(const instance *inst, solution *sol)
 		printf("--------------------------------------------\n");
 	}
 
-	free(best_tour);
 	cost_path(inst, sol);
 
 	return EXIT_SUCCESS;

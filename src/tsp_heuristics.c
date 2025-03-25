@@ -84,7 +84,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
             }
         }
 
-        current_sol->cost = cost_path(tsp, current_sol);
+        cost_path(tsp, current_sol);
     }
 
     // Copy the best found solution to the output parameters.

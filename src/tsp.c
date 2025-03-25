@@ -833,7 +833,7 @@ int tsp_3opt_solution(instance *tsp, solution *sol)
 	free(temp_tour);
 
 	// Recompute and update the solution cost.
-	sol->cost = cost_path(tsp, sol);
+	cost_path(tsp, sol);
 
 	return 0;
 }

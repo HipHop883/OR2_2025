@@ -14,10 +14,10 @@ int solve_greedy(const instance *inst, solution *best_sol)
         int start_node = rand() % inst->nnodes;
         nearest_neighbor(inst, &current_sol, start_node);
 
-        double current_cost = cost_path(inst, &current_sol);
-        if (current_cost < best_cost)
+        cost_path(inst, &current_sol);
+        if (current_sol.cost < best_cost)
         {
-            best_cost = current_cost;
+            best_cost = current_sol.cost;
             memcpy(best_sol->tour, current_sol.tour, (inst->nnodes + 1) * sizeof(int));
         }
     }

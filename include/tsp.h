@@ -30,72 +30,61 @@
 #define EXIT_FAILURE 1
 
 /**
- * Data structure to define a solution
+ * Structure representing a TSP solution (path + cost).
  */
 typedef struct
 {
-	int *tour;
-	double cost;
+	int *tour;	 // sequence of nodes
+	double cost; // total path cost
 } solution;
 
+/**
+ * Structure representing a TSP problem instance.
+ */
 typedef struct
 {
-
-	// input data
+	// Input
 	int nnodes;
 	double *xcoord;
 	double *ycoord;
 
-	// computed data
-	double starting_time; // starting time
-	double **cost_matrix; // cost matrix
-
-	// parameters
-	char input_file[1000]; // input file
-	char method[20];	   // method to be used
-	double timelimit;	   // overall time limit, in sec.s
+	// Parameters
+	char input_file[1000];
+	char method[20];
+	double timelimit;
 	int randomseed;
 
+	// Internal state
+	double **cost_matrix;
+	double starting_time;
 } instance;
 
 void init(instance *inst);
-int load_instance(instance *inst);
-void print_error(const char *err_message);
-void allocate_buffers(instance *tsp);
-
 int parse_command_line(int argc, char **argv, instance *inst);
+
+int load_instance(instance *inst);
+void allocate_buffers(instance *inst);
 void free_instance(instance *inst, solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
-int random_path(solution *sol, int nnodes, int seed);
-void print_path(const instance *inst, const solution *sol);
-void print_nodes(instance *inst);
+int generate_random_path(solution *sol, int nnodes, int seed);
+
+int apply_two_opt(const instance *inst, solution *sol);
+int apply_three_opt(instance *inst, solution *sol); // wrapper for 3-opt move
+
+double path_cost_delta(int i, int j, const solution *sol, const instance *inst);
+void reverse_path_segment(int i, int j, solution *sol);
+
+int tsp_compute_costs(instance *inst);
+int evaluate_path_cost(const instance *inst, solution *sol);
+int execute_selected_method(instance *inst, solution *sol);
 
 int check_time(const instance *inst);
 
-int write_path_file(const instance *inst, const solution *sol, const char *filename);
+void print_solution_path(const instance *inst, const solution *sol);
+void print_node_coordinates(instance *inst);
+int write_path_to_file(const instance *inst, const solution *sol, const char *filename);
 
-int cost_path(const instance *inst, solution *sol);
-
-int two_opt(const instance *inst, solution *sol);
-double delta(int i, int j, const solution *sol, const instance *inst);
-void swap_path(int i, int j, solution *sol);
-
-int tsp_compute_costs(instance *tsp);
-
-int run_method(instance *inst, solution *sol);
-
-static void generate_3opt_positions(instance *tsp, int *positions);
-
-int tsp_3opt_solution(instance *tsp, solution *sol);
-
-static void tsp_3opt_swap(instance *tsp, solution *current_sol, int *temp_tour, int *positions);
-
-/*
-//inline
-inline int imax(int i1, int i2) { return ( i1 > i2 ) ? i1 : i2; }
-inline double dmin(double d1, double d2) { return ( d1 < d2 ) ? d1 : d2; }
-inline double dmax(double d1, double d2) { return ( d1 > d2 ) ? d1 : d2; }
-*/
+void print_error(const char *err_message);
 
 #endif /* TSP_H_ */

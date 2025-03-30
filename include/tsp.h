@@ -57,6 +57,10 @@ typedef struct
 	// Internal state
 	double **cost_matrix;
 	double starting_time;
+
+	// VNS params
+	int vns_kmin;
+	int vns_kmax;
 } instance;
 
 void init(instance *inst);

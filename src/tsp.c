@@ -291,6 +291,40 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			help = 1;
 			break;
 		}
+		else if (!strcmp(argv[i], "--vns_kmin") || !strcmp(argv[i], "-vkmin"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->vns_kmin = atoi(argv[++i]);
+				if (inst->vns_kmin < 1)
+				{
+					fprintf(stderr, "vns_kmin must be at least 1\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: VNS k min value is missing\n");
+				help = 1;
+			}
+		}
+		else if (!strcmp(argv[i], "--vns_kmax") || !strcmp(argv[i], "-vkmax"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->vns_kmax = atoi(argv[++i]);
+				if (inst->vns_kmax < 1)
+				{
+					fprintf(stderr, "vns_kmax must be at least 1\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: VNS k max value is missing\n");
+				help = 1;
+			}
+		}
 	}
 
 	// Validation
@@ -313,6 +347,12 @@ int parse_command_line(int argc, char **argv, instance *inst)
 	else if (source == -1)
 	{
 		fprintf(stderr, "Error: You must specify either --random or --file mode\n");
+		help = 1;
+	}
+
+	if (inst->vns_kmin > inst->vns_kmax)
+	{
+		fprintf(stderr, "Error: vns_kmin must be less than or equal to vns_kmax\n");
 		help = 1;
 	}
 
@@ -818,6 +858,9 @@ void init(instance *inst)
 	inst->randomseed = 0;
 
 	inst->starting_time = second();
+
+	inst->vns_kmin = 1;
+	inst->vns_kmax = 5;
 }
 
 /**

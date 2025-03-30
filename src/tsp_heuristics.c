@@ -163,8 +163,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
     best_sol->cost = current_sol->cost;
 
-    int min_kicks = 1;
-    int max_kicks = 5;
+    int min_kicks = inst->vns_kmin;
+    int max_kicks = inst->vns_kmax;
 
     while (!check_time(inst))
     {

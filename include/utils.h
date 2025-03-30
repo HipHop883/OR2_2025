@@ -6,5 +6,6 @@ int compar(const void *a, const void *b);
 void set_seed(int seed);
 double rand01();
 int should_plot(int argc, char **argv);
+int runs(int argc, char **argv);
 
 #endif // UTILS_H

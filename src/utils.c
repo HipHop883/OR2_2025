@@ -64,3 +64,25 @@ int should_plot(int argc, char **argv)
     }
     return 0;
 }
+
+/**
+ * Get the number of runs to perform from the command line arguments
+ * @param argc number of arguments
+ * @param argv array of arguments
+ * @return the number of runs, default is 1
+ */
+int runs(int argc, char **argv)
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strcmp(argv[i], "--runs") || !strcmp(argv[i], "-rs"))
+        {
+            if (i + 1 < argc)
+            {
+                return atoi(argv[++i]);
+            }
+        }
+    }
+
+    return 1;
+}

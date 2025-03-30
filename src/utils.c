@@ -10,16 +10,27 @@
 double second()
 {
     struct timespec ts;
-
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    double t = (double)ts.tv_sec + 1.0e-9 * ((double)ts.tv_nsec);
-
-    return t;
+    return (double)ts.tv_sec + 1.0e-9 * ts.tv_nsec;
 }
-
-double rand01(int seed)
+/**
+ * Set the random seed and run rome random numbers to improve randomness
+ * @param seed the seed to set
+ */
+void set_seed(int seed)
 {
     srand(seed);
+    // To imporve randomness
+    for (int i = 0; i < 10000; i++)
+        rand();
+}
+
+/**
+ * Generate a random number between 0 and 1
+ * @return a random number between 0 and 1
+ */
+double rand01()
+{
     return (double)rand() / RAND_MAX;
 }
 
@@ -31,10 +42,18 @@ double rand01(int seed)
  */
 int compar(const void *a, const void *b)
 {
-    return (*(int *)a - *(int *)b);
+    int av = *(int *)a;
+    int bv = *(int *)b;
+    return (av > bv) - (av < bv);
 }
 
-int plot(int argc, char **argv)
+/**
+ * Check cmd line arguments for the --plot or -p flag
+ * @param argc number of arguments
+ * @param argv array of arguments
+ * @return 1 if the --plot or -p flag is present, 0 otherwise
+ */
+int should_plot(int argc, char **argv)
 {
     for (int i = 1; i < argc; i++)
     {
@@ -43,6 +62,5 @@ int plot(int argc, char **argv)
             return 1;
         }
     }
-
     return 0;
 }

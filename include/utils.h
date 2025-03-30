@@ -3,7 +3,8 @@
 
 double second();
 int compar(const void *a, const void *b);
-double rand01(int seed);
-int plot(int argc, char **argv);
+void set_seed(int seed);
+double rand01();
+int should_plot(int argc, char **argv);
 
 #endif // UTILS_H

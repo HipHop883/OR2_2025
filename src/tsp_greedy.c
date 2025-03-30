@@ -2,19 +2,38 @@
 #include "tsp.h"
 #include "tsp_greedy.h"
 
-int solve_greedy(const instance *inst, solution *best_sol)
+#define N_GREEDY_STARTS 10 // Number of random starts for multi-start greedy
+
+/**
+ * Applies a multi-start greedy heuristic using the nearest neighbor method.
+ * Tries N_GREEDY_STARTS random starting points and keeps the best result.
+ * Stops early if time limit is reached.
+ *
+ * @param inst pointer to the TSP instance
+ * @param best_sol solution structure to be filled with the best found tour
+ * @return 0 on success
+ */
+int apply_greedy_search(const instance *inst, solution *best_sol)
 {
+    set_seed(inst->randomseed);
+
     solution current_sol;
     current_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
 
     double best_cost = CPX_INFBOUND;
 
-    for (int i = 0; i < inst->nnodes; i++)
+    for (int i = 0; i < N_GREEDY_STARTS; i++)
     {
-        int start_node = rand() % inst->nnodes;
-        nearest_neighbor(inst, &current_sol, start_node);
+        if (check_time(inst))
+        {
+            if (VERBOSE >= 20)
+                printf("Greedy search stopped early due to time limit.\n");
+            break;
+        }
 
-        cost_path(inst, &current_sol);
+        int start_node = rand() % inst->nnodes;
+        apply_nearest_neighbor(inst, &current_sol, start_node);
+
         if (current_sol.cost < best_cost)
         {
             best_cost = current_sol.cost;
@@ -22,18 +41,21 @@ int solve_greedy(const instance *inst, solution *best_sol)
         }
     }
 
-    free(current_sol.tour);
+    best_sol->cost = best_cost;
 
+    free(current_sol.tour);
     return EXIT_SUCCESS;
 }
 
 /**
- * Nearest neighbor heuristic
- * @param inst instance
- * @param sol solution path
- * @return 0 if the nearest neighbor heuristic is applied successfully, 1 otherwise
+ * Builds a TSP tour starting from a given node using the nearest neighbor heuristic.
+ *
+ * @param inst pointer to the TSP instance
+ * @param sol solution structure to fill with the constructed tour
+ * @param start_node index of the starting node
+ * @return 0 on success
  */
-int nearest_neighbor(const instance *inst, solution *sol, int start_node)
+int apply_nearest_neighbor(const instance *inst, solution *sol, int start_node)
 {
     double time = second();
     if (VERBOSE >= 50)
@@ -51,23 +73,26 @@ int nearest_neighbor(const instance *inst, solution *sol, int start_node)
     {
         double min_cost = CPX_INFBOUND;
         int next = -1;
+
         for (int j = 0; j < nnodes; j++)
-        { // find the nearest neighbor
-            if (visited[j] == 0)
+        {
+            if (!visited[j])
             {
                 double c = inst->cost_matrix[current][j];
                 if (c < min_cost)
-                {                 // update the nearest neighbor
-                    min_cost = c; // update the minimum cost
-                    next = j;     // update the next node
+                {
+                    min_cost = c;
+                    next = j;
                 }
             }
         }
+
         visited[next] = 1;
         sol->tour[i] = next;
         current = next;
     }
-    sol->tour[nnodes] = sol->tour[0]; // Close the tour by returning to the starting node
+
+    sol->tour[nnodes] = sol->tour[0]; // close the tour
     free(visited);
 
     if (VERBOSE >= 50)
@@ -77,7 +102,6 @@ int nearest_neighbor(const instance *inst, solution *sol, int start_node)
         printf("--------------------------------------------\n");
     }
 
-    cost_path(inst, sol);
-
+    evaluate_path_cost(inst, sol);
     return EXIT_SUCCESS;
 }

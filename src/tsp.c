@@ -774,8 +774,8 @@ int run_method(instance *inst, solution *sol)
 		if (check_time(inst))
         {
             free(method_str);
-            cost_path(inst, sol); 
-            return EXIT_SUCCESS; 
+            cost_path(inst, sol);
+            return EXIT_SUCCESS;
         }
 
 		cost_path(inst, sol);
@@ -786,7 +786,6 @@ int run_method(instance *inst, solution *sol)
 
     // Save the cost of the best solution
     cost_path(inst, sol);
-	free(sol->tour);
     return EXIT_SUCCESS;
 }
 

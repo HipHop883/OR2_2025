@@ -689,7 +689,7 @@ int execute_selected_method(instance *inst, solution *sol)
 	}
 	else if (strcmp(inst->method, "n_n+two_opt") == 0)
 	{
-		if (solve_greedy(inst, sol)) // Nearest neighbor heuristic with two_opt
+		if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic with two_opt
 		{
 			print_error("Nearest neighbor heuristic failed");
 			return EXIT_FAILURE;

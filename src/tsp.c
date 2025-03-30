@@ -372,6 +372,39 @@ void generate_random_nodes(instance *inst, int nnodes, int seed)
 }
 
 /**
+ * Generate a random path using the Fisher-Yates shuffle algorithm
+ * @param sol path of the solution
+ * @param nnodes number of nodes
+ * @param seed seed
+ * @return 0 if the random path is generated successfully, 1 otherwise
+ */
+int random_path(solution *sol, int nnodes, int seed)
+{
+	int nodes[nnodes];
+	for (int i = 0; i < nnodes; i++)
+	{
+		nodes[i] = i;
+	}
+
+	srand(seed);
+	for (int i = nnodes - 1; i > 0; i--)
+	{
+		int j = rand() % (i + 1);
+		// Swap nodes[i] with nodes[j]
+		int temp = nodes[i];
+		nodes[i] = nodes[j];
+		nodes[j] = temp;
+	}
+
+	for (int i = 0; i < nnodes; i++)
+	{
+		sol->tour[i] = nodes[i];
+	}
+	sol->tour[nnodes] = sol->tour[0]; // Comes back to the initial node
+	return EXIT_SUCCESS;
+}
+
+/**
  * Free instance
  * @param inst instance
  * @return void

@@ -73,12 +73,26 @@ void allocate_buffers(instance *inst);
 void free_instance(instance *inst, solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
-
+int generate_random_path(const instance *inst, solution *sol);
 int check_time(const instance *inst);
 
 void print_solution_path(const instance *inst, const solution *sol);
 void print_node_coordinates(instance *inst);
 int write_path_to_file(const instance *inst, const solution *sol, const char *filename);
+
+int evaluate_path_cost(const instance *inst, solution *sol);
+
+int apply_two_opt(const instance *inst, solution *sol);
+double path_cost_delta(int i, int j, const solution *sol, const instance *inst);
+void reverse_path_segment(int i, int j, solution *sol);
+
+int tsp_compute_costs(instance *tsp);
+int execute_selected_method(instance *inst, solution *sol);
+
+static void generate_three_opt_positions(instance *tsp, int *positions);
+static void perform_three_opt_swap(instance *tsp, solution *current_sol, int *new_tour, int *positions);
+int apply_three_opt(instance *tsp, solution *sol);
+
 
 void print_error(const char *err_message);
 

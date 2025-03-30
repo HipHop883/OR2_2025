@@ -19,7 +19,6 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
 
     solution current_sol;
     current_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
-    srand(inst->randomseed);
 
     if (!current_sol.tour)
     {

@@ -157,7 +157,7 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     else
     {
         // Otherwise, it generates a random path
-        if (random_path(inst, current_sol) != EXIT_SUCCESS)
+        if (generate_random_path(inst, current_sol) != EXIT_SUCCESS)
         {
             print_error("Random path failed in vns");
             free(current_sol->tour);
@@ -318,7 +318,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
 
     if (!sol->initialized) // Check if solution is not initialized
     {
-        if (random_path(inst, sol) != 0)
+        if (generate_random_path(inst, sol) != 0)
         {
             print_error("Random path failed in tabu");
             free_tabu(tabu);

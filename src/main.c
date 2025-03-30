@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 	printf("Number of nodes: %d\n", inst.nnodes);
 
 	// Run the method and print the cost of the solution
-	if (executed_selected_method(&inst, &sol))
+	if (execute_selected_method(&inst, &sol))
 	{
 		print_error("Error running method\n");
 		free_instance(&inst, &sol);

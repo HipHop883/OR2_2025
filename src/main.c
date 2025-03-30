@@ -2,14 +2,12 @@
 #include "tsp_greedy.h"
 #include "utils.h"
 
-// unset GTK_PATH to avoid conflict with gnuplot
-
 int main(int argc, char **argv)
 {
 	if (argc < 2)
 	{
 		printf("Usage: %s -help for help\n", argv[0]);
-		exit(1);
+		return EXIT_FAILURE;
 	}
 
 	if (VERBOSE >= 2)
@@ -19,48 +17,56 @@ int main(int argc, char **argv)
 		printf("\n");
 	}
 
-	double t1 = second();
 	instance inst;
 	init(&inst);
-	solution sol;
+	solution sol; // Safe init
 
+	double t1 = second();
+
+	// Parse command line
 	if (parse_command_line(argc, argv, &inst))
 	{
 		print_error("Error parsing command line");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
+	printf("Loading from file..\n\n\n\n");
+	// Load problem instance
 	if (load_instance(&inst))
 	{
+		printf("ERRORROROR");
+
 		print_error("Error reading input");
 		free_instance(&inst, &sol);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	printf("Number of nodes: %d\n", inst.nnodes);
 
-	// Allocate memory for the solution path
+	// Allocate memory for the solution tour
 	sol.tour = (int *)calloc(inst.nnodes + 1, sizeof(int));
-
-	// Run the method and print the cost of the solution
-	if (run_method(&inst, &sol))
+	if (!sol.tour)
 	{
-		print_error("Error running method\n");
+		print_error("Memory allocation failed for solution");
 		free_instance(&inst, &sol);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
-	printf("The total cost is: %lf\n", sol.cost);
+	// Solve using the selected method
+	if (execute_selected_method(&inst, &sol))
+	{
+		print_error("Error running method");
+		free_instance(&inst, &sol);
+		return EXIT_FAILURE;
+	}
 
-	/* Print the best solution path
-	printf("Best solution path:\n");
-	print_path(&inst, inst.best_sol, inst.nnodes);
-	*/
+	// Print final cost
+	printf("Total tour cost: %.2lf\n", sol.cost);
 
 	double t2 = second();
 
-	// Plot the solution path using Gnuplot
-	if (plot(argc, argv))
+	// Optional: plot the solution if --plot or -p is set
+	if (should_plot(argc, argv))
 	{
 		FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
 		if (gnuplotPipe)
@@ -68,7 +74,7 @@ int main(int argc, char **argv)
 			fprintf(gnuplotPipe, "set xlabel 'X'\n");
 			fprintf(gnuplotPipe, "set ylabel 'Y'\n");
 			fprintf(gnuplotPipe, "set grid\n");
-			fprintf(gnuplotPipe, "set key top right\n"); // Enable legend and set position
+			fprintf(gnuplotPipe, "set key top right\n");
 			fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s'\n", inst.method);
 			for (int i = 0; i <= inst.nnodes; i++)
 			{
@@ -81,16 +87,15 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			print_error("Error opening Gnuplot. Make sure Gnuplot is installed and in your PATH.");
+			print_error("Gnuplot error. Make sure it's installed and in your PATH.");
 		}
 	}
 
 	if (VERBOSE >= 1)
 	{
-		printf("... TSP problem solved in %lf sec.s\n", t2 - inst.starting_time);
+		printf("TSP solved in %.2lf seconds\n", t2 - inst.starting_time);
 	}
 
-	// free memory
 	free_instance(&inst, &sol);
-	return 0;
+	return EXIT_SUCCESS;
 }

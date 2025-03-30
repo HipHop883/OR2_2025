@@ -291,6 +291,19 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
+		else if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "--plot"))
+		{
+			if (i < argc)
+			{
+				inst->plot = 0;
+				i++;
+			}
+			else 
+			{
+				perror("Plot is missing\n");
+				help = 1;
+			}
+        }
 		else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
 		{
 			help = 1;
@@ -327,7 +340,8 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("	--time_limit %lf\n", inst->timelimit);
 		printf("	--seed %d\n", inst->randomseed);
 		printf("	--method %s\n", inst->method);
-		printf("	--nnodes %d\n", inst->nnodes);
+		if (inst->nnodes > 0)
+			printf("	--nnodes %d\n", inst->nnodes);
 		printf("----------------------------------------------------------------------------------------------\n\n");
 	}
 
@@ -340,6 +354,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("--file         | -f  <file name>		Input file name\n");
 		printf("--time_limit   | -tl <time limit>		Maximum execution time in seconds\n");
 		printf("--method       | -m  <method name>		Method to solve TSP\n");
+		printf("--plot         | -p                     Paramater to see and save the solution plot");
 		printf("--help         | -h  Help\n");
 		printf("----------------------------------------------------------------------------------------------\n");
 		printf("\nUSAGE example:\n");
@@ -406,20 +421,20 @@ void free_instance(instance *inst, solution *sol)
 
 /**
  * Generate a random path using the Fisher-Yates shuffle algorithm
+ * @param inst the instance
  * @param sol path of the solution
- * @param nnodes number of nodes
- * @param seed seed
  * @return 0 if the random path is generated successfully, 1 otherwise
  */
-int random_path(solution *sol, int nnodes, int seed)
+int random_path(const instance * inst, solution *sol)
 {
+	int nnodes = inst->nnodes;
 	int nodes[nnodes];
 	for (int i = 0; i < nnodes; i++)
 	{
 		nodes[i] = i;
 	}
 
-	srand(seed);
+	srand(inst->randomseed);
 	for (int i = nnodes - 1; i > 0; i--)
 	{
 		int j = rand() % (i + 1);
@@ -434,6 +449,9 @@ int random_path(solution *sol, int nnodes, int seed)
 		sol->tour[i] = nodes[i];
 	}
 	sol->tour[nnodes] = sol->tour[0]; // Comes back to the initial node
+
+	cost_path(inst, sol);
+
 	return EXIT_SUCCESS;
 }
 
@@ -478,7 +496,6 @@ int check_time(const instance *inst)
 	double current_time = second();
 	if (current_time - inst->starting_time > inst->timelimit)
 	{
-		print_error("Time limit reached\n");
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
@@ -548,6 +565,22 @@ int cost_path(const instance *inst, solution *sol)
  */
 int two_opt(const instance *inst, solution *sol)
 {
+	if (sol == NULL) // Check if sol is NULL
+    {
+        print_error("sol is NULL in two_opt");
+        return EXIT_FAILURE;
+    }
+
+	if (!sol->initialized) // Check if solution is not initialized
+    {
+        // Generate a random path if the solution is not initialized
+        if (random_path(inst, sol) != EXIT_SUCCESS)
+        {
+            print_error("Failed to generate random path in two_opt");
+            return EXIT_FAILURE;
+        }
+    }
+
 	double time = second();
 	if (VERBOSE >= 50)
 	{
@@ -555,6 +588,7 @@ int two_opt(const instance *inst, solution *sol)
 	}
 	int nnodes = inst->nnodes;
 	int improved = 1; // flag to indicate if the path has been improved
+	double best_cost = sol->cost; // Initialize with the current cost
 	while (improved)
 	{
 		improved = 0; // reset the flag
@@ -562,11 +596,16 @@ int two_opt(const instance *inst, solution *sol)
 		{
 			for (int j = i + 1; j < nnodes; j++)
 			{
-				if (delta(i, j, sol, inst) < 0)
-				{						  // if the path is improved
-					swap_path(i, j, sol); // swap nodes i and j
-					improved = 1;		  // set the flag
-				}
+				double delta_cost = delta(i, j, sol, inst);
+                if (delta_cost < 0)
+                {
+                    swap_path(i, j, sol); 		// swap nodes i and j
+                    improved = 1;         		// set the flag
+                    sol->cost += delta_cost; 	// Update the cost
+                    if (sol->cost < best_cost) {
+                        best_cost = sol->cost; 	// Update the best cost
+                    }
+                }
 			}
 		}
 	}
@@ -577,6 +616,11 @@ int two_opt(const instance *inst, solution *sol)
 		printf("Elapsed time: %lf\n", second() - time);
 		printf("--------------------------------------------\n");
 	}
+
+	if (!sol->initialized) // Mark as initialized only if not already initialized
+    {
+        sol->initialized = 1;
+    }
 
 	cost_path(inst, sol);
 
@@ -649,87 +693,101 @@ int tsp_compute_costs(instance *tsp)
  */
 int run_method(instance *inst, solution *sol)
 {
-	if (strcmp(inst->method, "n_n") == 0)
-	{
-		if (solve_greedy(inst, sol)) // Nearest neighbor heuristic
-		{
-			print_error("Error applying nearest neighbor heuristic");
-			return EXIT_FAILURE;
-		}
-		if (check_time(inst))
-		{
-			return EXIT_FAILURE;
-		}
-	}
-	else if (strcmp(inst->method, "n_n+two_opt") == 0)
-	{
-		if (solve_greedy(inst, sol)) // Nearest neighbor heuristic with two_opt
-		{
-			print_error("Nearest neighbor heuristic failed");
-			return EXIT_FAILURE;
-		}
-		if (two_opt(inst, sol))
-		{
-			print_error("Error applying 2-opt");
-			return EXIT_FAILURE;
-		}
-		if (check_time(inst))
-		{
-			return EXIT_FAILURE;
-		}
-	}
-	else if (strcmp(inst->method, "random+two_opt") == 0)
-	{ // Random path with two_opt
-		if (random_path(sol, inst->nnodes, inst->randomseed))
-		{
-			print_error("Error generating random path");
-			return EXIT_FAILURE;
-		}
-		if (two_opt(inst, sol))
-		{
-			print_error("Error applying 2-opt");
-			return EXIT_FAILURE;
-		}
-		if (check_time(inst))
-		{
-			return EXIT_FAILURE;
-		}
-	}
-	else if (strcmp(inst->method, "random") == 0)
-	{
-		random_path(sol, inst->nnodes, inst->randomseed); // Random path
-		if (check_time(inst))
-		{
-			print_error("VNS failed");
-			return EXIT_FAILURE;
-		}
-	}
-	else if (strcmp(inst->method, "vns") == 0)
-	{ // VNS
-		if (tsp_solve_vns(inst, sol))
-		{
-			print_error("Error applying VNS");
-			return EXIT_FAILURE;
-		}
-	}
-	else if (strcmp(inst->method, "tabu") == 0)	// TABU SEARCH
-	{
-		if (tsp_solve_tabu(inst, sol))
-		{
-			print_error("Error applying Tabu Search");
-			return EXIT_FAILURE;
-		}
-	}
-	else
-	{
-		print_error("Invalid method\n");
-		print_error("USAGE: -method [n_n|n_n+two_opt|random+two_opt|random]");
-		return EXIT_FAILURE;
-	}
+	// Initialized the sol
+	sol->tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
+    if (sol->tour == NULL) {
+        print_error("Memory allocation failed for sol->tour");
+        return EXIT_FAILURE;
+    }
+    sol->initialized = 0; // Initialized to 0 (false)
 
-	// Print the cost of the best solution
-	cost_path(inst, sol);
-	return EXIT_SUCCESS;
+	char *method_str = strdup(inst->method); // Double the string to not modify it directly
+	if (method_str == NULL) {
+        print_error("Memory allocation failed");
+		free(sol->tour);
+        return EXIT_FAILURE;
+    }
+
+	char *method = strtok(method_str, "+"); // Divide the string in separate methods by the '+'
+
+    while (method != NULL)
+    {
+        if (strcmp(method, "n_n") == 0)
+        {
+            if (solve_greedy(inst, sol)) // Nearest neighbor heuristic
+            {
+                print_error("Error applying nearest neighbor heuristic");
+                free(method_str);
+				free(sol->tour);
+                return EXIT_FAILURE;
+            }
+        }
+        else if (strcmp(method, "two_opt") == 0)
+        {
+            if (two_opt(inst, sol))
+            {
+                print_error("Error applying 2-opt");
+                free(method_str);
+				free(sol->tour);
+                return EXIT_FAILURE;
+            }
+        }
+        else if (strcmp(method, "random") == 0)
+        {
+            if (random_path(inst, sol))
+            {
+                print_error("Error generating random path");
+                free(method_str);
+				free(sol->tour);
+                return EXIT_FAILURE;
+            }
+        }
+        else if (strcmp(method, "vns") == 0)
+        {
+            if (tsp_solve_vns(inst, sol))
+            {
+                print_error("Error applying VNS");
+                free(method_str);
+				free(sol->tour);
+                return EXIT_FAILURE;
+            }
+        }
+        else if (strcmp(method, "tabu") == 0)
+        {
+            if (tsp_solve_tabu(inst, sol))
+            {
+                print_error("Error applying Tabu Search");
+                free(method_str);
+				free(sol->tour);
+                return EXIT_FAILURE;
+            }
+        }
+        else
+        {
+            print_error("Invalid method");
+            print_error("USAGE: -method [n_n|two_opt|random|vns|tabu] (separated by '+')");
+            free(method_str);
+			free(sol->tour);
+            return EXIT_FAILURE;
+        }
+
+		if (check_time(inst))
+        {
+            free(method_str);
+            cost_path(inst, sol); 
+            return EXIT_SUCCESS; 
+        }
+
+		cost_path(inst, sol);
+        method = strtok(NULL, "+"); // Get the next method
+    }
+
+    free(method_str); 
+
+    // Save the cost of the best solution
+    cost_path(inst, sol);
+	free(sol->tour);
+    return EXIT_SUCCESS;
 }
 
 void allocate_buffers(instance *tsp)
@@ -774,9 +832,11 @@ void init(instance *inst)
 	strcpy(inst->input_file, "NULL");
 	strcpy(inst->method, "NULL");
 	inst->timelimit = CPX_INFBOUND;
-	inst->randomseed = 0;
+	inst->randomseed = rand();
+	inst->plot = 1;
 
 	inst->starting_time = second();
+
 }
 
 /**

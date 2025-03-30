@@ -13,7 +13,7 @@
 int tsp_solve_vns(instance *tsp, solution *sol)
 {
     if (!tsp || !sol->tour || tsp->nnodes <= 0 || !tsp->cost_matrix)
-        return 1;
+        return EXIT_FAILURE;
 
     solution *current_sol = (solution *)malloc(sizeof(solution));
     solution *best_sol = (solution *)malloc(sizeof(solution));
@@ -32,16 +32,23 @@ int tsp_solve_vns(instance *tsp, solution *sol)
 
     // tsp->starting_time = second();
 
-    // Get an initial solution using the greedy algorithm.
-    // we run 2opt in the while loop.
-    if (nearest_neighbor(tsp, current_sol, 0) != 0)
+    if (sol->initialized)              // Check if already initialized
     {
-        print_error("Nearest neighbor heuristic failed in vns");
-        free(current_sol->tour);
-        free(current_sol);
-        free(best_sol->tour);
-        free(best_sol);
-        return EXIT_FAILURE;
+        current_sol->cost = sol->cost; // Use the existing cost
+        memcpy(current_sol->tour, sol->tour, sizeof(int) * (tsp->nnodes + 1));
+    }
+    else
+    {
+        // Otherwise, it generates a random path
+        if (random_path(tsp, current_sol) != 0)
+        {
+            print_error("Random path failed in vns");
+            free(current_sol->tour);
+            free(current_sol);
+            free(best_sol->tour);
+            free(best_sol);
+            return EXIT_FAILURE;
+        }
     }
 
     memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (tsp->nnodes + 1));
@@ -50,6 +57,50 @@ int tsp_solve_vns(instance *tsp, solution *sol)
     // VNS parameters for diversification: number of 3-opt kicks.
     int min_kicks = 1;
     int max_kicks = 5;
+
+    // Gnuplot setup
+    FILE *gp = NULL;
+    if (tsp->plot == 0) { 
+        gp = popen("gnuplot -persist", "w");
+        if (gp) {
+            char filename[256];
+            sprintf(filename, "plot/TSP_Heuristic_%s.png", tsp->method);
+
+            fprintf(gp, "set terminal png\n");
+            fprintf(gp, "set output '%s'\n", filename);
+            fprintf(gp, "set title 'TSP VNS Solution Cost vs Iteration'\n");
+            fprintf(gp, "set xlabel 'Iteration'\n");
+            fprintf(gp, "set ylabel 'Solution Cost'\n");
+            fprintf(gp, "plot '-' with lines title 'Costs', '-' with lines lc rgb 'red' title 'Best costs'\n");
+        }
+    }
+
+    int iter = 0;
+    int best_iter = 0;
+    double best_cost_local = best_sol->cost;
+
+    // Array to save red line
+    int *best_iters = NULL;
+    double *best_costs = NULL;
+    int best_points_count = 0;
+    int best_points_capacity = 0;
+
+    if (tsp->plot == 0 && gp)
+    {
+        best_points_capacity = 100;                 // Initial Capacity
+        best_iters = (int *)malloc(best_points_capacity * sizeof(int));
+        best_costs = (double *)malloc(best_points_capacity * sizeof(double));
+
+        if (!best_iters || !best_costs)
+        {
+            print_error("Memory allocation failed for best_iters/best_costs");
+            return EXIT_FAILURE;
+        }
+
+        best_iters[best_points_count] = 0;
+        best_costs[best_points_count] = best_sol->cost;
+        best_points_count++;
+    }
 
     while (1)
     {
@@ -60,7 +111,7 @@ int tsp_solve_vns(instance *tsp, solution *sol)
         }
 
         // Intensification phase: apply 2-opt improvement until no further improvement is found.
-        if (two_opt(tsp, current_sol) != 0)
+        if (two_opt(tsp, current_sol) != EXIT_SUCCESS)
         {
             print_error("2-opt failed in vns");
         }
@@ -70,6 +121,35 @@ int tsp_solve_vns(instance *tsp, solution *sol)
         {
             best_sol->cost = current_sol->cost;
             memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (tsp->nnodes + 1));
+            best_cost_local = best_sol->cost;
+            best_iter = iter;
+        }
+
+        if (tsp->plot == 0 && gp)
+        {
+            // Check if the it needs to realloc the array
+            if (best_points_count >= best_points_capacity)
+            {
+                best_points_capacity *= 2;              // Double the capacity
+                int *tmp_iters = (int *)realloc(best_iters, best_points_capacity * sizeof(int));
+                double *tmp_costs = (double *)realloc(best_costs, best_points_capacity * sizeof(double));
+
+                if (!tmp_iters || !tmp_costs)
+                {
+                    print_error("Memory reallocation failed for best_iters/best_costs");
+                    free(best_iters);
+                    free(best_costs);
+                    return EXIT_FAILURE;
+                }
+
+                best_iters = tmp_iters;
+                best_costs = tmp_costs;
+            }
+            
+            // Save the new best_cost
+            best_iters[best_points_count] = iter;
+            best_costs[best_points_count] = best_sol->cost;
+            best_points_count++;
         }
 
         // Diversification phase: apply a random number of 3-opt kicks.
@@ -83,11 +163,35 @@ int tsp_solve_vns(instance *tsp, solution *sol)
         }
 
         cost_path(tsp, current_sol);
+
+        if (gp) {
+            fprintf(gp, "%d %lf\n", iter, current_sol->cost);
+        }
+        else if (tsp->plot == 0)
+        {
+        printf("Gnuplot pipe error\n");
+        }
+        iter++;
+    }
+
+    if (gp) {
+        fprintf(gp, "e\n");
+
+        // Send all points of the best cost to GnuPlot
+        for (int i = 0; i < best_points_count; i++) {
+            fprintf(gp, "%d %lf\n", best_iters[i], best_costs[i]);
+        }
+        fprintf(gp, "e\n");
+        fflush(gp);
+        pclose(gp);
+    } else if(tsp->plot == 0){ 
+        printf("Gnuplot pipe error\n");
     }
 
     // Copy the best found solution to the output parameters.
     memcpy(sol->tour, best_sol->tour, sizeof(int) * (tsp->nnodes + 1));
     sol->cost = best_sol->cost;
+    sol->initialized = 1; // Mark as initiliazed
 
     // Free memory
     free(current_sol->tour);
@@ -95,7 +199,15 @@ int tsp_solve_vns(instance *tsp, solution *sol)
     free(best_sol->tour);
     free(best_sol);
 
-    return 0;
+    // Free memory for best_iters and best_costs
+    if (best_iters != NULL) {
+        free(best_iters);
+    }
+    if (best_costs != NULL) {
+        free(best_costs);
+    }
+
+    return EXIT_SUCCESS;
 }
 
 /**
@@ -108,19 +220,22 @@ int tsp_solve_tabu(instance *inst, solution *sol)
 {
     if (!inst || !sol)
     {
-        return 1;
+        return EXIT_FAILURE;
     }
 
     int nnodes = inst->nnodes;
     tabuList *tabu = init_tabu_list(nnodes);
     if (!tabu)
-        return 1;
+        return EXIT_FAILURE;
 
-    if (nearest_neighbor(inst, sol, 0) != 0 || two_opt(inst, sol) != 0)
+    if (!sol->initialized) // Check if solution is not initialized
     {
-        print_error("Nearest neighbor heuristic failed in tabu");
-        free_tabu(tabu);
-        return 1;
+        if (random_path(inst, sol) != 0)
+        {
+            print_error("Random path failed in tabu");
+            free_tabu(tabu);
+            return EXIT_FAILURE;
+        }
     }
 
     // Copy the initial solution to the best solution
@@ -130,8 +245,8 @@ int tsp_solve_tabu(instance *inst, solution *sol)
     {
         print_error("Memory allocation failed");
         free_tabu(tabu);
-        free(best_sol);
-        return 1;
+        if (best_sol) free(best_sol);
+        return EXIT_FAILURE;
     }
     memcpy(best_sol->tour, sol->tour, (nnodes + 1) * sizeof(int));
     best_sol->cost = sol->cost;
@@ -145,8 +260,8 @@ int tsp_solve_tabu(instance *inst, solution *sol)
         free_tabu(tabu);
         free(best_sol->tour);
         free(best_sol);
-        free(current_sol);
-        return 1;
+        if (current_sol) free(current_sol);
+        return EXIT_FAILURE;
     }
     memcpy(current_sol->tour, sol->tour, (nnodes + 1) * sizeof(int));
     current_sol->cost = sol->cost;
@@ -164,7 +279,7 @@ int tsp_solve_tabu(instance *inst, solution *sol)
         {
             memcpy(best_sol->tour, current_sol->tour, (nnodes + 1) * sizeof(int));
             best_sol->cost = current_sol->cost;
-            printf("[UPDATE] New best at iter %d: %.2lf\n", iter, best_sol->cost);
+            if (VERBOSE >= 50) printf("[UPDATE] New best at iter %d: %.2lf\n", iter, best_sol->cost);
         }
 
         iter++;
@@ -173,6 +288,7 @@ int tsp_solve_tabu(instance *inst, solution *sol)
     // Copy the best found solution to the output parameters.
     memcpy(sol->tour, best_sol->tour, sizeof(int) * (inst->nnodes + 1));
     sol->cost = best_sol->cost;
+    sol->initialized = 1; // Mark as initialized
 
     // free memory
     free_tabu(tabu);
@@ -181,7 +297,7 @@ int tsp_solve_tabu(instance *inst, solution *sol)
     free(current_sol->tour);
     free(current_sol);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 /**
@@ -213,15 +329,15 @@ static int best_2opt_not_tabu(instance *tsp, solution *sol, tabuList *tabu)
     }
 
     if (best_i == -1 || best_j == -1)
-        return -1;
+        return EXIT_FAILURE;
 
     swap_path(best_i, best_j, sol);
 
     if (cost_path(tsp, sol))
-        return -1;
+        return EXIT_FAILURE;
 
     add_tabu_move(tabu, best_i, best_j);
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 /**
@@ -237,8 +353,8 @@ int is_tabu_move(tabuList *tabu, int i, int j)
     }
     for (int k = 0; k < tabu->size; k++)
         if (tabu->tabu_list[k][0] == i && tabu->tabu_list[k][1] == j)
-            return 1;
-    return 0;
+            return EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }
 
 /**

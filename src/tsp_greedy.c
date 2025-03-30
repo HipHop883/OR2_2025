@@ -6,8 +6,20 @@ int solve_greedy(const instance *inst, solution *best_sol)
 {
     solution current_sol;
     current_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
+    srand(inst->randomseed);
+
+    if (!current_sol.tour)
+    {
+        print_error("Memory allocation failed in solve_greedy");
+        return EXIT_FAILURE;
+    }
 
     double best_cost = CPX_INFBOUND;
+
+    if (best_sol->initialized)      // Check if already initialized
+    {
+        best_cost = best_sol->cost; // Use the existing cost
+    }
 
     for (int i = 0; i < inst->nnodes; i++)
     {
@@ -21,6 +33,9 @@ int solve_greedy(const instance *inst, solution *best_sol)
             memcpy(best_sol->tour, current_sol.tour, (inst->nnodes + 1) * sizeof(int));
         }
     }
+
+    best_sol->cost = best_cost;   // Update best_sol cost
+    best_sol->initialized = 1;    // Mark as initialized
 
     free(current_sol.tour);
 
@@ -78,6 +93,11 @@ int nearest_neighbor(const instance *inst, solution *sol, int start_node)
     }
 
     cost_path(inst, sol);
+
+    if (!sol->initialized)      // Mark as initialized only if not already initialized
+    {
+        sol->initialized = 1;
+    }
 
     return EXIT_SUCCESS;
 }

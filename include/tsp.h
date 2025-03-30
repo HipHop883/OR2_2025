@@ -17,7 +17,7 @@
  *     - 70 verbose,
  *     - 100 cplex log
  */
-#define VERBOSE 50
+#define VERBOSE 10
 
 #define EPSILON 1e-9 // very small numerical tolerance
 #define XSMALL 1e-5	 // tolerance used to decide ingerality of 0-1 var.s
@@ -36,6 +36,7 @@ typedef struct
 {
 	int *tour;
 	double cost;
+	int initialized;
 } solution;
 
 typedef struct
@@ -55,6 +56,7 @@ typedef struct
 	char method[20];	   // method to be used
 	double timelimit;	   // overall time limit, in sec.s
 	int randomseed;
+	int plot; 			   // to plot the solution
 
 } instance;
 
@@ -67,7 +69,7 @@ int parse_command_line(int argc, char **argv, instance *inst);
 void free_instance(instance *inst, solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
-int random_path(solution *sol, int nnodes, int seed);
+int random_path(const instance *inst, solution *sol);
 void print_path(const instance *inst, const solution *sol);
 void print_nodes(instance *inst);
 

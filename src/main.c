@@ -39,9 +39,6 @@ int main(int argc, char **argv)
 
 	printf("Number of nodes: %d\n", inst.nnodes);
 
-	// Allocate memory for the solution path
-	sol.tour = (int *)calloc(inst.nnodes + 1, sizeof(int));
-
 	// Run the method and print the cost of the solution
 	if (run_method(&inst, &sol))
 	{
@@ -60,15 +57,20 @@ int main(int argc, char **argv)
 	double t2 = second();
 
 	// Plot the solution path using Gnuplot
-	if (plot(argc, argv))
+	if (inst.plot == 0)
 	{
 		FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
 		if (gnuplotPipe)
 		{
+			char filename[256];
+			sprintf(filename, "plot/TSP_%s.png", inst.method); 	// Create the file name (es. TSP_2opt.png)
+	
+			fprintf(gnuplotPipe, "set terminal png\n");
+			fprintf(gnuplotPipe, "set output '%s'\n", filename);
 			fprintf(gnuplotPipe, "set xlabel 'X'\n");
 			fprintf(gnuplotPipe, "set ylabel 'Y'\n");
 			fprintf(gnuplotPipe, "set grid\n");
-			fprintf(gnuplotPipe, "set key top right\n"); // Enable legend and set position
+			fprintf(gnuplotPipe, "set key top right\n"); 		// Enable legend and set position
 			fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s'\n", inst.method);
 			for (int i = 0; i <= inst.nnodes; i++)
 			{
@@ -78,6 +80,7 @@ int main(int argc, char **argv)
 			fprintf(gnuplotPipe, "e\n");
 			fflush(gnuplotPipe);
 			pclose(gnuplotPipe);
+			printf("Plot saved in: %s\n", filename);
 		}
 		else
 		{

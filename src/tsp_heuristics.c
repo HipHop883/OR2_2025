@@ -1,7 +1,126 @@
 #include "tsp_heuristics.h"
 #include "utils.h"
 
-#define LARGE 1e30
+static int is_tabu_move(tabuList *tabu, int i, int j)
+{
+    if (i > j)
+    {
+        int t = i;
+        i = j;
+        j = t;
+    }
+
+    for (int k = 0; k < tabu->size; k++)
+        if (tabu->tabu_list[k][0] == i && tabu->tabu_list[k][1] == j)
+            return EXIT_FAILURE;
+    return EXIT_SUCCESS;
+}
+
+static void add_tabu_move(tabuList *tabu, int i, int j)
+{
+    if (i > j)
+    {
+        int t = i;
+        i = j;
+        j = t;
+    }
+
+    if (tabu->size < tabu->tenure)
+    {
+        tabu->tabu_list[tabu->size][0] = i;
+        tabu->tabu_list[tabu->size][1] = j;
+        tabu->size++;
+    }
+    else
+    {
+        free(tabu->tabu_list[0]);
+        for (int k = 1; k < tabu->tenure; k++)
+            tabu->tabu_list[k - 1] = tabu->tabu_list[k];
+
+        tabu->tabu_list[tabu->tenure - 1] = (int *)calloc(2, sizeof(int));
+        tabu->tabu_list[tabu->tenure - 1][0] = i;
+        tabu->tabu_list[tabu->tenure - 1][1] = j;
+    }
+}
+
+static void free_tabu(tabuList *tabu)
+{
+    for (int i = 0; i < tabu->tenure; i++)
+        free(tabu->tabu_list[i]);
+    free(tabu->tabu_list);
+    free(tabu);
+}
+
+static int best_2opt_not_tabu(instance *inst, solution *sol, tabuList *tabu)
+{
+    int nnodes = inst->nnodes;
+    double best_delta = CPX_INFBOUND;
+    int best_i = -1, best_j = -1;
+
+    for (int i = 1; i < nnodes - 1; i++)
+    {
+        for (int j = i + 1; j < nnodes; j++)
+        {
+            double delta = path_cost_delta(i, j, sol, inst);
+            int is_tabu = is_tabu_move(tabu, i, j);
+            double new_cost = sol->cost + delta;
+
+            if (!is_tabu && delta < best_delta && delta != 0)
+            {
+                best_delta = delta;
+                best_i = i;
+                best_j = j;
+            }
+        }
+    }
+
+    if (best_i == -1 || best_j == -1)
+        return -1;
+
+    reverse_path_segment(best_i, best_j, sol);
+
+    if (evaluate_path_cost(inst, sol) != 0)
+        return -1;
+
+    add_tabu_move(tabu, best_i, best_j);
+    return 0;
+}
+
+static tabuList *init_tabu_list(int nnodes)
+{
+    tabuList *tabu = (tabuList *)malloc(sizeof(tabuList));
+    if (!tabu)
+    {
+        print_error("Failed to allocate tabuList");
+        return NULL;
+    }
+
+    tabu->tenure = nnodes + nnodes / 100;
+    tabu->tabu_list = (int **)calloc(tabu->tenure, sizeof(int *));
+    if (!tabu->tabu_list)
+    {
+        print_error("Failed to allocate tabu list");
+        free(tabu);
+        return NULL;
+    }
+
+    for (int i = 0; i < tabu->tenure; i++)
+    {
+        tabu->tabu_list[i] = (int *)calloc(2, sizeof(int));
+        if (!tabu->tabu_list[i])
+        {
+            for (int j = 0; j < i; j++)
+                free(tabu->tabu_list[j]);
+            free(tabu->tabu_list);
+            free(tabu);
+            print_error("Failed to allocate tabu entry");
+            return NULL;
+        }
+    }
+
+    tabu->size = 0;
+    return tabu;
+}
 
 /**
  * Solve the TSP instance using the VNS algorithm. Starting from a greedy solution, we apply
@@ -10,16 +129,16 @@
  * @param sol solution
  * @return 0 if the solution is found, 1 otherwise
  */
-int tsp_solve_vns(instance *tsp, solution *sol)
+int apply_heuristic_vns(instance *inst, solution *sol)
 {
-    if (!tsp || !sol->tour || tsp->nnodes <= 0 || !tsp->cost_matrix)
+    if (!inst || !sol->tour || inst->nnodes <= 0 || !inst->cost_matrix)
         return EXIT_FAILURE;
 
     solution *current_sol = (solution *)malloc(sizeof(solution));
     solution *best_sol = (solution *)malloc(sizeof(solution));
 
-    current_sol->tour = (int *)malloc(sizeof(int) * (tsp->nnodes + 1));
-    best_sol->tour = (int *)malloc(sizeof(int) * (tsp->nnodes + 1));
+    current_sol->tour = (int *)malloc(sizeof(int) * (inst->nnodes + 1));
+    best_sol->tour = (int *)malloc(sizeof(int) * (inst->nnodes + 1));
 
     if (!current_sol->tour || !best_sol->tour)
     {
@@ -27,20 +146,18 @@ int tsp_solve_vns(instance *tsp, solution *sol)
         return EXIT_FAILURE;
     }
 
-    current_sol->cost = LARGE;
-    best_sol->cost = LARGE;
-
-    // tsp->starting_time = second();
+    current_sol->cost = CPX_INFBOUND;
+    best_sol->cost = CPX_INFBOUND;
 
     if (sol->initialized)              // Check if already initialized
     {
         current_sol->cost = sol->cost; // Use the existing cost
-        memcpy(current_sol->tour, sol->tour, sizeof(int) * (tsp->nnodes + 1));
+        memcpy(current_sol->tour, sol->tour, sizeof(int) * (inst->nnodes + 1));
     }
     else
     {
         // Otherwise, it generates a random path
-        if (random_path(tsp, current_sol) != 0)
+        if (random_path(inst, current_sol) != EXIT_SUCCESS)
         {
             print_error("Random path failed in vns");
             free(current_sol->tour);
@@ -51,81 +168,70 @@ int tsp_solve_vns(instance *tsp, solution *sol)
         }
     }
 
-    memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (tsp->nnodes + 1));
+    memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
     best_sol->cost = current_sol->cost;
 
-    // VNS parameters for diversification: number of 3-opt kicks.
-    int min_kicks = 1;
-    int max_kicks = 5;
+    int min_kicks = inst->vns_kmin;
+    int max_kicks = inst->vns_kmax;
 
-    // Gnuplot setup
-    FILE *gp = NULL;
-    if (tsp->plot == 0) { 
-        gp = popen("gnuplot -persist", "w");
-        if (gp) {
-            char filename[256];
-            sprintf(filename, "plot/TSP_Heuristic_%s.png", tsp->method);
-
-            fprintf(gp, "set terminal png\n");
-            fprintf(gp, "set output '%s'\n", filename);
-            fprintf(gp, "set title 'TSP VNS Solution Cost vs Iteration'\n");
-            fprintf(gp, "set xlabel 'Iteration'\n");
-            fprintf(gp, "set ylabel 'Solution Cost'\n");
-            fprintf(gp, "plot '-' with lines title 'Costs', '-' with lines lc rgb 'red' title 'Best costs'\n");
+        // Gnuplot setup
+        FILE *gp = NULL;
+        if (inst->plot == 0) { 
+            gp = popen("gnuplot -persist", "w");
+            if (gp) {
+                char filename[256];
+                sprintf(filename, "plot/TSP_Heuristic_%s.png", inst->method);
+    
+                fprintf(gp, "set terminal png\n");
+                fprintf(gp, "set output '%s'\n", filename);
+                fprintf(gp, "set title 'TSP VNS Solution Cost vs Iteration'\n");
+                fprintf(gp, "set xlabel 'Iteration'\n");
+                fprintf(gp, "set ylabel 'Solution Cost'\n");
+                fprintf(gp, "plot '-' with lines title 'Costs', '-' with lines lc rgb 'red' title 'Best costs'\n");
+            }
         }
-    }
+    
+        int iter = 0;
+        int best_iter = 0;
+        double best_cost_local = best_sol->cost;
+    
+        // Array to save red line
+        int *best_iters = NULL;
+        double *best_costs = NULL;
+        int best_points_count = 0;
+        int best_points_capacity = 0;
+    
+        if (inst->plot == 0 && gp)
+        {
+            best_points_capacity = 100;                 // Initial Capacity
+            best_iters = (int *)malloc(best_points_capacity * sizeof(int));
+            best_costs = (double *)malloc(best_points_capacity * sizeof(double));
+    
+            if (!best_iters || !best_costs)
+            {
+                print_error("Memory allocation failed for best_iters/best_costs");
+                return EXIT_FAILURE;
+            }
+    
+            best_iters[best_points_count] = 0;
+            best_costs[best_points_count] = best_sol->cost;
+            best_points_count++;
+        }
 
-    int iter = 0;
-    int best_iter = 0;
-    double best_cost_local = best_sol->cost;
-
-    // Array to save red line
-    int *best_iters = NULL;
-    double *best_costs = NULL;
-    int best_points_count = 0;
-    int best_points_capacity = 0;
-
-    if (tsp->plot == 0 && gp)
+    while (!check_time(inst))
     {
-        best_points_capacity = 100;                 // Initial Capacity
-        best_iters = (int *)malloc(best_points_capacity * sizeof(int));
-        best_costs = (double *)malloc(best_points_capacity * sizeof(double));
+        if (apply_two_opt(inst, current_sol) != EXIT_SUCCESS)
+            print_error("2-opt failed in VNS");
 
-        if (!best_iters || !best_costs)
-        {
-            print_error("Memory allocation failed for best_iters/best_costs");
-            return EXIT_FAILURE;
-        }
-
-        best_iters[best_points_count] = 0;
-        best_costs[best_points_count] = best_sol->cost;
-        best_points_count++;
-    }
-
-    while (1)
-    {
-        if (tsp->timelimit > 0 && (tsp->starting_time + tsp->timelimit) < second())
-        {
-            printf("Time limit reached vns\n");
-            break;
-        }
-
-        // Intensification phase: apply 2-opt improvement until no further improvement is found.
-        if (two_opt(tsp, current_sol) != EXIT_SUCCESS)
-        {
-            print_error("2-opt failed in vns");
-        }
-
-        // Update the best solution if the current solution is improved.
         if (current_sol->cost < best_sol->cost)
         {
             best_sol->cost = current_sol->cost;
-            memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (tsp->nnodes + 1));
+            memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
             best_cost_local = best_sol->cost;
             best_iter = iter;
         }
 
-        if (tsp->plot == 0 && gp)
+        if (inst->plot == 0 && gp)
         {
             // Check if the it needs to realloc the array
             if (best_points_count >= best_points_capacity)
@@ -152,22 +258,19 @@ int tsp_solve_vns(instance *tsp, solution *sol)
             best_points_count++;
         }
 
-        // Diversification phase: apply a random number of 3-opt kicks.
         int kicks = (rand() % (max_kicks - min_kicks + 1)) + min_kicks;
         for (int i = 0; i < kicks; i++)
         {
-            if (tsp_3opt_solution(tsp, current_sol) != 0)
-            {
-                print_error("3-opt failed in vns");
-            }
+            if (apply_three_opt(inst, current_sol) != 0)
+                print_error("3-opt failed in VNS");
         }
 
-        cost_path(tsp, current_sol);
+        evaluate_path_cost(inst, current_sol);
 
         if (gp) {
             fprintf(gp, "%d %lf\n", iter, current_sol->cost);
         }
-        else if (tsp->plot == 0)
+        else if (inst->plot == 0)
         {
         printf("Gnuplot pipe error\n");
         }
@@ -184,44 +287,29 @@ int tsp_solve_vns(instance *tsp, solution *sol)
         fprintf(gp, "e\n");
         fflush(gp);
         pclose(gp);
-    } else if(tsp->plot == 0){ 
+    } else if(inst->plot == 0){ 
         printf("Gnuplot pipe error\n");
     }
 
-    // Copy the best found solution to the output parameters.
-    memcpy(sol->tour, best_sol->tour, sizeof(int) * (tsp->nnodes + 1));
+    if (VERBOSE >= 20)
+        printf("VNS stopped due to time limit.\n");
+
+    memcpy(sol->tour, best_sol->tour, sizeof(int) * (inst->nnodes + 1));
     sol->cost = best_sol->cost;
     sol->initialized = 1; // Mark as initiliazed
 
-    // Free memory
     free(current_sol->tour);
     free(current_sol);
     free(best_sol->tour);
     free(best_sol);
 
-    // Free memory for best_iters and best_costs
-    if (best_iters != NULL) {
-        free(best_iters);
-    }
-    if (best_costs != NULL) {
-        free(best_costs);
-    }
-
     return EXIT_SUCCESS;
 }
 
-/**
- *
- * @param inst instance
- * @param sol solution
- * @return 0 if the solution is found, 1 otherwise
- */
-int tsp_solve_tabu(instance *inst, solution *sol)
+int apply_heuristic_tabu(instance *inst, solution *sol)
 {
     if (!inst || !sol)
-    {
         return EXIT_FAILURE;
-    }
 
     int nnodes = inst->nnodes;
     tabuList *tabu = init_tabu_list(nnodes);
@@ -238,198 +326,63 @@ int tsp_solve_tabu(instance *inst, solution *sol)
         }
     }
 
-    // Copy the initial solution to the best solution
     solution *best_sol = (solution *)malloc(sizeof(solution));
-    best_sol->tour = (int *)malloc((nnodes + 1) * sizeof(int));
-    if (!best_sol->tour || !best_sol)
-    {
-        print_error("Memory allocation failed");
-        free_tabu(tabu);
-        if (best_sol) free(best_sol);
-        return EXIT_FAILURE;
-    }
-    memcpy(best_sol->tour, sol->tour, (nnodes + 1) * sizeof(int));
-    best_sol->cost = sol->cost;
-
-    // Copy the initial solution to the current solution
     solution *current_sol = (solution *)malloc(sizeof(solution));
+    best_sol->tour = (int *)malloc((nnodes + 1) * sizeof(int));
     current_sol->tour = (int *)malloc((nnodes + 1) * sizeof(int));
-    if (!current_sol->tour || !current_sol)
+
+    if (!best_sol || !current_sol || !best_sol->tour || !current_sol->tour)
     {
         print_error("Memory allocation failed");
         free_tabu(tabu);
-        free(best_sol->tour);
-        free(best_sol);
-        if (current_sol) free(current_sol);
+        if (best_sol)
+        {
+            free(best_sol->tour);
+            free(best_sol);
+        }
+        if (current_sol)
+        {
+            free(current_sol->tour);
+            free(current_sol);
+        }
         return EXIT_FAILURE;
     }
-    memcpy(current_sol->tour, sol->tour, (nnodes + 1) * sizeof(int));
-    current_sol->cost = sol->cost;
-    printf("Inital cost: %lf\n", best_sol->cost);
 
-    // Initialize the number of iterations
+    memcpy(best_sol->tour, sol->tour, sizeof(int) * (nnodes + 1));
+    memcpy(current_sol->tour, sol->tour, sizeof(int) * (nnodes + 1));
+    best_sol->cost = current_sol->cost = sol->cost;
+
     int iter = 0;
 
-    while (second() - inst->starting_time < inst->timelimit)
+    while (!check_time(inst))
     {
         if (best_2opt_not_tabu(inst, current_sol, tabu) == -1)
-            print_error("No valid 2-opt move found.");
+            print_error("No valid 2-opt move found");
 
         if (current_sol->cost < best_sol->cost)
         {
-            memcpy(best_sol->tour, current_sol->tour, (nnodes + 1) * sizeof(int));
+            memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (nnodes + 1));
             best_sol->cost = current_sol->cost;
-            if (VERBOSE >= 50) printf("[UPDATE] New best at iter %d: %.2lf\n", iter, best_sol->cost);
+
+            if (VERBOSE >= 20)
+                printf("[UPDATE] Iter %d — new best cost: %.2lf\n", iter, best_sol->cost);
         }
 
         iter++;
     }
 
-    // Copy the best found solution to the output parameters.
-    memcpy(sol->tour, best_sol->tour, sizeof(int) * (inst->nnodes + 1));
+    if (VERBOSE >= 20)
+        printf("Tabu Search stopped due to time limit.\n");
+
+    memcpy(sol->tour, best_sol->tour, sizeof(int) * (nnodes + 1));
     sol->cost = best_sol->cost;
     sol->initialized = 1; // Mark as initialized
 
-    // free memory
-    free_tabu(tabu);
+    // free_tabu(tabu);
     free(best_sol->tour);
     free(best_sol);
     free(current_sol->tour);
     free(current_sol);
 
     return EXIT_SUCCESS;
-}
-
-/**
- * Best 2-opt move that is not tabu.
- */
-static int best_2opt_not_tabu(instance *tsp, solution *sol, tabuList *tabu)
-{
-    int nnodes = tsp->nnodes;
-    double best_delta = LARGE;
-    int best_i = -1, best_j = -1;
-
-    for (int i = 1; i < nnodes - 1; i++)
-    {
-        for (int j = i + 1; j < nnodes; j++)
-        {
-            double actual_delta = delta(i, j, sol, tsp);
-
-            // No need to normalize here — it's handled inside is_tabu_move()
-            int is_tabu = is_tabu_move(tabu, i, j);
-            double new_cost = sol->cost + actual_delta;
-
-            if (!is_tabu && actual_delta != 0 && actual_delta < best_delta)
-            {
-                best_delta = actual_delta;
-                best_i = i;
-                best_j = j;
-            }
-        }
-    }
-
-    if (best_i == -1 || best_j == -1)
-        return EXIT_FAILURE;
-
-    swap_path(best_i, best_j, sol);
-
-    if (cost_path(tsp, sol))
-        return EXIT_FAILURE;
-
-    add_tabu_move(tabu, best_i, best_j);
-    return EXIT_SUCCESS;
-}
-
-/**
- * Check if move is in tabu list.
- */
-int is_tabu_move(tabuList *tabu, int i, int j)
-{
-    if (i > j)
-    {
-        int tmp = i;
-        i = j;
-        j = tmp;
-    }
-    for (int k = 0; k < tabu->size; k++)
-        if (tabu->tabu_list[k][0] == i && tabu->tabu_list[k][1] == j)
-            return EXIT_FAILURE;
-    return EXIT_SUCCESS;
-}
-
-/**
- * Add move to tabu list (FIFO).
- */
-void add_tabu_move(tabuList *tabu, int i, int j)
-{
-    if (i > j)
-    {
-        int tmp = i;
-        i = j;
-        j = tmp;
-    }
-
-    if (tabu->size < tabu->tenure)
-    {
-        tabu->tabu_list[tabu->size][0] = i;
-        tabu->tabu_list[tabu->size][1] = j;
-        tabu->size++;
-    }
-    else
-    {
-        free(tabu->tabu_list[0]);
-        for (int k = 1; k < tabu->tenure; k++)
-            tabu->tabu_list[k - 1] = tabu->tabu_list[k];
-
-        tabu->tabu_list[tabu->tenure - 1] = (int *)calloc(2, sizeof(int));
-        tabu->tabu_list[tabu->tenure - 1][0] = i;
-        tabu->tabu_list[tabu->tenure - 1][1] = j;
-    }
-}
-
-/**
- * Free all memory associated with the tabu list.
- */
-void free_tabu(tabuList *tabu)
-{
-    for (int i = 0; i < tabu->tenure; i++)
-        free(tabu->tabu_list[i]);
-    free(tabu->tabu_list);
-    free(tabu);
-}
-
-tabuList *init_tabu_list(int nnodes)
-{
-    tabuList *tabu = (tabuList *)malloc(sizeof(tabuList));
-    if (!tabu)
-    {
-        print_error("Failed to allocate tabuList");
-        return NULL;
-    }
-
-    tabu->tenure = nnodes + nnodes / 100;
-    tabu->tabu_list = (int **)calloc(tabu->tenure, sizeof(int *));
-    if (!tabu->tabu_list)
-    {
-        print_error("Failed to allocate tabu list");
-        free(tabu);
-        return NULL;
-    }
-
-    for (int i = 0; i < tabu->tenure; i++)
-    {
-        tabu->tabu_list[i] = (int *)calloc(2, sizeof(int));
-        if (!tabu->tabu_list[i])
-        {
-            print_error("Failed to allocate tabu entry");
-            for (int j = 0; j < i; j++)
-                free(tabu->tabu_list[j]);
-            free(tabu->tabu_list);
-            free(tabu);
-            return NULL;
-        }
-    }
-
-    tabu->size = 0;
-    return tabu;
 }

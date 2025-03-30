@@ -10,16 +10,27 @@
 double second()
 {
     struct timespec ts;
-
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    double t = (double)ts.tv_sec + 1.0e-9 * ((double)ts.tv_nsec);
-
-    return t;
+    return (double)ts.tv_sec + 1.0e-9 * ts.tv_nsec;
 }
-
-double rand01(int seed)
+/**
+ * Set the random seed and run rome random numbers to improve randomness
+ * @param seed the seed to set
+ */
+void set_seed(int seed)
 {
     srand(seed);
+    // To imporve randomness
+    for (int i = 0; i < 10000; i++)
+        rand();
+}
+
+/**
+ * Generate a random number between 0 and 1
+ * @return a random number between 0 and 1
+ */
+double rand01()
+{
     return (double)rand() / RAND_MAX;
 }
 
@@ -31,5 +42,28 @@ double rand01(int seed)
  */
 int compar(const void *a, const void *b)
 {
-    return (*(int *)a - *(int *)b);
+    int av = *(int *)a;
+    int bv = *(int *)b;
+    return (av > bv) - (av < bv);
+}
+/**
+ * Get the number of runs to perform from the command line arguments
+ * @param argc number of arguments
+ * @param argv array of arguments
+ * @return the number of runs, default is 1
+ */
+int runs(int argc, char **argv)
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strcmp(argv[i], "--runs") || !strcmp(argv[i], "-rs"))
+        {
+            if (i + 1 < argc)
+            {
+                return atoi(argv[++i]);
+            }
+        }
+    }
+
+    return 1;
 }

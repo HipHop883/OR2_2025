@@ -11,8 +11,6 @@
  */
 int load_instance(instance *inst)
 {
-	allocate_buffers(inst);
-
 	// No need to check anything, we already do it parsing command line arguments
 	if (strcmp(inst->input_file, "NULL") == 0)
 	{
@@ -24,7 +22,7 @@ int load_instance(instance *inst)
 		FILE *fin = fopen(inst->input_file, "r");
 		if (fin == NULL)
 		{
-			print_error("File not found:");
+			print_error("File not found");
 			return EXIT_FAILURE;
 		}
 
@@ -90,8 +88,7 @@ int load_instance(instance *inst)
 				}
 				token1 = strtok(NULL, " :");
 				inst->nnodes = atoi(token1);
-				// if ( do_print ) printf(" ... nnodes %d\n", inst->nnodes);
-				// inst->demand = (double *) calloc(inst->nnodes, sizeof(double));
+
 				inst->xcoord = (double *)calloc(inst->nnodes, sizeof(double));
 				inst->ycoord = (double *)calloc(inst->nnodes, sizeof(double));
 				inst->cost_matrix = (double **)calloc(inst->nnodes, sizeof(double));
@@ -149,8 +146,6 @@ int load_instance(instance *inst)
 				continue;
 			}
 
-			printf(" final active section %d\n", active_section);
-			print_error(" ... wrong format for the current simplified parser!!!!!!!!!");
 			return EXIT_FAILURE;
 		}
 
@@ -184,7 +179,7 @@ void print_error(const char *err_message) { fprintf(stderr, "ERROR: %s \n\n", er
 int parse_command_line(int argc, char **argv, instance *inst)
 {
 	if (VERBOSE >= 100)
-		printf(" running %s with %d parameters \n", argv[0], argc - 1);
+		printf("Running %s with %d parameters\n", argv[0], argc - 1);
 
 	int help = 0;
 	int source = -1; // 0 for rand, 1 for input file
@@ -202,7 +197,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		{
 			if (source != -1)
 			{
-				perror("Inconsistent use of parameters. Mixing input file and random generation\n");
+				fprintf(stderr, "Error: Cannot mix --random and --file modes\n");
 				help = 1;
 			}
 			source = 0;
@@ -214,14 +209,14 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				inst->randomseed = atoi(argv[++i]);
 				if (inst->randomseed <= 0)
 				{
-					perror("Seed must be a positive integer\n");
+					fprintf(stderr, "Error: Seed must be a positive integer\n");
 					help = 1;
 				}
 				isset_seed = 1;
 			}
 			else
 			{
-				perror("Seed value is missing\n");
+				fprintf(stderr, "Error: Seed value is missing\n");
 				help = 1;
 			}
 		}
@@ -232,14 +227,14 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				inst->nnodes = atoi(argv[++i]);
 				if (inst->nnodes <= 0)
 				{
-					perror("Number of nodes must be a positive integer\n");
+					fprintf(stderr, "Error: Number of nodes must be a positive integer\n");
 					help = 1;
 				}
 				isset_nnodes = 1;
 			}
 			else
 			{
-				perror("Number of nodes is missing\n");
+				fprintf(stderr, "Error: Number of nodes is missing\n");
 				help = 1;
 			}
 		}
@@ -247,7 +242,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		{
 			if (source != -1)
 			{
-				perror("Inconsistent use of parameters. Mixing input file and random generation\n");
+				fprintf(stderr, "Error: Cannot mix --random and --file modes\n");
 				help = 1;
 			}
 
@@ -258,7 +253,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			}
 			else
 			{
-				perror("Input file name is missing\n");
+				fprintf(stderr, "Error: Input file name is missing\n");
 				help = 1;
 			}
 		}
@@ -266,16 +261,16 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		{
 			if (i + 1 < argc)
 			{
-				inst->timelimit = atoi(argv[++i]);
+				inst->timelimit = atof(argv[++i]);
 				if (inst->timelimit <= 0)
 				{
-					perror("Time limit must be a positive integer\n");
+					fprintf(stderr, "Error: Time limit must be a positive number\n");
 					help = 1;
 				}
 			}
 			else
 			{
-				perror("Time limit is missing\n");
+				fprintf(stderr, "Error: Time limit value is missing\n");
 				help = 1;
 			}
 		}
@@ -287,7 +282,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			}
 			else
 			{
-				perror("Method is missing\n");
+				fprintf(stderr, "Error: Method value is missing\n");
 				help = 1;
 			}
 		}
@@ -309,60 +304,99 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			help = 1;
 			break;
 		}
+		else if (!strcmp(argv[i], "--vns_kmin") || !strcmp(argv[i], "-vkmin"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->vns_kmin = atoi(argv[++i]);
+				if (inst->vns_kmin < 1)
+				{
+					fprintf(stderr, "vns_kmin must be at least 1\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: VNS k min value is missing\n");
+				help = 1;
+			}
+		}
+		else if (!strcmp(argv[i], "--vns_kmax") || !strcmp(argv[i], "-vkmax"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->vns_kmax = atoi(argv[++i]);
+				if (inst->vns_kmax < 1)
+				{
+					fprintf(stderr, "vns_kmax must be at least 1\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: VNS k max value is missing\n");
+				help = 1;
+			}
+		}
 	}
 
-	if (source == 0)
+	// Validation
+	if (source == 0) // random
 	{
-		if (isset_seed == 0 || isset_nnodes == 0)
+		if (!isset_seed || !isset_nnodes)
 		{
-			perror("Inconsistent use of parameters. Set both seed and nnodes for random generation\n");
+			fprintf(stderr, "Error: For random generation, both --seed and --nnodes are required\n");
 			help = 1;
 		}
 	}
-	else if (source == 1)
+	else if (source == 1) // file
 	{
 		if (inst->input_file[0] == '\0')
 		{
-			perror("Inconsistent use of parameters. Set an input file to use model loading\n");
+			fprintf(stderr, "Error: No input file specified\n");
 			help = 1;
 		}
 	}
 	else if (source == -1)
 	{
-		perror("Please specify a mode to load the file\n");
+		fprintf(stderr, "Error: You must specify either --random or --file mode\n");
 		help = 1;
 	}
 
-	if (VERBOSE >= 10) // print current parameters
+	if (inst->vns_kmin > inst->vns_kmax)
 	{
-		printf("\n\nParameters set:\n");
-		printf("	--file %s\n", inst->input_file);
-		printf("	--time_limit %lf\n", inst->timelimit);
-		printf("	--seed %d\n", inst->randomseed);
-		printf("	--method %s\n", inst->method);
-		if (inst->nnodes > 0)
-			printf("	--nnodes %d\n", inst->nnodes);
-		printf("----------------------------------------------------------------------------------------------\n\n");
+		fprintf(stderr, "Error: vns_kmin must be less than or equal to vns_kmax\n");
+		help = 1;
+	}
+
+	if (VERBOSE >= 10)
+	{
+		printf("\n===== PARAMETERS SET =====\n");
+		printf("%-15s : %s\n", "--file", inst->input_file[0] ? inst->input_file : "(none)");
+		printf("%-15s : %s\n", "--method", inst->method);
+		if (inst->nnodes > 0) printf("%-15s : %d\n", "--nnodes", inst->nnodes);
+		printf("%-15s : %d\n", "--seed", inst->randomseed);
+		printf("%-15s : %.2f\n", "--time_limit", inst->timelimit);
+		printf("===========================\n\n");
 	}
 
 	if (help)
 	{
-		printf("Available parameters:\n");
-		printf("--random       | -r  Generate random nodes\n");
-		printf("--nnodes       | -n  <nodes number>		Number of nodes to generate\n");
-		printf("--seed         | -s  <random seed>		Random seed value\n");
-		printf("--file         | -f  <file name>		Input file name\n");
-		printf("--time_limit   | -tl <time limit>		Maximum execution time in seconds\n");
-		printf("--method       | -m  <method name>		Method to solve TSP\n");
-		printf("--plot         | -p                     Paramater to see and save the solution plot");
-		printf("--help         | -h  Help\n");
-		printf("----------------------------------------------------------------------------------------------\n");
-		printf("\nUSAGE example:\n");
-		printf("For random nodes generation:\n");
-		printf("	./main -r -n <nodes number> -s <random seed> -m <method> -tl <time limit>\n");
-		printf("For input file:\n");
-		printf("	./main -f <file name> -m <method> -tl <time limit>\n");
-		printf("\n----------------------------------------------------------------------------------------------\n\n");
+		printf("Options:\n");
+		printf("  -r, --random              Generate random nodes\n");
+		printf("  -n, --nnodes <int>        Number of nodes (required with -r)\n");
+		printf("  -s, --seed <int>          Random seed (required with -r)\n");
+		printf("  -f, --file <filename>     Input file to load instance\n");
+		printf("  -m, --method <string>     Method to solve TSP (e.g., n_n, n_n+apply_two_opt)\n");
+		printf("  -p, --plot                Paramater to see and save the solution plot\n");
+
+		printf("  -tl,--time_limit <float>  Time limit in seconds\n");
+		printf("  -h, --help                Show this help message\n");
+
+		printf("\nExamples:\n");
+		printf("  ./main -r -n 50 -s 123 -m n_n -tl 10\n");
+		printf("  ./main -f instance.txt -m random -tl 20\n\n");
+
 		return EXIT_FAILURE;
 	}
 
@@ -381,18 +415,48 @@ void generate_random_nodes(instance *inst, int nnodes, int seed)
 	if (VERBOSE >= 50)
 		printf("Generating random nodes...\n");
 
-	inst->nnodes = nnodes;
-	inst->xcoord = (double *)calloc(nnodes, sizeof(double));
-	inst->ycoord = (double *)calloc(nnodes, sizeof(double));
-
+	set_seed(seed);
 	for (int i = 0; i < nnodes; i++)
 	{
-		inst->xcoord[i] = rand01(seed) * MAX_X;
-		inst->ycoord[i] = rand01(seed) * MAX_Y;
+		inst->xcoord[i] = rand01() * MAX_X;
+		inst->ycoord[i] = rand01() * MAX_Y;
 	}
 
 	if (VERBOSE >= 50)
 		printf("Random nodes generated\n");
+}
+
+/**
+ * Generate a random path using the Fisher-Yates shuffle algorithm
+ * @param sol path of the solution
+ * @param nnodes number of nodes
+ * @param seed seed
+ * @return 0 if the random path is generated successfully, 1 otherwise
+ */
+int random_path(solution *sol, int nnodes, int seed)
+{
+	int nodes[nnodes];
+	for (int i = 0; i < nnodes; i++)
+	{
+		nodes[i] = i;
+	}
+
+	srand(seed);
+	for (int i = nnodes - 1; i > 0; i--)
+	{
+		int j = rand() % (i + 1);
+		// Swap nodes[i] with nodes[j]
+		int temp = nodes[i];
+		nodes[i] = nodes[j];
+		nodes[j] = temp;
+	}
+
+	for (int i = 0; i < nnodes; i++)
+	{
+		sol->tour[i] = nodes[i];
+	}
+	sol->tour[nnodes] = sol->tour[0]; // Comes back to the initial node
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -415,8 +479,11 @@ void free_instance(instance *inst, solution *sol)
 	free(inst->cost_matrix);
 	inst->cost_matrix = NULL;
 
-	free(sol->tour);
-	sol->tour = NULL;
+	if (sol && sol->tour)
+	{
+		free(sol->tour);
+		sol->tour = NULL;
+	}
 }
 
 /**
@@ -425,7 +492,7 @@ void free_instance(instance *inst, solution *sol)
  * @param sol path of the solution
  * @return 0 if the random path is generated successfully, 1 otherwise
  */
-int random_path(const instance * inst, solution *sol)
+int generate_random_path(instance *inst, solution *sol)
 {
 	int nnodes = inst->nnodes;
 	int nodes[nnodes];
@@ -434,7 +501,7 @@ int random_path(const instance * inst, solution *sol)
 		nodes[i] = i;
 	}
 
-	srand(inst->randomseed);
+	set_seed(inst->randomseed);
 	for (int i = nnodes - 1; i > 0; i--)
 	{
 		int j = rand() % (i + 1);
@@ -461,13 +528,12 @@ int random_path(const instance * inst, solution *sol)
  * @param sol solution path
  * @return void
  */
-void print_path(const instance *inst, const solution *sol)
+void print_solution_path(const instance *inst, const solution *sol)
 {
 	for (int i = 0; i <= inst->nnodes; i++)
 	{
 		int node = sol->tour[i];
 		printf("(%d)", node);
-		//printf("(%d, %d) ", (int)inst->xcoord[node], (int)inst->ycoord[node]);
 	}
 	printf("\n");
 }
@@ -477,7 +543,7 @@ void print_path(const instance *inst, const solution *sol)
  * @param inst instance
  * @return void
  */
-void print_nodes(instance *inst)
+void print_node_coordinates(instance *inst)
 {
 	for (int i = 0; i < inst->nnodes; i++)
 	{
@@ -496,6 +562,7 @@ int check_time(const instance *inst)
 	double current_time = second();
 	if (current_time - inst->starting_time > inst->timelimit)
 	{
+		//print_error("Time limit reached\n");
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
@@ -508,7 +575,7 @@ int check_time(const instance *inst)
  * @param filename filename
  * @return 0 if the path file is written successfully, 1 otherwise
  */
-int write_path_file(const instance *inst, const solution *sol, const char *filename)
+int write_path_to_file(const instance *inst, const solution *sol, const char *filename)
 {
 	FILE *fout = fopen(filename, "w");
 	if (fout == NULL)
@@ -533,7 +600,7 @@ int write_path_file(const instance *inst, const solution *sol, const char *filen
  * @param sol solution path
  * @return 0 if the cost of the path is calculated successfully, 1 otherwise
  */
-int cost_path(const instance *inst, solution *sol)
+int evaluate_path_cost(const instance *inst, solution *sol)
 {
 	double cost_p = 0;
 	for (int i = 0; i < inst->nnodes - 1; i++)
@@ -563,7 +630,7 @@ int cost_path(const instance *inst, solution *sol)
  * @param sol solution path
  * @return 0 if the two-opt heuristic is applied successfully, 1 otherwise
  */
-int two_opt(const instance *inst, solution *sol)
+int apply_two_opt(const instance *inst, solution *sol)
 {
 	if (sol == NULL) // Check if sol is NULL
     {
@@ -574,7 +641,7 @@ int two_opt(const instance *inst, solution *sol)
 	if (!sol->initialized) // Check if solution is not initialized
     {
         // Generate a random path if the solution is not initialized
-        if (random_path(inst, sol) != EXIT_SUCCESS)
+        if (generate_random_path(inst, sol) != EXIT_SUCCESS)
         {
             print_error("Failed to generate random path in two_opt");
             return EXIT_FAILURE;
@@ -596,14 +663,14 @@ int two_opt(const instance *inst, solution *sol)
 		{
 			for (int j = i + 1; j < nnodes; j++)
 			{
-				double delta_cost = delta(i, j, sol, inst);
+				double delta_cost = path_cost_delta(i, j, sol, inst);
                 if (delta_cost < 0)
                 {
-                    swap_path(i, j, sol); 		// swap nodes i and j
-                    improved = 1;         		// set the flag
-                    sol->cost += delta_cost; 	// Update the cost
+                    reverse_path_segment(i, j, sol); 		// swap nodes i and j
+                    improved = 1;         					// set the flag
+                    sol->cost += delta_cost; 				// Update the cost
                     if (sol->cost < best_cost) {
-                        best_cost = sol->cost; 	// Update the best cost
+                        best_cost = sol->cost; 				// Update the best cost
                     }
                 }
 			}
@@ -622,7 +689,7 @@ int two_opt(const instance *inst, solution *sol)
         sol->initialized = 1;
     }
 
-	cost_path(inst, sol);
+	evaluate_path_cost(inst, sol);
 
 	return EXIT_SUCCESS;
 }
@@ -635,7 +702,7 @@ int two_opt(const instance *inst, solution *sol)
  * @param inst instance
  * @return change in the cost of the path when swapping nodes i and j
  */
-double delta(int i, int j, const solution *sol, const instance *inst)
+double path_cost_delta(int i, int j, const solution *sol, const instance *inst)
 {
 	return (inst->cost_matrix[sol->tour[i + 1]][sol->tour[j + 1]] + inst->cost_matrix[sol->tour[i]][sol->tour[j]] - (inst->cost_matrix[sol->tour[i]][sol->tour[i + 1]] + inst->cost_matrix[sol->tour[j]][sol->tour[j + 1]]));
 }
@@ -647,7 +714,7 @@ double delta(int i, int j, const solution *sol, const instance *inst)
  * @param sol solution path
  * @return void
  */
-void swap_path(int i, int j, solution *sol)
+void reverse_path_segment(int i, int j, solution *sol)
 {
 	while (++i < j)
 	{
@@ -691,7 +758,7 @@ int tsp_compute_costs(instance *tsp)
  * @param sol solution path
  * @return 0 if the method is run successfully, 1 otherwise
  */
-int run_method(instance *inst, solution *sol)
+int execute_selected_method(instance *inst, solution *sol)
 {
 	// Initialized the sol
 	sol->tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
@@ -714,51 +781,46 @@ int run_method(instance *inst, solution *sol)
     {
         if (strcmp(method, "n_n") == 0)
         {
-            if (solve_greedy(inst, sol)) // Nearest neighbor heuristic
+            if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
             {
                 print_error("Error applying nearest neighbor heuristic");
                 free(method_str);
-				free(sol->tour);
                 return EXIT_FAILURE;
             }
         }
         else if (strcmp(method, "two_opt") == 0)
         {
-            if (two_opt(inst, sol))
+            if (apply_two_opt(inst, sol))
             {
                 print_error("Error applying 2-opt");
                 free(method_str);
-				free(sol->tour);
                 return EXIT_FAILURE;
             }
         }
         else if (strcmp(method, "random") == 0)
         {
-            if (random_path(inst, sol))
+            if (generate_random_path(inst, sol))
             {
                 print_error("Error generating random path");
                 free(method_str);
-				free(sol->tour);
                 return EXIT_FAILURE;
             }
         }
         else if (strcmp(method, "vns") == 0)
         {
-            if (tsp_solve_vns(inst, sol))
+            if (apply_heuristic_vns(inst, sol))
             {
                 print_error("Error applying VNS");
                 free(method_str);
-				free(sol->tour);
                 return EXIT_FAILURE;
             }
         }
         else if (strcmp(method, "tabu") == 0)
         {
-            if (tsp_solve_tabu(inst, sol))
+            if (apply_heuristic_tabu(inst, sol))
             {
                 print_error("Error applying Tabu Search");
                 free(method_str);
-				free(sol->tour);
                 return EXIT_FAILURE;
             }
         }
@@ -767,7 +829,6 @@ int run_method(instance *inst, solution *sol)
             print_error("Invalid method");
             print_error("USAGE: -method [n_n|two_opt|random|vns|tabu] (separated by '+')");
             free(method_str);
-			free(sol->tour);
             return EXIT_FAILURE;
         }
 
@@ -785,35 +846,50 @@ int run_method(instance *inst, solution *sol)
     free(method_str); 
 
     // Save the cost of the best solution
-    cost_path(inst, sol);
+    evaluate_path_cost(inst, sol);
     return EXIT_SUCCESS;
 }
 
 void allocate_buffers(instance *tsp)
 {
+	// Libera se già allocato (difensivo, opzionale se sicuro altrove)
 	if (tsp->xcoord)
 	{
 		free(tsp->xcoord);
 	}
 	tsp->xcoord = (double *)calloc(tsp->nnodes, sizeof(double));
+	if (!tsp->xcoord)
+		print_error("Failed to allocate xcoord");
 
 	if (tsp->ycoord)
 	{
 		free(tsp->ycoord);
 	}
 	tsp->ycoord = (double *)calloc(tsp->nnodes, sizeof(double));
+	if (!tsp->ycoord)
+		print_error("Failed to allocate ycoord");
 
-	tsp->cost_matrix = calloc(tsp->nnodes, sizeof(double *));
+	if (tsp->cost_matrix)
+	{
+		for (int i = 0; i < tsp->nnodes; i++)
+		{
+			if (tsp->cost_matrix[i])
+			{
+				free(tsp->cost_matrix[i]);
+			}
+		}
+		free(tsp->cost_matrix);
+	}
+	tsp->cost_matrix = (double **)calloc(tsp->nnodes, sizeof(double *));
+	if (!tsp->cost_matrix)
+		print_error("Failed to allocate cost_matrix");
+
 	for (int i = 0; i < tsp->nnodes; i++)
 	{
-		tsp->cost_matrix[i] = calloc(tsp->nnodes, sizeof(double));
+		tsp->cost_matrix[i] = (double *)calloc(tsp->nnodes, sizeof(double));
+		if (!tsp->cost_matrix[i])
+			print_error("Failed to allocate cost_matrix row");
 	}
-
-	// if (tsp->best_sol.tour)
-	// {
-	// 	free(tsp->best_sol.tour);
-	// }
-	// tsp->best_sol.tour = (int *)calloc(tsp->nnodes, sizeof(double));
 }
 
 void init(instance *inst)
@@ -836,6 +912,8 @@ void init(instance *inst)
 
 	inst->starting_time = second();
 
+	inst->vns_kmin = 1;
+	inst->vns_kmax = 5;
 }
 
 /**
@@ -844,7 +922,7 @@ void init(instance *inst)
  * @param positions array of 3 integers
  * @return void
  */
-static void generate_3opt_positions(instance *tsp, int *positions)
+static void generate_three_opt_positions(instance *tsp, int *positions)
 {
 	while (1)
 	{
@@ -864,40 +942,6 @@ static void generate_3opt_positions(instance *tsp, int *positions)
 }
 
 /**
- * Recompute the solution cost after applying a 3-opt swap.
- * @param tsp TSP instance
- * @param solution solution path
- * @return 0 if the solution cost is recomputed successfully, -1 otherwise
- */
-int tsp_3opt_solution(instance *tsp, solution *sol)
-{
-	if (!tsp->cost_matrix || tsp->nnodes <= 0)
-	{
-		return -1;
-	}
-
-	int positions[3];
-	generate_3opt_positions(tsp, positions);
-
-	int *temp_tour = (int *)malloc(sizeof(int) * (tsp->nnodes + 1));
-	if (temp_tour == NULL)
-	{
-		return -1;
-	}
-
-	// Apply the 3-opt swap using the generated positions.
-	tsp_3opt_swap(tsp, sol, temp_tour, positions);
-	memcpy(sol->tour, temp_tour, sizeof(int) * (tsp->nnodes + 1));
-
-	free(temp_tour);
-
-	// Recompute and update the solution cost.
-	cost_path(tsp, sol);
-
-	return 0;
-}
-
-/**
  * Perform a 3-opt swap on the current solution, storing the result in the new solution.
  * @param tsp TSP instance
  * @param current_sol current solution
@@ -905,7 +949,7 @@ int tsp_3opt_solution(instance *tsp, solution *sol)
  * @param positions array of 3 integers
  * @return void
  */
-static void tsp_3opt_swap(instance *tsp, solution *current_sol, int *new_tour, int *positions)
+static void perform_three_opt_swap(instance *tsp, solution *current_sol, int *new_tour, int *positions)
 {
 	// Copy segment from index 0 to positions[0] unchanged.
 	memcpy(new_tour, current_sol->tour, sizeof(int) * (positions[0] + 1));
@@ -925,4 +969,38 @@ static void tsp_3opt_swap(instance *tsp, solution *current_sol, int *new_tour, i
 
 	// Copy the remainder of the tour from positions[2]+1 to the end.
 	memcpy(new_tour + pos, current_sol->tour + positions[2] + 1, sizeof(int) * (tsp->nnodes - positions[2] - 1));
+}
+
+/**
+ * Recompute the solution cost after applying a 3-opt swap.
+ * @param tsp TSP instance
+ * @param solution solution path
+ * @return 0 if the solution cost is recomputed successfully, -1 otherwise
+ */
+int apply_three_opt(instance *tsp, solution *sol)
+{
+	if (!tsp->cost_matrix || tsp->nnodes <= 0)
+	{
+		return -1;
+	}
+
+	int positions[3];
+	generate_three_opt_positions(tsp, positions);
+
+	int *temp_tour = (int *)malloc(sizeof(int) * (tsp->nnodes + 1));
+	if (temp_tour == NULL)
+	{
+		return -1;
+	}
+
+	// Apply the 3-opt swap using the generated positions.
+	perform_three_opt_swap(tsp, sol, temp_tour, positions);
+	memcpy(sol->tour, temp_tour, sizeof(int) * (tsp->nnodes + 1));
+
+	free(temp_tour);
+
+	// Recompute and update the solution cost.
+	evaluate_path_cost(tsp, sol);
+
+	return 0;
 }

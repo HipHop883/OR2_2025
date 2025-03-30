@@ -2,14 +2,12 @@
 #include "tsp_greedy.h"
 #include "utils.h"
 
-// unset GTK_PATH to avoid conflict with gnuplot
-
 int main(int argc, char **argv)
 {
 	if (argc < 2)
 	{
 		printf("Usage: %s -help for help\n", argv[0]);
-		exit(1);
+		return EXIT_FAILURE;
 	}
 
 	if (VERBOSE >= 2)
@@ -19,42 +17,45 @@ int main(int argc, char **argv)
 		printf("\n");
 	}
 
-	double t1 = second();
-	instance inst;
-	init(&inst);
-	solution sol;
+	int max_runs = runs(argc, argv);
 
-	if (parse_command_line(argc, argv, &inst))
+	for (int i = 0; i < max_runs; i++)
 	{
-		print_error("Error parsing command line");
-		return -1;
-	}
+		instance inst;
+		init(&inst);
+		solution sol; // Safe init
 
-	if (load_instance(&inst))
-	{
-		print_error("Error reading input");
-		free_instance(&inst, &sol);
-		return -1;
-	}
+		double t1 = second();
+
+		// Parse command line
+		if (parse_command_line(argc, argv, &inst))
+		{
+			print_error("Error parsing command line");
+			return EXIT_FAILURE;
+		}
+
+		// Load problem instance
+		if (load_instance(&inst))
+		{
+			print_error("Error reading input");
+			free_instance(&inst, &sol);
+			return EXIT_FAILURE;
+		}
 
 	printf("Number of nodes: %d\n", inst.nnodes);
 
 	// Run the method and print the cost of the solution
-	if (run_method(&inst, &sol))
+	if (executed_selected_method(&inst, &sol))
 	{
 		print_error("Error running method\n");
 		free_instance(&inst, &sol);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
-	printf("The total cost is: %lf\n", sol.cost);
+		// Print final cost
+		printf("Total tour cost: %.2lf\n", sol.cost);
 
-	/* Print the best solution path
-	printf("Best solution path:\n");
-	print_path(&inst, inst.best_sol, inst.nnodes);
-	*/
-
-	double t2 = second();
+		double t2 = second();
 
 	// Plot the solution path using Gnuplot
 	if (inst.plot == 0)
@@ -88,12 +89,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (VERBOSE >= 1)
-	{
-		printf("... TSP problem solved in %lf sec.s\n", t2 - inst.starting_time);
+		if (VERBOSE >= 1)
+		{
+			printf("TSP solved in %.2lf seconds\n", t2 - inst.starting_time);
+		}
+
+		free_instance(&inst, &sol);
 	}
 
-	// free memory
-	free_instance(&inst, &sol);
-	return 0;
+	return EXIT_SUCCESS;
 }

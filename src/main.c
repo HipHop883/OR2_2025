@@ -34,12 +34,9 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 		}
 
-		printf("Loading from file..\n\n\n\n");
 		// Load problem instance
 		if (load_instance(&inst))
 		{
-			printf("ERRORROROR");
-
 			print_error("Error reading input");
 			free_instance(&inst, &sol);
 			return EXIT_FAILURE;

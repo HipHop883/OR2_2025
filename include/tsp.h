@@ -56,6 +56,7 @@ typedef struct
 	int randomseed;
 	int plot;	  // to plot the solution
 	int nmethods; // number of methods
+	char csv_filename[256];
 
 	// Internal state
 	double **cost_matrix;

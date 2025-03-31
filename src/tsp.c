@@ -968,6 +968,8 @@ void init(instance *inst)
 	inst->vns_kmax = 5;
 	inst->vns_learning_rate = 1.0;
 	inst->vns_jumps = 0;
+
+	strcpy(inst->csv_filename, "");
 }
 
 /**

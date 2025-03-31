@@ -279,14 +279,14 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			if (i + 1 < argc)
 			{
 				snprintf(inst->method, sizeof(inst->method), "%s", argv[++i]);
-				inst->nmethods = 1;			// At least one method
-            	for (char *c = inst->method; *c != '\0'; c++)
-            	{
-            	    if (*c == '+')
-            	    {
-            	        inst->nmethods++;
-            	    }
-            	}
+				inst->nmethods = 1; // At least one method
+				for (char *c = inst->method; *c != '\0'; c++)
+				{
+					if (*c == '+')
+					{
+						inst->nmethods++;
+					}
+				}
 			}
 			else
 			{
@@ -294,19 +294,19 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
-		else if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "--plot"))
+		else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--plot"))
 		{
 			if (i < argc)
 			{
 				inst->plot = 0;
 				i++;
 			}
-			else 
+			else
 			{
 				perror("Plot is missing\n");
 				help = 1;
 			}
-        }
+		}
 		else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
 		{
 			help = 1;
@@ -346,6 +346,40 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
+		else if (!strcmp(argv[i], "--vns_lr") || !strcmp(argv[i], "-vlr"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->vns_learning_rate = atof(argv[++i]);
+				if (inst->vns_learning_rate <= 0)
+				{
+					fprintf(stderr, "Error: VNS learning rate must be positive\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: VNS learning rate value is missing\n");
+				help = 1;
+			}
+		}
+		else if (!strcmp(argv[i], "--vns_jumps") || !strcmp(argv[i], "-vjps"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->vns_jumps = atoi(argv[++i]);
+				if (inst->vns_jumps < 0)
+				{
+					fprintf(stderr, "Error: VNS jumps must be non-negative\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: VNS jumps value is missing\n");
+				help = 1;
+			}
+		}
 	}
 
 	// Validation
@@ -382,7 +416,8 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("\n===== PARAMETERS SET =====\n");
 		printf("%-15s : %s\n", "--file", inst->input_file[0] ? inst->input_file : "(none)");
 		printf("%-15s : %s\n", "--method", inst->method);
-		if (inst->nnodes > 0) printf("%-15s : %d\n", "--nnodes", inst->nnodes);
+		if (inst->nnodes > 0)
+			printf("%-15s : %d\n", "--nnodes", inst->nnodes);
 		printf("%-15s : %d\n", "--seed", inst->randomseed);
 		printf("%-15s : %.2f\n", "--time_limit", inst->timelimit);
 		printf("===========================\n\n");
@@ -537,7 +572,7 @@ int check_time(const instance *inst, double starting_time)
 	double current_time = second();
 	if (current_time - starting_time > inst->timelimit)
 	{
-		//print_error("Time limit reached\n");
+		// print_error("Time limit reached\n");
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
@@ -608,22 +643,22 @@ int evaluate_path_cost(const instance *inst, solution *sol)
 int apply_two_opt(const instance *inst, solution *sol)
 {
 	if (sol == NULL) // Check if sol is NULL
-    {
-        print_error("sol is NULL in two_opt");
-        return EXIT_FAILURE;
-    }
+	{
+		print_error("sol is NULL in two_opt");
+		return EXIT_FAILURE;
+	}
 
 	double starting_time = second();
 
 	if (!sol->initialized) // Check if solution is not initialized
-    {
-        // Generate a random path if the solution is not initialized
-        if (generate_random_path(inst, sol) != EXIT_SUCCESS)
-        {
-            print_error("Failed to generate random path in two_opt");
-            return EXIT_FAILURE;
-        }
-    }
+	{
+		// Generate a random path if the solution is not initialized
+		if (generate_random_path(inst, sol) != EXIT_SUCCESS)
+		{
+			print_error("Failed to generate random path in two_opt");
+			return EXIT_FAILURE;
+		}
+	}
 
 	double time = second();
 	if (VERBOSE >= 70)
@@ -631,7 +666,7 @@ int apply_two_opt(const instance *inst, solution *sol)
 		printf("Applying two-opt heuristic...\n");
 	}
 	int nnodes = inst->nnodes;
-	int improved = 1; // flag to indicate if the path has been improved
+	int improved = 1;			  // flag to indicate if the path has been improved
 	double best_cost = sol->cost; // Initialize with the current cost
 	while (improved)
 	{
@@ -644,15 +679,16 @@ int apply_two_opt(const instance *inst, solution *sol)
 			for (int j = i + 1; j < nnodes; j++)
 			{
 				double delta_cost = path_cost_delta(i, j, sol, inst);
-                if (delta_cost < 0)
-                {
-                    reverse_path_segment(i, j, sol); 		// swap nodes i and j
-                    improved = 1;         					// set the flag
-                    sol->cost += delta_cost; 				// Update the cost
-                    if (sol->cost < best_cost) {
-                        best_cost = sol->cost; 				// Update the best cost
-                    }
-                }
+				if (delta_cost < 0)
+				{
+					reverse_path_segment(i, j, sol); // swap nodes i and j
+					improved = 1;					 // set the flag
+					sol->cost += delta_cost;		 // Update the cost
+					if (sol->cost < best_cost)
+					{
+						best_cost = sol->cost; // Update the best cost
+					}
+				}
 			}
 		}
 	}
@@ -665,9 +701,9 @@ int apply_two_opt(const instance *inst, solution *sol)
 	}
 
 	if (!sol->initialized) // Mark as initialized only if not already initialized
-    {
-        sol->initialized = 1;
-    }
+	{
+		sol->initialized = 1;
+	}
 
 	evaluate_path_cost(inst, sol);
 
@@ -742,121 +778,120 @@ int execute_selected_method(instance *inst, solution *sol)
 {
 	// Initialized the sol
 	sol->tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
-    if (sol->tour == NULL) {
-        print_error("Memory allocation failed for sol->tour");
-        return EXIT_FAILURE;
-    }
-    sol->initialized = 0; // Initialized to 0 (false)
+	if (sol->tour == NULL)
+	{
+		print_error("Memory allocation failed for sol->tour");
+		return EXIT_FAILURE;
+	}
+	sol->initialized = 0; // Initialized to 0 (false)
 
 	char *method_str = strdup(inst->method); // Double the string to not modify it directly
-	if (method_str == NULL) {
-        print_error("Memory allocation failed");
+	if (method_str == NULL)
+	{
+		print_error("Memory allocation failed");
 		free(sol->tour);
-        return EXIT_FAILURE;
-    }
+		return EXIT_FAILURE;
+	}
 
 	char *method = strtok(method_str, "+"); // Divide the string in separate methods by the '+'
 
-	if (method != NULL)	inst->timelimit = inst->timelimit / inst->nmethods; // Time limit for each method
+	if (method != NULL)
+		inst->timelimit = inst->timelimit / inst->nmethods; // Time limit for each method
 
-    while (method != NULL)
-    {
+	while (method != NULL)
+	{
 		double starting_time_method = second();
 		if (VERBOSE >= 50)
 		{
 			printf("\n----------------------------------\n");
 			printf("METHOD %s \n\n", method);
 		}
-		
-        if (strcmp(method, "n_n") == 0)
-        {
-            if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
-            {
-                print_error("Error applying nearest neighbor heuristic");
-                free(method_str);
-                return EXIT_FAILURE;
-            }
+
+		if (strcmp(method, "n_n") == 0)
+		{
+			if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
+			{
+				print_error("Error applying nearest neighbor heuristic");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
 			if (VERBOSE >= 50)
 				printf("Nearest Neighbor done in %lf seconds\n\n", second() - starting_time_method);
-        }
-        else if (strcmp(method, "two_opt") == 0)
-        {
-            if (apply_two_opt(inst, sol))
-            {
-                print_error("Error applying 2-opt");
-                free(method_str);
-                return EXIT_FAILURE;
-            }
+		}
+		else if (strcmp(method, "two_opt") == 0)
+		{
+			if (apply_two_opt(inst, sol))
+			{
+				print_error("Error applying 2-opt");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
 
 			if (VERBOSE >= 50)
 				printf("Two Opt done in %lf seconds\n\n", second() - starting_time_method);
-
-        }
-        else if (strcmp(method, "random") == 0)
-        {
-            if (generate_random_path(inst, sol))
-            {
-                print_error("Error generating random path");
-                free(method_str);
-                return EXIT_FAILURE;
-            }
+		}
+		else if (strcmp(method, "random") == 0)
+		{
+			if (generate_random_path(inst, sol))
+			{
+				print_error("Error generating random path");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
 
 			if (VERBOSE >= 50)
 				printf("Random path done in %lf seconds\n\n", second() - starting_time_method);
-
-        }
-        else if (strcmp(method, "vns") == 0)
-        {
-            if (apply_heuristic_vns(inst, sol))
-            {
-                print_error("Error applying VNS");
-                free(method_str);
-                return EXIT_FAILURE;
-            }
+		}
+		else if (strcmp(method, "vns") == 0)
+		{
+			if (apply_heuristic_vns(inst, sol))
+			{
+				print_error("Error applying VNS");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
 
 			if (VERBOSE >= 50)
 				printf("VNS done in %lf seconds\n\n", second() - starting_time_method);
-
-        }
-        else if (strcmp(method, "tabu") == 0)
-        {
-            if (apply_heuristic_tabu(inst, sol))
-            {
-                print_error("Error applying Tabu Search");
-                free(method_str);
-                return EXIT_FAILURE;
-            }
+		}
+		else if (strcmp(method, "tabu") == 0)
+		{
+			if (apply_heuristic_tabu(inst, sol))
+			{
+				print_error("Error applying Tabu Search");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
 
 			if (VERBOSE >= 50)
 				printf("Tabu search done in %lf seconds\n\n", second() - starting_time_method);
-
-        }
-        else
-        {
-            print_error("Invalid method");
-            print_error("USAGE: -method [n_n|two_opt|random|vns|tabu] (separated by '+')");
-            free(method_str);
-            return EXIT_FAILURE;
-        }
+		}
+		else
+		{
+			print_error("Invalid method");
+			print_error("USAGE: -method [n_n|two_opt|random|vns|tabu] (separated by '+')");
+			free(method_str);
+			return EXIT_FAILURE;
+		}
 
 		/*
 		if (check_time(inst, starting_time))
-        {
-            free(method_str);
-            evaluate_path_cost(inst, sol);
-            return EXIT_SUCCESS;
-        }
+		{
+			free(method_str);
+			evaluate_path_cost(inst, sol);
+			return EXIT_SUCCESS;
+		}
 			*/
 
 		evaluate_path_cost(inst, sol);
-        method = strtok(NULL, "+"); // Get the next method
-    }
+		method = strtok(NULL, "+"); // Get the next method
+	}
 
-    free(method_str); 
+	free(method_str);
 
-    // Save the cost of the best solution
-    evaluate_path_cost(inst, sol);
-    return EXIT_SUCCESS;
+	// Save the cost of the best solution
+	evaluate_path_cost(inst, sol);
+	return EXIT_SUCCESS;
 }
 
 void allocate_buffers(instance *tsp)
@@ -923,6 +958,8 @@ void init(instance *inst)
 
 	inst->vns_kmin = 1;
 	inst->vns_kmax = 5;
+	inst->vns_learning_rate = 1.0;
+	inst->vns_jumps = 0;
 }
 
 /**

@@ -54,8 +54,8 @@ typedef struct
 	char method[40];
 	double timelimit;
 	int randomseed;
-	int plot; 			   // to plot the solution
-	int nmethods;		   // number of methods	
+	int plot;	  // to plot the solution
+	int nmethods; // number of methods
 
 	// Internal state
 	double **cost_matrix;
@@ -64,6 +64,8 @@ typedef struct
 	// VNS params
 	int vns_kmin;
 	int vns_kmax;
+	double vns_learning_rate;
+	int vns_jumps;
 } instance;
 
 void init(instance *inst);
@@ -93,7 +95,6 @@ int execute_selected_method(instance *inst, solution *sol);
 static void generate_three_opt_positions(instance *tsp, int *positions);
 static void perform_three_opt_swap(instance *tsp, solution *current_sol, int *new_tour, int *positions);
 int apply_three_opt(instance *tsp, solution *sol);
-
 
 void print_error(const char *err_message);
 

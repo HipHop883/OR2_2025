@@ -71,8 +71,9 @@ int main(int argc, char **argv)
 			fprintf(gnuplotPipe, "set xlabel 'X'\n");
 			fprintf(gnuplotPipe, "set ylabel 'Y'\n");
 			fprintf(gnuplotPipe, "set grid\n");
-			fprintf(gnuplotPipe, "set key top right\n"); 		// Enable legend and set position
-			fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s'\n", inst.method);
+			fprintf(gnuplotPipe, "set key top right\n"); 			// Enable legend and set position
+			fprintf(gnuplotPipe, "set termoption noenhanced\n");	// Disables the interpretation of subscript characters
+			fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s (Cost: %.2lf)'\n", inst.method, sol.cost);
 			for (int i = 0; i <= inst.nnodes; i++)
 			{
 				int node = sol.tour[i];

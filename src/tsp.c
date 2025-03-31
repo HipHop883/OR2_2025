@@ -474,7 +474,7 @@ void generate_random_nodes(instance *inst, int nnodes, int seed)
  * @param inst instance
  * @return void
  */
-void free_instance(instance *inst, solution *sol)
+void free_instance(instance *inst)
 {
 	free(inst->xcoord);
 	inst->xcoord = NULL;
@@ -488,7 +488,15 @@ void free_instance(instance *inst, solution *sol)
 	}
 	free(inst->cost_matrix);
 	inst->cost_matrix = NULL;
+}
 
+/**
+ * Free solution
+ * @param sol solution
+ * @return void
+ */
+void free_sol(solution *sol)
+{
 	if (sol && sol->tour)
 	{
 		free(sol->tour);

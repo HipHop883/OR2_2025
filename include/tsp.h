@@ -73,7 +73,8 @@ int parse_command_line(int argc, char **argv, instance *inst);
 
 int load_instance(instance *inst);
 void allocate_buffers(instance *inst);
-void free_instance(instance *inst, solution *sol);
+void free_instance(instance *inst);
+void free_sol(solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
 int generate_random_path(const instance *inst, solution *sol);

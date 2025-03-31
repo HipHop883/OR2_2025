@@ -19,84 +19,99 @@ int main(int argc, char **argv)
 
 	int max_runs = runs(argc, argv);
 
-	for (int i = 0; i < max_runs; i++)
+	double *best_costs = (double *)malloc(max_runs * sizeof(double));
+	if (!best_costs)
 	{
-		instance inst;
-		init(&inst);
-		solution sol; // Safe init
+		print_error("Memory allocation failed for best_costs array");
+		return EXIT_FAILURE;
+	}
 
-		double t1 = second();
+	instance inst;
+	init(&inst);
+	solution sol; // Safe init
 
-		// Parse command line
-		if (parse_command_line(argc, argv, &inst))
-		{
-			print_error("Error parsing command line");
-			return EXIT_FAILURE;
-		}
+	double t1 = second();
 
-		// Load problem instance
-		if (load_instance(&inst))
-		{
-			print_error("Error reading input");
-			free_instance(&inst, &sol);
-			return EXIT_FAILURE;
-		}
+	// Parse command line
+	if (parse_command_line(argc, argv, &inst))
+	{
+		print_error("Error parsing command line");
+		return EXIT_FAILURE;
+	}
+
+	// Load problem instance
+	if (load_instance(&inst))
+	{
+		print_error("Error reading input");
+		free_instance(&inst);
+		free_sol(&sol);
+
+		return EXIT_FAILURE;
+	}
 
 	printf("Number of nodes: %d\n", inst.nnodes);
 
-	// Run the method and print the cost of the solution
-	if (execute_selected_method(&inst, &sol))
+	for (int i = 0; i < max_runs; i++)
 	{
-		print_error("Error running method\n");
-		free_instance(&inst, &sol);
-		return EXIT_FAILURE;
-	}
+		// Run the method and print the cost of the solution
+		if (execute_selected_method(&inst, &sol))
+		{
+			print_error("Error running method\n");
+			free_instance(&inst);
+			free_sol(&sol);
+
+			return EXIT_FAILURE;
+		}
 
 		// Print final cost
 		printf("Total tour cost: %.2lf\n", sol.cost);
 
 		double t2 = second();
+		best_costs[i] = sol.cost;
 
-	// Plot the solution path using Gnuplot
-	if (inst.plot == 0)
-	{
-		FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
-		if (gnuplotPipe)
+		// Plot the solution path using Gnuplot
+		if (inst.plot == 0)
 		{
-			char filename[256];
-			sprintf(filename, "plot/TSP_%s.png", inst.method); 	// Create the file name (es. TSP_2opt.png)
-	
-			fprintf(gnuplotPipe, "set terminal png\n");
-			fprintf(gnuplotPipe, "set output '%s'\n", filename);
-			fprintf(gnuplotPipe, "set xlabel 'X'\n");
-			fprintf(gnuplotPipe, "set ylabel 'Y'\n");
-			fprintf(gnuplotPipe, "set grid\n");
-			fprintf(gnuplotPipe, "set key top right\n"); 			// Enable legend and set position
-			fprintf(gnuplotPipe, "set termoption noenhanced\n");	// Disables the interpretation of subscript characters
-			fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s (Cost: %.2lf)'\n", inst.method, sol.cost);
-			for (int i = 0; i <= inst.nnodes; i++)
+			FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
+			if (gnuplotPipe)
 			{
-				int node = sol.tour[i];
-				fprintf(gnuplotPipe, "%lf %lf\n", inst.xcoord[node], inst.ycoord[node]);
+				char filename[256];
+				sprintf(filename, "plot/TSP_%s.png", inst.method); // Create the file name (es. TSP_2opt.png)
+				fprintf(gnuplotPipe, "set terminal png\n");
+				fprintf(gnuplotPipe, "set output '%s'\n", filename);
+				fprintf(gnuplotPipe, "set xlabel 'X'\n");
+				fprintf(gnuplotPipe, "set ylabel 'Y'\n");
+				fprintf(gnuplotPipe, "set grid\n");
+				fprintf(gnuplotPipe, "set key top right\n");		 // Enable legend and set position
+				fprintf(gnuplotPipe, "set termoption noenhanced\n"); // Disables the interpretation of subscript characters
+				fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s (Cost: %.2lf)'\n", inst.method, sol.cost);
+				for (int i = 0; i <= inst.nnodes; i++)
+				{
+					int node = sol.tour[i];
+					fprintf(gnuplotPipe, "%lf %lf\n", inst.xcoord[node], inst.ycoord[node]);
+				}
+				fprintf(gnuplotPipe, "e\n");
+				fflush(gnuplotPipe);
+				pclose(gnuplotPipe);
+				printf("Plot saved in: %s\n", filename);
 			}
-			fprintf(gnuplotPipe, "e\n");
-			fflush(gnuplotPipe);
-			pclose(gnuplotPipe);
-			printf("Plot saved in: %s\n", filename);
+			else
+			{
+				print_error("Error opening Gnuplot. Make sure Gnuplot is installed and in your PATH.");
+			}
 		}
-		else
-		{
-			print_error("Error opening Gnuplot. Make sure Gnuplot is installed and in your PATH.");
-		}
-	}
 
 		if (VERBOSE >= 1)
 		{
 			printf("TSP solved in %lf seconds\n", t2 - inst.starting_time);
 		}
 
-		free_instance(&inst, &sol);
+		free_sol(&sol);
 	}
+
+	free_instance(&inst);
+
+	update_perf_csv(&inst, best_costs, max_runs);
 
 	return EXIT_SUCCESS;
 }

@@ -279,6 +279,14 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			if (i + 1 < argc)
 			{
 				snprintf(inst->method, sizeof(inst->method), "%s", argv[++i]);
+				inst->nmethods = 1;			// At least one method
+            	for (char *c = inst->method; *c != '\0'; c++)
+            	{
+            	    if (*c == '+')
+            	    {
+            	        inst->nmethods++;
+            	    }
+            	}
 			}
 			else
 			{
@@ -521,13 +529,13 @@ void print_node_coordinates(instance *inst)
 /**
  * Check time
  * @param inst instance
- * @param start_time start time
+ * @param time starting_time
  * @return 0 if the time limit is not reached, 1 otherwise
  */
-int check_time(const instance *inst)
+int check_time(const instance *inst, double starting_time)
 {
 	double current_time = second();
-	if (current_time - inst->starting_time > inst->timelimit)
+	if (current_time - starting_time > inst->timelimit)
 	{
 		//print_error("Time limit reached\n");
 		return EXIT_FAILURE;
@@ -605,6 +613,8 @@ int apply_two_opt(const instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
+	double starting_time = second();
+
 	if (!sol->initialized) // Check if solution is not initialized
     {
         // Generate a random path if the solution is not initialized
@@ -616,7 +626,7 @@ int apply_two_opt(const instance *inst, solution *sol)
     }
 
 	double time = second();
-	if (VERBOSE >= 50)
+	if (VERBOSE >= 70)
 	{
 		printf("Applying two-opt heuristic...\n");
 	}
@@ -625,6 +635,9 @@ int apply_two_opt(const instance *inst, solution *sol)
 	double best_cost = sol->cost; // Initialize with the current cost
 	while (improved)
 	{
+		if (check_time(inst, starting_time))
+			return EXIT_SUCCESS;
+
 		improved = 0; // reset the flag
 		for (int i = 0; i < nnodes - 1; i++)
 		{
@@ -644,7 +657,7 @@ int apply_two_opt(const instance *inst, solution *sol)
 		}
 	}
 
-	if (VERBOSE >= 50)
+	if (VERBOSE >= 70)
 	{
 		printf("Two-opt heuristic applied\n");
 		printf("Elapsed time: %lf\n", second() - time);
@@ -744,8 +757,17 @@ int execute_selected_method(instance *inst, solution *sol)
 
 	char *method = strtok(method_str, "+"); // Divide the string in separate methods by the '+'
 
+	if (method != NULL)	inst->timelimit = inst->timelimit / inst->nmethods; // Time limit for each method
+
     while (method != NULL)
     {
+		double starting_time_method = second();
+		if (VERBOSE >= 50)
+		{
+			printf("\n----------------------------------\n");
+			printf("METHOD %s \n\n", method);
+		}
+		
         if (strcmp(method, "n_n") == 0)
         {
             if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
@@ -754,6 +776,8 @@ int execute_selected_method(instance *inst, solution *sol)
                 free(method_str);
                 return EXIT_FAILURE;
             }
+			if (VERBOSE >= 50)
+				printf("Nearest Neighbor done in %lf seconds\n\n", second() - starting_time_method);
         }
         else if (strcmp(method, "two_opt") == 0)
         {
@@ -763,6 +787,10 @@ int execute_selected_method(instance *inst, solution *sol)
                 free(method_str);
                 return EXIT_FAILURE;
             }
+
+			if (VERBOSE >= 50)
+				printf("Two Opt done in %lf seconds\n\n", second() - starting_time_method);
+
         }
         else if (strcmp(method, "random") == 0)
         {
@@ -772,6 +800,10 @@ int execute_selected_method(instance *inst, solution *sol)
                 free(method_str);
                 return EXIT_FAILURE;
             }
+
+			if (VERBOSE >= 50)
+				printf("Random path done in %lf seconds\n\n", second() - starting_time_method);
+
         }
         else if (strcmp(method, "vns") == 0)
         {
@@ -781,6 +813,10 @@ int execute_selected_method(instance *inst, solution *sol)
                 free(method_str);
                 return EXIT_FAILURE;
             }
+
+			if (VERBOSE >= 50)
+				printf("VNS done in %lf seconds\n\n", second() - starting_time_method);
+
         }
         else if (strcmp(method, "tabu") == 0)
         {
@@ -790,6 +826,10 @@ int execute_selected_method(instance *inst, solution *sol)
                 free(method_str);
                 return EXIT_FAILURE;
             }
+
+			if (VERBOSE >= 50)
+				printf("Tabu search done in %lf seconds\n\n", second() - starting_time_method);
+
         }
         else
         {
@@ -799,12 +839,14 @@ int execute_selected_method(instance *inst, solution *sol)
             return EXIT_FAILURE;
         }
 
-		if (check_time(inst))
+		/*
+		if (check_time(inst, starting_time))
         {
             free(method_str);
             evaluate_path_cost(inst, sol);
             return EXIT_SUCCESS;
         }
+			*/
 
 		evaluate_path_cost(inst, sol);
         method = strtok(NULL, "+"); // Get the next method

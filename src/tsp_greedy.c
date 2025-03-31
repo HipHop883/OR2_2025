@@ -15,6 +15,7 @@
  */
 int apply_greedy_search(const instance *inst, solution *best_sol)
 {
+    double starting_time = second();
     set_seed(inst->randomseed);
 
     solution current_sol;
@@ -35,7 +36,7 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
 
     for (int i = 0; i < N_GREEDY_STARTS; i++)
     {
-        if (check_time(inst))
+        if (check_time(inst, starting_time))
         {
             if (VERBOSE >= 20)
                 printf("Greedy search stopped early due to time limit.\n");

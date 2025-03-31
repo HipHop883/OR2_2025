@@ -134,6 +134,7 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     if (!inst || !sol->tour || inst->nnodes <= 0 || !inst->cost_matrix)
         return EXIT_FAILURE;
 
+    double starting_time_vns = second();
     solution *current_sol = (solution *)malloc(sizeof(solution));
     solution *best_sol = (solution *)malloc(sizeof(solution));
 
@@ -218,7 +219,7 @@ int apply_heuristic_vns(instance *inst, solution *sol)
             best_points_count++;
         }
 
-    while (!check_time(inst))
+    while (!check_time(inst, starting_time_vns))
     {
         if (apply_two_opt(inst, current_sol) != EXIT_SUCCESS)
             print_error("2-opt failed in VNS");
@@ -277,6 +278,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         iter++;
     }
 
+    printf("TIME FOR DO VNS %lf\n", second() - starting_time_vns );
+
     if (gp) {
         fprintf(gp, "e\n");
 
@@ -310,6 +313,8 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
 {
     if (!inst || !sol)
         return EXIT_FAILURE;
+
+    double starting_time = second();
 
     int nnodes = inst->nnodes;
     tabuList *tabu = init_tabu_list(nnodes);
@@ -354,7 +359,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
 
     int iter = 0;
 
-    while (!check_time(inst))
+    while (!check_time(inst, starting_time))
     {
         if (best_2opt_not_tabu(inst, current_sol, tabu) == -1)
             print_error("No valid 2-opt move found");

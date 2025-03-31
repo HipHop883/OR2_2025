@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
 		if (VERBOSE >= 1)
 		{
-			printf("TSP solved in %.2lf seconds\n", t2 - inst.starting_time);
+			printf("TSP solved in %lf seconds\n", t2 - inst.starting_time);
 		}
 
 		free_instance(&inst, &sol);

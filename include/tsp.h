@@ -17,7 +17,7 @@
  *     - 70 verbose,
  *     - 100 cplex log
  */
-#define VERBOSE 10
+#define VERBOSE 50
 
 #define EPSILON 1e-9 // very small numerical tolerance
 #define XSMALL 1e-5	 // tolerance used to decide ingerality of 0-1 var.s
@@ -51,10 +51,11 @@ typedef struct
 
 	// Parameters
 	char input_file[1000];
-	char method[20];
+	char method[40];
 	double timelimit;
 	int randomseed;
 	int plot; 			   // to plot the solution
+	int nmethods;		   // number of methods	
 
 	// Internal state
 	double **cost_matrix;
@@ -74,7 +75,7 @@ void free_instance(instance *inst, solution *sol);
 
 void generate_random_nodes(instance *inst, int nnodes, int seed);
 int generate_random_path(const instance *inst, solution *sol);
-int check_time(const instance *inst);
+int check_time(const instance *inst, double starting_time);
 
 void print_solution_path(const instance *inst, const solution *sol);
 void print_node_coordinates(instance *inst);

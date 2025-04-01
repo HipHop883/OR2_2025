@@ -107,6 +107,12 @@ void update_perf_csv(const instance *inst, double *run_costs, int num_runs)
                     inst->vns_kmin, inst->vns_kmax, inst->vns_learning_rate, inst->randomseed);
         }
     }
+    else if (!strcmp(inst->method, "tabu"))
+    {
+        sprintf(instance_id, "tabu_tenure_%d_%d_%d_noimpr_%d_seed_%d",
+                inst->tabu_min, inst->tabu_tenure, inst->tabu_max,
+                inst->tabu_noimprove, inst->randomseed);
+    }
     else
     {
         // TODO other methods

@@ -385,6 +385,12 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			if (i + 1 < argc)
 			{
 				inst->tabu_tenure = atoi(argv[++i]);
+
+				if (inst->tabu_tenure < 0)
+				{
+					fprintf(stderr, "Error: TABU initial tenure size must be non-negative\n");
+					help = 1;
+				}
 			}
 			else
 			{
@@ -397,6 +403,12 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			if (i + 1 < argc)
 			{
 				inst->tabu_min = atoi(argv[++i]);
+
+				if (inst->tabu_min < 0)
+				{
+					fprintf(stderr, "Error: TABU min tenure size must be non-negative\n");
+					help = 1;
+				}
 			}
 			else
 			{
@@ -409,6 +421,12 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			if (i + 1 < argc)
 			{
 				inst->tabu_max = atoi(argv[++i]);
+
+				if (inst->tabu_max < 0)
+				{
+					fprintf(stderr, "Error: TABU max tenure size must be non-negative\n");
+					help = 1;
+				}
 			}
 			else
 			{
@@ -421,6 +439,12 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			if (i + 1 < argc)
 			{
 				inst->tabu_noimprove = atoi(argv[++i]);
+
+				if (inst->tabu_noimprove < 0)
+				{
+					fprintf(stderr, "Error: TABU no improve limit must be non-negative\n");
+					help = 1;
+				}
 			}
 			else
 			{
@@ -456,6 +480,12 @@ int parse_command_line(int argc, char **argv, instance *inst)
 	if (inst->vns_kmin > inst->vns_kmax)
 	{
 		fprintf(stderr, "Error: vns_kmin must be less than or equal to vns_kmax\n");
+		help = 1;
+	}
+
+	if (inst->tabu_min > inst->tabu_max || inst->tabu_tenure > inst->tabu_max || inst->tabu_min > inst->tabu_tenure)
+	{
+		fprintf(stderr, "Error: tabu params are not coherent.\n");
 		help = 1;
 	}
 

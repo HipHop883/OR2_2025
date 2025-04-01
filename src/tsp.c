@@ -850,6 +850,12 @@ int execute_selected_method(instance *inst, solution *sol)
 		}
 		else if (strcmp(method, "vns") == 0)
 		{
+			if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
+			{
+				print_error("Error applying nearest neighbor heuristic");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
 			if (apply_heuristic_vns(inst, sol))
 			{
 				print_error("Error applying VNS");
@@ -862,6 +868,12 @@ int execute_selected_method(instance *inst, solution *sol)
 		}
 		else if (strcmp(method, "tabu") == 0)
 		{
+			if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
+			{
+				print_error("Error applying nearest neighbor heuristic");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
 			if (apply_heuristic_tabu(inst, sol))
 			{
 				print_error("Error applying Tabu Search");

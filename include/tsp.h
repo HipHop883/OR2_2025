@@ -67,6 +67,12 @@ typedef struct
 	int vns_kmax;
 	double vns_learning_rate;
 	int vns_jumps;
+
+	// TABU params
+	int tabu_tenure;
+	int tabu_min;
+	int tabu_max;
+	int tabu_noimprove;
 } instance;
 
 void init(instance *inst);

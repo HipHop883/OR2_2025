@@ -380,6 +380,54 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
+		else if (!strcmp(argv[i], "--tabu-tenure") || !strcmp(argv[i], "-tten"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->tabu_tenure = atoi(argv[++i]);
+			}
+			else
+			{
+				fprintf(stderr, "Error: Tabu tenure value is missing\n");
+				help = 1;
+			}
+		}
+		else if (!strcmp(argv[i], "--tabu-min") || !strcmp(argv[i], "-ttenmin"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->tabu_min = atoi(argv[++i]);
+			}
+			else
+			{
+				fprintf(stderr, "Error: Tabu min tenure value is missing\n");
+				help = 1;
+			}
+		}
+		else if (!strcmp(argv[i], "--tabu-max") || !strcmp(argv[i], "-ttenmax"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->tabu_max = atoi(argv[++i]);
+			}
+			else
+			{
+				fprintf(stderr, "Error: Tabu max tenure value is missing\n");
+				help = 1;
+			}
+		}
+		else if (!strcmp(argv[i], "--tabu-noimprove") || !strcmp(argv[i], "-tnoimpr"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->tabu_noimprove = atoi(argv[++i]);
+			}
+			else
+			{
+				fprintf(stderr, "Error: Tabu no improve value is missing\n");
+				help = 1;
+			}
+		}
 	}
 
 	// Validation
@@ -978,6 +1026,11 @@ void init(instance *inst)
 	inst->vns_kmax = 5;
 	inst->vns_learning_rate = 1.0;
 	inst->vns_jumps = 0;
+
+	inst->tabu_min = 0;
+	inst->tabu_max = 0;
+	inst->tabu_tenure = 0;
+	inst->tabu_noimprove = 0;
 
 	strcpy(inst->csv_filename, "");
 }

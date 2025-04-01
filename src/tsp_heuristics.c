@@ -131,7 +131,7 @@ static int best_2opt_not_tabu(instance *inst, solution *sol, tabuList *tabu)
     return 0;
 }
 
-static tabuList *init_tabu_list(int nnodes)
+static tabuList *init_tabu_list(instance *inst)
 {
     tabuList *tabu = (tabuList *)malloc(sizeof(tabuList));
     if (!tabu)
@@ -140,9 +140,9 @@ static tabuList *init_tabu_list(int nnodes)
         return NULL;
     }
 
-    tabu->min_tenure = nnodes / 10;
-    tabu->max_tenure = nnodes + nnodes / 10;
-    tabu->tenure = (tabu->min_tenure + tabu->max_tenure) / 2;
+    tabu->min_tenure = inst->tabu_min == 0 ? inst->nnodes / 10 : inst->tabu_min;
+    tabu->max_tenure = inst->tabu_max == 0 ? inst->nnodes + inst->nnodes / 10 : inst->tabu_max;
+    tabu->tenure = inst->tabu_tenure == 0 ? (tabu->min_tenure + tabu->max_tenure) / 2 : inst->tabu_tenure;
 
     tabu->tabu_list = (int **)calloc(tabu->tenure, sizeof(int *));
     if (!tabu->tabu_list)
@@ -384,7 +384,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
     double starting_time = second();
 
     int nnodes = inst->nnodes;
-    tabuList *tabu = init_tabu_list(nnodes);
+    tabuList *tabu = init_tabu_list(inst);
     if (!tabu)
         return EXIT_FAILURE;
 
@@ -425,6 +425,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
     best_sol->cost = current_sol->cost = sol->cost;
 
     int iter = 0;
+    int no_improve_limit = inst->tabu_noimprove == 0 ? NO_IMPROVE_LIMIT : inst->tabu_noimprove;
 
     while (!check_time(inst, starting_time))
     {
@@ -446,7 +447,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
         }
 
         // Dynamically adjust tenure
-        if (tabu->iterations_without_improvement > NO_IMPROVE_LIMIT)
+        if (tabu->iterations_without_improvement > no_improve_limit)
         {
             // Increase tenure to promote diversification
             int new_tenure = tabu->tenure + 5;

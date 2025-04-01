@@ -43,6 +43,51 @@ static void add_tabu_move(tabuList *tabu, int i, int j)
     }
 }
 
+static int resize_tabu_list(tabuList *tabu, int new_tenure)
+{
+    if (new_tenure == tabu->tenure)
+        return 0;
+
+    // Shrink: free extra entries
+    if (new_tenure < tabu->tenure)
+    {
+        for (int i = new_tenure; i < tabu->tenure; i++)
+        {
+            free(tabu->tabu_list[i]);
+        }
+    }
+
+    // Resize the array
+    int **new_list = realloc(tabu->tabu_list, sizeof(int *) * new_tenure);
+    if (!new_list)
+    {
+        print_error("Failed to realloc tabu list");
+        return -1;
+    }
+    tabu->tabu_list = new_list;
+
+    // Expand: allocate new entries
+    if (new_tenure > tabu->tenure)
+    {
+        for (int i = tabu->tenure; i < new_tenure; i++)
+        {
+            tabu->tabu_list[i] = (int *)calloc(2, sizeof(int));
+            if (!tabu->tabu_list[i])
+            {
+                print_error("Failed to allocate new tabu entry");
+                return -1;
+            }
+        }
+    }
+
+    // Clamp current size
+    if (tabu->size > new_tenure)
+        tabu->size = new_tenure;
+
+    tabu->tenure = new_tenure;
+    return 0;
+}
+
 static void free_tabu(tabuList *tabu)
 {
     for (int i = 0; i < tabu->tenure; i++)
@@ -95,7 +140,10 @@ static tabuList *init_tabu_list(int nnodes)
         return NULL;
     }
 
-    tabu->tenure = nnodes + nnodes / 100;
+    tabu->min_tenure = nnodes / 10;
+    tabu->max_tenure = nnodes + nnodes / 10;
+    tabu->tenure = (tabu->min_tenure + tabu->max_tenure) / 2;
+
     tabu->tabu_list = (int **)calloc(tabu->tenure, sizeof(int *));
     if (!tabu->tabu_list)
     {
@@ -119,6 +167,8 @@ static tabuList *init_tabu_list(int nnodes)
     }
 
     tabu->size = 0;
+    tabu->iterations_without_improvement = 0;
+
     return tabu;
 }
 
@@ -385,9 +435,39 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
         {
             memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (nnodes + 1));
             best_sol->cost = current_sol->cost;
+            tabu->iterations_without_improvement = 0;
 
             if (VERBOSE >= 20)
                 printf("[UPDATE] Iter %d — new best cost: %.2lf\n", iter, best_sol->cost);
+        }
+        else
+        {
+            tabu->iterations_without_improvement++;
+        }
+
+        // Dynamically adjust tenure
+        if (tabu->iterations_without_improvement > NO_IMPROVE_LIMIT)
+        {
+            // Increase tenure to promote diversification
+            int new_tenure = tabu->tenure + 5;
+            if (new_tenure > tabu->max_tenure)
+                new_tenure = tabu->max_tenure;
+            resize_tabu_list(tabu, new_tenure);
+            tabu->iterations_without_improvement = 0;
+
+            if (VERBOSE >= 60)
+                printf("[TABU] Increased tenure to %d\n", new_tenure);
+        }
+        else if (tabu->iterations_without_improvement == 0 && tabu->tenure > tabu->min_tenure)
+        {
+            // Decrease tenure to intensify search
+            int new_tenure = tabu->tenure - 1;
+            if (new_tenure < tabu->min_tenure)
+                new_tenure = tabu->min_tenure;
+            resize_tabu_list(tabu, new_tenure);
+
+            if (VERBOSE >= 60)
+                printf("[TABU] Decreased tenure to %d\n", new_tenure);
         }
 
         iter++;

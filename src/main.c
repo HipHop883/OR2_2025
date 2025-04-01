@@ -51,6 +51,8 @@ int main(int argc, char **argv)
 
 	printf("Number of nodes: %d\n", inst.nnodes);
 
+	set_seed(inst.randomseed);
+
 	for (int i = 0; i < max_runs; i++)
 	{
 		// Run the method and print the cost of the solution

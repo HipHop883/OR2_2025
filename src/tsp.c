@@ -458,7 +458,6 @@ void generate_random_nodes(instance *inst, int nnodes, int seed)
 	if (VERBOSE >= 50)
 		printf("Generating random nodes...\n");
 
-	set_seed(seed);
 	for (int i = 0; i < nnodes; i++)
 	{
 		inst->xcoord[i] = rand01() * MAX_X;
@@ -519,7 +518,6 @@ int generate_random_path(const instance *inst, solution *sol)
 		nodes[i] = i;
 	}
 
-	set_seed(inst->randomseed);
 	for (int i = nnodes - 1; i > 0; i--)
 	{
 		int j = rand() % (i + 1);

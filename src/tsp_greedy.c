@@ -16,7 +16,6 @@
 int apply_greedy_search(const instance *inst, solution *best_sol)
 {
     double starting_time = second();
-    set_seed(inst->randomseed);
 
     solution current_sol;
     current_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
@@ -29,7 +28,7 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
 
     double best_cost = CPX_INFBOUND;
 
-    if (best_sol->initialized)      // Check if already initialized
+    if (best_sol->initialized) // Check if already initialized
     {
         best_cost = best_sol->cost; // Use the existing cost
     }
@@ -53,8 +52,8 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
         }
     }
 
-    best_sol->cost = best_cost;   // Update best_sol cost
-    best_sol->initialized = 1;    // Mark as initialized
+    best_sol->cost = best_cost; // Update best_sol cost
+    best_sol->initialized = 1;  // Mark as initialized
 
     free(current_sol.tour);
     return EXIT_SUCCESS;
@@ -117,7 +116,7 @@ int apply_nearest_neighbor(const instance *inst, solution *sol, int start_node)
 
     evaluate_path_cost(inst, sol);
 
-    if (!sol->initialized)      // Mark as initialized only if not already initialized
+    if (!sol->initialized) // Mark as initialized only if not already initialized
     {
         sol->initialized = 1;
     }

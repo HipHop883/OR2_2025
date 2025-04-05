@@ -96,7 +96,7 @@ static void free_tabu(tabuList *tabu)
     free(tabu);
 }
 
-static int best_2opt_not_tabu(instance *inst, solution *sol, tabuList *tabu)
+static int best_2opt_not_tabu(instance *inst, solution *sol, solution *best_sol, tabuList *tabu)
 {
     int nnodes = inst->nnodes;
     double best_delta = CPX_INFBOUND;
@@ -110,8 +110,11 @@ static int best_2opt_not_tabu(instance *inst, solution *sol, tabuList *tabu)
             int is_tabu = is_tabu_move(tabu, i, j);
             double new_cost = sol->cost + delta;
 
-            if (!is_tabu && delta < best_delta && delta != 0)
+            if ((!is_tabu && delta < best_delta && delta != 0) || (is_tabu && new_cost + EPSILON < best_sol->cost))
             {
+                if (is_tabu)
+                    printf("[ASPIRATION] new cost: %.2lf (best: %.2lf)\n", new_cost, best_sol->cost);
+
                 best_delta = delta;
                 best_i = i;
                 best_j = j;
@@ -429,7 +432,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
 
     while (!check_time(inst, starting_time))
     {
-        if (best_2opt_not_tabu(inst, current_sol, tabu) == -1)
+        if (best_2opt_not_tabu(inst, current_sol, best_sol, tabu) == -1)
             print_error("No valid 2-opt move found");
 
         if (current_sol->cost < best_sol->cost)

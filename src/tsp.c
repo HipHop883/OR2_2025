@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "tsp_heuristics.h"
 #include "tsp_greedy.h"
+#include "tsp_cplex.h"
 
 /**
  * Load instance data from file or generate randomly
@@ -961,6 +962,18 @@ int execute_selected_method(instance *inst, solution *sol)
 
 			if (VERBOSE >= 50)
 				printf("Tabu search done in %lf seconds\n\n", second() - starting_time_method);
+		}
+		else if (strcmp(method, "cplex") == 0)
+		{
+			if (apply_cplex(inst, sol))
+			{
+				print_error("Error Solving with CPLEX");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
+
+			if (VERBOSE >= 50)
+				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
 		}
 		else
 		{

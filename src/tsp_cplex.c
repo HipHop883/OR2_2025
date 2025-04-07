@@ -83,6 +83,12 @@ void build_solution(const double *xstar, instance *inst, solution *sol)
     int *next = (int *)malloc(n * sizeof(int));
     int *visited = (int *)calloc(n, sizeof(int));
 
+    if (!next || !visited)
+    {
+        print_error("Memory allocation failed in build_solution");
+        exit(EXIT_FAILURE);
+    }
+
     for (int i = 0; i < n; i++)
         next[i] = -1;
 
@@ -95,25 +101,51 @@ void build_solution(const double *xstar, instance *inst, solution *sol)
             {
                 if (next[i] == -1)
                     next[i] = j;
-                else
+                else if (next[j] == -1)
                     next[j] = i;
+                else
+                {
+                    // Skip overconflicting edge
+                }
             }
         }
     }
 
+    // Allocate and build full tour (even if subtours exist)
     int *tour = (int *)malloc((n + 1) * sizeof(int));
-    int curr = 0, count = 0;
-    while (count < n)
+    if (!tour)
     {
-        tour[count++] = curr;
-        visited[curr] = 1;
-        curr = next[curr];
-        if (visited[curr])
-            break;
+        print_error("Failed to allocate tour");
+        exit(EXIT_FAILURE);
     }
-    tour[n] = tour[0]; // close the tour
 
+    free_sol(sol);
     sol->tour = tour;
+
+    int count = 0;
+    for (int start = 0; start < n; start++)
+    {
+        if (visited[start])
+            continue;
+
+        int curr = start;
+
+        while (!visited[curr])
+        {
+            tour[count++] = curr;
+            visited[curr] = 1;
+
+            if (next[curr] == -1)
+                break;
+
+            curr = next[curr];
+        }
+    }
+
+    // Close the loop for plotting purposes
+    tour[n] = tour[0];
+
+    // Evaluate cost anyway (even if it's not a valid TSP tour)
     sol->cost = 0.0;
     for (int i = 0; i < n; i++)
         sol->cost += inst->cost_matrix[tour[i]][tour[i + 1]];

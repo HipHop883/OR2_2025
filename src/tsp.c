@@ -963,9 +963,9 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("Tabu search done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "cplex") == 0)
+		else if (strcmp(method, "benders") == 0)
 		{
-			if (apply_cplex(inst, sol))
+			if (apply_cplex_beneders(inst, sol))
 			{
 				print_error("Error Solving with CPLEX");
 				free(method_str);

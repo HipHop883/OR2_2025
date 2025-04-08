@@ -3,6 +3,6 @@
 
 #include "tsp.h"
 
-int apply_cplex(instance *inst, solution *sol);
+int apply_cplex_beneders(instance *inst, solution *sol);
 
 #endif /* TSP_CPLEX_H_ */

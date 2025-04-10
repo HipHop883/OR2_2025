@@ -1,4 +1,5 @@
 #include "tsp_heuristics.h"
+#include "tsp_greedy.h"
 #include "utils.h"
 
 static int is_tabu_move(tabuList *tabu, int i, int j)
@@ -225,8 +226,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
     best_sol->cost = current_sol->cost;
 
-    int min_kicks = inst->vns_kmin;
-    int max_kicks = inst->vns_kmax;
+    //int min_kicks = inst->vns_kmin;
+    //int max_kicks = inst->vns_kmax;
 
     // Gnuplot setup
     FILE *gp = NULL;
@@ -248,8 +249,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     }
 
     int iter = 0;
-    int best_iter = 0;
-    double best_cost_local = best_sol->cost;
+    //int best_iter = 0;
+    //double best_cost_local = best_sol->cost;
 
     // Array to save red line
     int *best_iters = NULL;
@@ -266,6 +267,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         if (!best_iters || !best_costs)
         {
             print_error("Memory allocation failed for best_iters/best_costs");
+            free(best_iters);
+            free(best_costs);
             return EXIT_FAILURE;
         }
 
@@ -283,8 +286,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         {
             best_sol->cost = current_sol->cost;
             memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
-            best_cost_local = best_sol->cost;
-            best_iter = iter;
+            //best_cost_local = best_sol->cost;
+            //best_iter = iter;
         }
 
         if (inst->plot == 0 && gp)
@@ -299,8 +302,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
                 if (!tmp_iters || !tmp_costs)
                 {
                     print_error("Memory reallocation failed for best_iters/best_costs");
-                    free(best_iters);
-                    free(best_costs);
+                    free(tmp_iters);
+                    free(tmp_costs);
                     return EXIT_FAILURE;
                 }
 

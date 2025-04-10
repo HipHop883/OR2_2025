@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "tsp.h"
+#include "utils.h"
 
 /**
  * Get current time in seconds
@@ -219,28 +219,52 @@ void update_perf_csv(const instance *inst, double *run_costs, int num_runs)
                 tokens[token_count++] = tok;
                 tok = strtok_r(NULL, ",", &saveptr2);
             }
-
-            sprintf(new_row, "%s", tokens[0]);
-            for (int j = 1; j <= num_cols; j++)
+            if (token_count > 0) // Check if at least one token was found
             {
-                strcat(new_row, ",");
-                if (j == col_index)
+                sprintf(new_row, "%s", tokens[0]);
+                for (int j = 1; j <= num_cols; j++)
                 {
-                    char cost_str[64];
-                    sprintf(cost_str, "%.2lf", run_costs[i]);
-                    strcat(new_row, cost_str);
+                    strcat(new_row, ",");
+                    if (j == col_index)
+                    {
+                        char cost_str[64];
+                        sprintf(cost_str, "%.2lf", run_costs[i]);
+                        strcat(new_row, cost_str);
+                    }
+                    else if (j < token_count)
+                    {
+                        strcat(new_row, tokens[j]);
+                    }
+                    else
+                    {
+                        strcat(new_row, "");
+                    }
                 }
-                else if (j < token_count)
-                {
-                    strcat(new_row, tokens[j]);
-                }
-                else
-                {
-                    strcat(new_row, "");
-                }
+                free(lines[row_index]);
+                lines[row_index] = strdup(new_row);
             }
-            free(lines[row_index]);
-            lines[row_index] = strdup(new_row);
+            else
+            {
+                // Handle the case where the row is empty or has no tokens.
+                // Initialize new_row differently in this case.
+                sprintf(new_row, "run%d", i + 1);
+                for (int j = 1; j <= num_cols; j++)
+                {
+                    strcat(new_row, ",");
+                    if (j == col_index)
+                    {
+                        char cost_str[64];
+                        sprintf(cost_str, "%.2lf", run_costs[i]);
+                        strcat(new_row, cost_str);
+                    }
+                    else
+                    {
+                        strcat(new_row, "");
+                    }
+                }
+                free(lines[row_index]);
+                lines[row_index] = strdup(new_row);
+            }
         }
         else
         {

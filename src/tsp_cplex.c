@@ -1,4 +1,6 @@
 #include "tsp_cplex.h"
+#include "utils.h"
+#include <cplex.h>
 
 #define EPS 1e-5
 

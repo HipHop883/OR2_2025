@@ -15,7 +15,7 @@ int load_instance(instance *inst)
 	// No need to check anything, we already do it parsing command line arguments
 	if (strcmp(inst->input_file, "NULL") == 0)
 	{
-		generate_random_nodes(inst, inst->nnodes, inst->randomseed);
+		generate_random_nodes(inst, inst->nnodes);
 	}
 	else
 	{
@@ -529,10 +529,9 @@ int parse_command_line(int argc, char **argv, instance *inst)
  * Generate random nodes
  * @param inst instance
  * @param nnodes number of nodes
- * @param seed seed
  * @return void
  */
-void generate_random_nodes(instance *inst, int nnodes, int seed)
+void generate_random_nodes(instance *inst, int nnodes)
 {
 	if (VERBOSE >= 50)
 		printf("Generating random nodes...\n");

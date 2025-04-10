@@ -1,20 +1,17 @@
 # Object and source structure
 SRCDIR = src
-INCLUDEDIR = src
+INCLUDEDIR = include
 OBJS = $(SRCDIR)/main.o $(SRCDIR)/tsp.o $(SRCDIR)/tsp_heuristics.o $(SRCDIR)/tsp_greedy.o $(SRCDIR)/tsp_cplex.o $(SRCDIR)/utils.o
-HEADERS = $(INCLUDEDIR)/main.o $(INCLUDEDIR)/tsp.o $(INCLUDEDIR)/tsp_heuristics.o $(INCLUDEDIR)/tsp_greedy.o $(INCLUDEDIR)/tsp_cplex.o $(INCLUDEDIR)/utils.o
+HEADERS = $(INCLUDEDIR)/main.h $(INCLUDEDIR)/tsp.h $(INCLUDEDIR)/tsp_heuristics.h $(INCLUDEDIR)/tsp_greedy.h $(INCLUDEDIR)/tsp_cplex.h $(INCLUDEDIR)/utils.h
 
 EXE = tsp_solver
 setting = -1
 OS := $(shell uname)
 
-# ---------------------------------------------------------------------
-# CPLEX dynamic setup
-# ---------------------------------------------------------------------
-CPLEX_HOME ?= $(shell echo $$CPLEX_HOME)
-
 ifndef CPLEX_HOME
-$(error CPLEX_HOME is not set. Please export it: export CPLEX_HOME=/path/to/cplex)
+    $(warning CPLEX_HOME is not set. Please enter the path to your CPLEX installation:)
+    $(shell read CPLEX_HOME_INPUT; export CPLEX_HOME=$$CPLEX_HOME_INPUT)
+    CPLEX_HOME := $(shell echo $$CPLEX_HOME) # Update the makefile variable
 endif
 
 ifeq ($(OS),Linux)
@@ -28,13 +25,13 @@ endif
 # ---------------------------------------------------------------------
 # Rules
 # ---------------------------------------------------------------------
-CFLAGS = -Iinclude -Wall -O3
+CFLAGS = -Iinclude -Wall -O3 $(INC)
 RM = rm -f
 
 .SUFFIXES: .o .c .cpp
 
 $(SRCDIR)/%.o: $(SRCDIR)/%.c $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 all: $(EXE)
 

@@ -2,7 +2,6 @@
 #define TSP_HEURISTICS_H_
 
 #include "tsp.h"
-#include "tsp_greedy.h"
 
 #define NO_IMPROVE_LIMIT 50
 

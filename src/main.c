@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 	init(&inst);
 	solution sol; // Safe init
 
-	double t1 = second();
+	//double t1 = second();
 
 	// Parse command line
 	if (parse_command_line(argc, argv, &inst))

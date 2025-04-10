@@ -1,14 +1,14 @@
-#include <cplex.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "tsp.h"
 #include "tsp_cplex.h"
 
 #define EPS 1e-5
 
+/**
+ * Calculates the index of the variable x(i, j) in the CPLEX model
+ * @param i index of node i
+ * @param j index of node j
+ * @param inst instance
+ * @return index of the variable x(i, j) to be used in the xstar array
+ */
 int xpos(int i, int j, instance *inst)
 {
     if (i == j)
@@ -18,6 +18,13 @@ int xpos(int i, int j, instance *inst)
     return i * inst->nnodes + j - ((i + 1) * (i + 2)) / 2;
 }
 
+/**
+ * Builds the CPLEX model
+ * @param inst instance
+ * @param env CPLEX environment
+ * @param lp CPLEX problem
+ * @return 0 if successful, 1 otherwise
+ */
 int build_model(instance *inst, CPXENVptr env, CPXLPptr lp)
 {
     int n = inst->nnodes;
@@ -88,6 +95,13 @@ int build_model(instance *inst, CPXENVptr env, CPXLPptr lp)
     return EXIT_SUCCESS;
 }
 
+/**
+ * Builds the solution from the xstar vector
+ * @param xstar solution vector
+ * @param inst instance
+ * @param sol solution to be filled
+ * @return 0 if successful, 1 otherwise
+ */
 int build_solution(const double *xstar, instance *inst, solution *sol)
 {
     int n = inst->nnodes;
@@ -123,7 +137,7 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
     {
         if (degree[i] != 2)
         {
-            printf("Node %d has degree %d instead of 2 — not a valid tour\n", i, degree[i]);
+            printf("Node %d has degree %d instead of 2 - not a valid tour\n", i, degree[i]);
             return EXIT_FAILURE;
         }
     }
@@ -135,6 +149,7 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
     tour[0] = curr;
     visited[curr] = 1;
 
+    // 
     for (int i = 1; i < n; i++)
     {
         int next = (visited[adj[curr][0]] == 0) ? adj[curr][0] : adj[curr][1];
@@ -159,6 +174,15 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
     return EXIT_SUCCESS;
 }
 
+/**
+ * Add SEC constraints to the model
+ * @param env CPLEX environment
+ * @param lp CPLEX problem
+ * @param comp component array
+ * @param ncomp number of components
+ * @param inst instance
+ * @return 0 if successful, 1 otherwise 
+ */
 int add_sec(CPXENVptr env, CPXLPptr lp, int *comp, int ncomp, instance *inst)
 {
     int n = inst->nnodes;
@@ -232,6 +256,13 @@ int add_sec(CPXENVptr env, CPXLPptr lp, int *comp, int ncomp, instance *inst)
     return EXIT_SUCCESS;
 }
 
+/**
+ * Assigns components to each node based on the solution vector xstar using the BFS algorithm
+ * @param xstar solution vector
+ * @param comp component array to be filled
+ * @param inst instance
+ * @return number of components found
+ */
 int build_components(const double *xstar, int *comp, instance *inst)
 {
     int n = inst->nnodes;
@@ -245,7 +276,7 @@ int build_components(const double *xstar, int *comp, instance *inst)
     if (!queue)
     {
         print_error("Memory allocation failed in build_components");
-        return -1;
+        return EXIT_FAILURE;
     }
 
     for (int start = 0; start < n; start++)
@@ -282,6 +313,12 @@ int build_components(const double *xstar, int *comp, instance *inst)
     return ncomp;
 }
 
+/**
+ * Apply CPLEX to solve the TSP instance using the Benders decomposition method
+ * @param inst instance
+ * @param sol solution
+ * @return 0 if successful, 1 otherwise
+ */
 int apply_cplex_beneders(instance *inst, solution *sol)
 {
     int n = inst->nnodes;

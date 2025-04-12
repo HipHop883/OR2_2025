@@ -2,8 +2,6 @@
 #include "utils.h"
 #include <cplex.h>
 
-#define EPS 1e-5
-
 /**
  * Calculates the index of the variable x(i, j) in the CPLEX model
  * @param i index of node i
@@ -151,7 +149,7 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
     tour[0] = curr;
     visited[curr] = 1;
 
-    // 
+    //
     for (int i = 1; i < n; i++)
     {
         int next = (visited[adj[curr][0]] == 0) ? adj[curr][0] : adj[curr][1];
@@ -183,7 +181,7 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
  * @param comp component array
  * @param ncomp number of components
  * @param inst instance
- * @return 0 if successful, 1 otherwise 
+ * @return 0 if successful, 1 otherwise
  */
 int add_sec(CPXENVptr env, CPXLPptr lp, int *comp, int ncomp, instance *inst)
 {

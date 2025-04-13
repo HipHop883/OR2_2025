@@ -1,4 +1,6 @@
+#include "tsp.h"
 #include "tsp_cplex.h"
+#include "tsp_greedy.h"
 #include "utils.h"
 #include <cplex.h>
 
@@ -9,7 +11,7 @@
  * @param inst instance
  * @return index of the variable x(i, j) to be used in the xstar array
  */
-int xpos(int i, int j, instance *inst)
+int xpos(int i, int j, const instance *inst)
 {
     if (i == j)
         print_error("xpos called with i == j");
@@ -313,6 +315,45 @@ int build_components(const double *xstar, int *comp, instance *inst)
     return ncomp;
 }
 
+int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solution *sol)
+{
+    int n = inst->nnodes;
+    int ncols = CPXgetnumcols(env, lp);
+    int *indices = malloc(ncols * sizeof(int));
+    double *values = calloc(ncols, sizeof(double));
+
+    if (!indices || !values)
+    {
+        print_error("Memory allocation failed in add_warm_start");
+        return EXIT_FAILURE;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        int j = sol->tour[i + 1];
+        int var_idx = xpos(i, j, inst);
+        values[var_idx] = 1.0;
+    }
+
+    for (int i = 0; i < ncols; i++)
+        indices[i] = i;
+
+    int beg = 0;
+    int effort = CPX_MIPSTART_AUTO;
+    char *name = "heuristic_start";
+    
+    int status = CPXaddmipstarts(env, lp, 1, ncols, &beg, indices, values, &effort, &name);
+    if (status)
+    {
+        print_error("CPXaddmipstarts failed");
+        return EXIT_FAILURE;
+    }
+
+    free(indices);
+    free(values);
+    return EXIT_SUCCESS;
+}
+
 int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp, int ncomp)
 {
     int n = inst->nnodes;
@@ -464,6 +505,28 @@ int apply_cplex_beneders(instance *inst, solution *sol)
 
     if (build_model(inst, env, lp))
         return EXIT_FAILURE;
+
+    solution warm_sol;
+    warm_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
+    if (warm_sol.tour == NULL)
+    {
+        print_error("Memory allocation failed for warm_sol->tour");
+        return EXIT_FAILURE;
+    }
+    warm_sol.initialized = 0;
+
+    if (apply_greedy_search(inst, &warm_sol) == 0)
+    {
+        if (add_warm_start(env, lp, inst, &warm_sol))
+            printf("Warning: failed to add warm start\n");
+        else if (VERBOSE >= 50)
+            printf("Warm start injected with cost %.2f\n", warm_sol.cost);
+        free_sol(&warm_sol);
+    }
+    else
+    {
+        printf("Warning: greedy warm start failed\n");
+    }
 
     int *comp = malloc(n * sizeof(int));
     double *xstar = NULL;

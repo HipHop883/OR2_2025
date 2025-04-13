@@ -313,6 +313,129 @@ int build_components(const double *xstar, int *comp, instance *inst)
     return ncomp;
 }
 
+int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp, int ncomp)
+{
+    int n = inst->nnodes;
+
+    int **adj = malloc(n * sizeof(int *));
+    int *degree = calloc(n, sizeof(int));
+    for (int i = 0; i < n; i++)
+    {
+        adj[i] = malloc(2 * sizeof(int));
+        degree[i] = 0;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = i + 1; j < n; j++)
+        {
+            if (xstar[xpos(i, j, inst)] > 0.5 + EPSILON)
+            {
+                adj[i][degree[i]++] = j;
+                adj[j][degree[j]++] = i;
+            }
+        }
+    }
+
+    double best_extra_cost = CPX_INFBOUND;
+    int best_i = -1, best_j = -1, best_u = -1, best_v = -1;
+
+    for (int i = 0; i < n; i++)
+    {
+        if (degree[i] != 2)
+            continue;
+        int j = adj[i][0];
+        if (comp[i] != comp[j])
+            continue;
+
+        for (int u = 0; u < n; u++)
+        {
+            if (u == i || u == j || comp[u] == comp[i])
+                continue;
+
+            for (int v = 0; v < n; v++)
+            {
+                if (v == i || v == j || v == u || comp[v] == comp[i] || comp[v] == comp[u])
+                    continue;
+
+                double removed_cost = inst->cost_matrix[i][j];
+                double added_cost = inst->cost_matrix[i][u] + inst->cost_matrix[j][v];
+                double extra = added_cost - removed_cost;
+
+                if (extra < best_extra_cost)
+                {
+                    best_extra_cost = extra;
+                    best_i = i;
+                    best_j = j;
+                    best_u = u;
+                    best_v = v;
+                }
+            }
+        }
+    }
+
+    if (best_i == -1)
+    {
+        printf("No patch found — fallback heuristic failed\n");
+        for (int i = 0; i < n; i++)
+            free(adj[i]);
+        free(adj);
+        free(degree);
+        return EXIT_FAILURE;
+    }
+
+    printf("Patching: removing (%d,%d), adding (%d,%d) and (%d,%d) with extra cost %.2f\n",
+           best_i, best_j, best_i, best_u, best_j, best_v, best_extra_cost);
+
+    for (int d = 0; d < 2; d++)
+    {
+        if (adj[best_i][d] == best_j)
+        {
+            adj[best_i][d] = best_u;
+            break;
+        }
+    }
+    for (int d = 0; d < 2; d++)
+    {
+        if (adj[best_j][d] == best_i)
+        {
+            adj[best_j][d] = best_v;
+            break;
+        }
+    }
+
+    adj[best_u][degree[best_u]++] = best_i;
+    adj[best_v][degree[best_v]++] = best_j;
+
+    int *tour = malloc((n + 1) * sizeof(int));
+    int *visited = calloc(n, sizeof(int));
+    int current = 0;
+    tour[0] = current;
+    visited[current] = 1;
+
+    for (int k = 1; k < n; k++)
+    {
+        int next = (visited[adj[current][0]] == 0) ? adj[current][0] : adj[current][1];
+        tour[k] = next;
+        visited[next] = 1;
+        current = next;
+    }
+    tour[n] = tour[0];
+
+    free_sol(sol);
+    sol->tour = tour;
+    sol->initialized = 1;
+    evaluate_path_cost(inst, sol);
+
+    for (int i = 0; i < n; i++)
+        free(adj[i]);
+    free(adj);
+    free(degree);
+    free(visited);
+
+    return EXIT_SUCCESS;
+}
+
 /**
  * Apply CPLEX to solve the TSP instance using the Benders decomposition method
  * @param inst instance
@@ -376,6 +499,11 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         }
 
         ncomp = build_components(xstar, comp, inst);
+
+        if (ncomp > 1)
+        {
+            patch_solution(xstar, inst, sol, comp, ncomp);
+        }
 
         printf("Iteration %d | Components = %d | Time = %.2lf sec\n", iteration, ncomp, second() - start_time);
 

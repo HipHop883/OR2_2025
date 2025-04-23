@@ -341,7 +341,7 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
     int beg = 0;
     int effort = CPX_MIPSTART_AUTO;
     char *name = "heuristic_start";
-    
+
     int status = CPXaddmipstarts(env, lp, 1, ncols, &beg, indices, values, &effort, &name);
     if (status)
     {
@@ -542,6 +542,13 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         if (remaining_time <= 0.0)
         {
             print_error("Time limit reached before full tour found.");
+
+            if (ncomp > 1)
+            {
+                if (patch_solution(xstar, inst, sol, comp, ncomp))
+                    return EXIT_FAILURE;
+            }
+
             break;
         }
 
@@ -562,11 +569,6 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         }
 
         ncomp = build_components(xstar, comp, inst);
-
-        if (ncomp > 1)
-        {
-            patch_solution(xstar, inst, sol, comp, ncomp);
-        }
 
         printf("Iteration %d | Components = %d | Time = %.2lf sec\n", iteration, ncomp, second() - start_time);
 

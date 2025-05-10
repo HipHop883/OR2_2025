@@ -843,9 +843,13 @@ int tsp_compute_costs(instance *tsp)
 		{
 			double deltax = tsp->xcoord[i] - tsp->xcoord[j];
 			double deltay = tsp->ycoord[i] - tsp->ycoord[j];
-			double dist = sqrt(deltax * deltax + deltay * deltay);
+			double dist = sqrt((deltax * deltax + deltay * deltay) / 10);
 
-			tsp->cost_matrix[i][j] = dist;
+			int round_d = (int)(dist + 0.5);
+			if ((double)round_d < dist)
+				round_d++;
+
+			tsp->cost_matrix[i][j] = (int)round_d;
 		}
 	}
 

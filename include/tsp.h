@@ -73,6 +73,9 @@ typedef struct
 	int tabu_min;
 	int tabu_max;
 	int tabu_noimprove;
+
+	// CPLEX model metadata
+	int ncols;
 } instance;
 
 void init(instance *inst);

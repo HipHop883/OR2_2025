@@ -506,6 +506,8 @@ int apply_cplex_beneders(instance *inst, solution *sol)
     if (build_model(inst, env, lp))
         return EXIT_FAILURE;
 
+    inst->ncols = CPXgetnumcols(env, lp);
+
     solution warm_sol;
     warm_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
     if (warm_sol.tour == NULL)

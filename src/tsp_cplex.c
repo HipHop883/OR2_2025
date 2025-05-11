@@ -331,8 +331,8 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
     for (int i = 0; i < n; i++)
     {
         int j = sol->tour[i + 1];
-        int var_idx = xpos(i, j, inst);
-        values[var_idx] = 1.0;
+        if (i != j)
+            values[xpos(i, j, inst)] = 1.0;
     }
 
     for (int i = 0; i < ncols; i++)
@@ -669,7 +669,8 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         }
 
         CPXsetdblparam(env, CPX_PARAM_TILIM, remaining_time);
-        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 2); // optional
+        CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
+        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 4);
         if (CPXmipopt(env, lp))
         {
             print_error("CPXmipopt error");

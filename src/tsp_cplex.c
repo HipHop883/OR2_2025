@@ -2,7 +2,11 @@
 #include "tsp_cplex.h"
 #include "tsp_greedy.h"
 #include "utils.h"
+#include <assert.h>
 #include <cplex.h>
+
+#define ASSERT_INDEX_IN_RANGE(idx, max) assert((idx) >= 0 && (idx) < (max))
+#define MAX_DEGREE 2
 
 /**
  * Calculates the index of the variable x(i, j) in the CPLEX model
@@ -11,12 +15,21 @@
  * @param inst instance
  * @return index of the variable x(i, j) to be used in the xstar array
  */
-int xpos(int i, int j, const instance *inst)
+static inline int xpos(int i, int j, const instance *inst)
 {
-    if (i == j)
-        print_error("xpos called with i == j");
+    assert(inst != NULL);
+    assert(i != j);
+
+    ASSERT_INDEX_IN_RANGE(i, inst->nnodes);
+    ASSERT_INDEX_IN_RANGE(j, inst->nnodes);
+
     if (i > j)
-        return xpos(j, i, inst);
+    {
+        int tmp = i;
+        i = j;
+        j = tmp;
+    }
+
     return i * inst->nnodes + j - ((i + 1) * (i + 2)) / 2;
 }
 
@@ -29,46 +42,51 @@ int xpos(int i, int j, const instance *inst)
  */
 int build_model(instance *inst, CPXENVptr env, CPXLPptr lp)
 {
-    int n = inst->nnodes;
+    const int n = inst->nnodes;
     int izero = 0;
     char binary = 'B';
+    char cname[100];
+    char *nameptr = cname; // pointer for passing to CPLEX API
 
-    char **cname = (char **)calloc(1, sizeof(char *));
-    cname[0] = (char *)calloc(100, sizeof(char));
-
-    // Add binary vars x(i,j) for i < j
+    // === Add binary variables for x(i,j), i < j ===
     for (int i = 0; i < n; i++)
     {
         for (int j = i + 1; j < n; j++)
         {
-            sprintf(cname[0], "x(%d,%d)", i + 1, j + 1);
+            snprintf(cname, sizeof(cname), "x(%d,%d)", i + 1, j + 1);
             double obj = inst->cost_matrix[i][j];
             double lb = 0.0;
             double ub = 1.0;
 
-            if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, cname))
+            if (CPXnewcols(env, lp, 1, &obj, &lb, &ub, &binary, &nameptr))
             {
-                print_error("CPXnewcols failed on x var.s");
+                print_error("CPXnewcols failed");
                 return EXIT_FAILURE;
             }
 
             if (CPXgetnumcols(env, lp) - 1 != xpos(i, j, inst))
             {
-                print_error("Wrong index in xpos()");
+                print_error("Mismatch in xpos index");
                 return EXIT_FAILURE;
             }
         }
     }
 
-    // Degree constraints
-    int *index = (int *)malloc(n * sizeof(int));
-    double *value = (double *)malloc(n * sizeof(double));
+    // === Add degree constraints ===
+    int *index = malloc(n * sizeof(int));
+    double *value = malloc(n * sizeof(double));
+
+    if (!index || !value)
+    {
+        print_error("Memory allocation failed");
+        return EXIT_FAILURE;
+    }
 
     for (int h = 0; h < n; h++)
     {
         double rhs = 2.0;
         char sense = 'E';
-        sprintf(cname[0], "degree(%d)", h + 1);
+        snprintf(cname, sizeof(cname), "degree(%d)", h + 1);
         int nnz = 0;
 
         for (int i = 0; i < n; i++)
@@ -79,17 +97,17 @@ int build_model(instance *inst, CPXENVptr env, CPXLPptr lp)
             value[nnz++] = 1.0;
         }
 
-        if (CPXaddrows(env, lp, 0, 1, nnz, &rhs, &sense, &izero, index, value, NULL, cname))
+        if (CPXaddrows(env, lp, 0, 1, nnz, &rhs, &sense, &izero, index, value, NULL, &nameptr))
         {
-            print_error("CPXaddrows failed [degree]");
+            print_error("CPXaddrows failed [degree constraint]");
+            free(index);
+            free(value);
             return EXIT_FAILURE;
         }
     }
 
-    free(value);
     free(index);
-    free(cname[0]);
-    free(cname);
+    free(value);
 
     if (VERBOSE >= 60)
         CPXwriteprob(env, lp, "model.lp", NULL);
@@ -107,16 +125,27 @@ int build_model(instance *inst, CPXENVptr env, CPXLPptr lp)
 int build_solution(const double *xstar, instance *inst, solution *sol)
 {
     int n = inst->nnodes;
-
-    // Build adjacency list: each node must have exactly 2 neighbors
     int **adj = malloc(n * sizeof(int *));
     int *degree = calloc(n, sizeof(int));
+
+    if (!adj || !degree)
+    {
+        print_error("Memory allocation failed [adj or degree]");
+        return EXIT_FAILURE;
+    }
+
     for (int i = 0; i < n; i++)
     {
-        adj[i] = malloc(2 * sizeof(int)); // Each node must have 2 neighbors
+        adj[i] = malloc(2 * sizeof(int));
+        if (!adj[i])
+        {
+            print_error("Memory allocation failed [adj[i]]");
+            return EXIT_FAILURE;
+        }
         degree[i] = 0;
     }
 
+    // === Build adjacency list from xstar ===
     for (int i = 0; i < n; i++)
     {
         for (int j = i + 1; j < n; j++)
@@ -125,7 +154,7 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
             {
                 if (degree[i] >= 2 || degree[j] >= 2)
                 {
-                    print_error("Node degree exceeds 2 — invalid solution");
+                    print_error("Invalid degree — exceeds 2");
                     return EXIT_FAILURE;
                 }
                 adj[i][degree[i]++] = j;
@@ -134,7 +163,7 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
         }
     }
 
-    // Validate all degrees are exactly 2
+    // === Validate all degrees ===
     for (int i = 0; i < n; i++)
     {
         if (degree[i] != 2)
@@ -144,14 +173,19 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
         }
     }
 
-    // Reconstruct tour
+    // === Reconstruct tour ===
     int *tour = malloc((n + 1) * sizeof(int));
     int *visited = calloc(n, sizeof(int));
+    if (!tour || !visited)
+    {
+        print_error("Memory allocation failed [tour or visited]");
+        return EXIT_FAILURE;
+    }
+
     int curr = 0;
     tour[0] = curr;
     visited[curr] = 1;
 
-    //
     for (int i = 1; i < n; i++)
     {
         int next = (visited[adj[curr][0]] == 0) ? adj[curr][0] : adj[curr][1];
@@ -159,9 +193,9 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
         visited[next] = 1;
         curr = next;
     }
+    tour[n] = tour[0];
 
-    tour[n] = tour[0]; // close tour
-
+    // === Finalize ===
     free_sol(sol);
     sol->tour = tour;
     sol->initialized = 1;
@@ -193,10 +227,8 @@ int add_sec(CPXENVptr env, CPXLPptr lp, int *comp, int ncomp, instance *inst)
 
     for (int k = 0; k < ncomp; k++)
     {
-        // Upper bound estimate on SEC size
-        int max_nz = n * n;
-        int *index = (int *)malloc(max_nz * sizeof(int));
-        double *value = (double *)malloc(max_nz * sizeof(double));
+        int *index = malloc(n * n * sizeof(int));
+        double *value = malloc(n * n * sizeof(double));
         if (!index || !value)
         {
             print_error("Memory allocation failed in add_sec");
@@ -212,43 +244,37 @@ int add_sec(CPXENVptr env, CPXLPptr lp, int *comp, int ncomp, instance *inst)
                 continue;
             rhs++;
 
-            for (int j = 0; j < n; j++)
+            for (int j = i + 1; j < n; j++)
             {
-                if (i == j)
-                    continue;
                 if (comp[j] != k)
                     continue;
 
                 index[nnz] = xpos(i, j, inst);
                 value[nnz++] = 1.0;
+
+                if (nnz >= inst->ncols)
+                {
+                    print_error("SEC too large — too many edges");
+                    free(index);
+                    free(value);
+                    return EXIT_FAILURE;
+                }
             }
         }
 
         if (rhs >= 1 && nnz > 0)
         {
-            int status = CPXaddrows(env, lp,
-                                    0,   // no new rows in A matrix
-                                    1,   // 1 new constraint
-                                    nnz, // number of non-zero elements
-                                    (double[]){(double)rhs},
-                                    &sense,
-                                    &izero,
-                                    index,
-                                    value,
-                                    NULL,
-                                    NULL);
-
-            if (status)
+            double rhs_val = (double)rhs;
+            if (CPXaddrows(env, lp, 0, 1, nnz, &rhs_val, &sense, &izero, index, value, NULL, NULL))
             {
                 print_error("CPXaddrows failed in add_sec");
+                free(index);
+                free(value);
                 return EXIT_FAILURE;
             }
 
             if (VERBOSE >= 50)
-            {
-                printf(" SEC added for component %d with %d nodes, %d edges, RHS = %d\n",
-                       k, rhs + 1, nnz, rhs);
-            }
+                printf(" SEC added for comp %d: %d nodes, %d terms, rhs = %d\n", k, rhs + 1, nnz, rhs);
         }
 
         free(index);
@@ -274,7 +300,7 @@ int build_components(const double *xstar, int *comp, instance *inst)
     for (int i = 0; i < n; i++)
         comp[i] = -1;
 
-    int *queue = (int *)malloc(n * sizeof(int));
+    int *queue = malloc(n * sizeof(int));
     if (!queue)
     {
         print_error("Memory allocation failed in build_components");
@@ -283,10 +309,10 @@ int build_components(const double *xstar, int *comp, instance *inst)
 
     for (int start = 0; start < n; start++)
     {
-        // Skip if already visited
         if (comp[start] != -1)
             continue;
 
+        // Start a new BFS for a new component
         int q_head = 0, q_tail = 0;
         queue[q_tail++] = start;
         comp[start] = ncomp;
@@ -294,13 +320,11 @@ int build_components(const double *xstar, int *comp, instance *inst)
         while (q_head < q_tail)
         {
             int curr = queue[q_head++];
-
             for (int j = 0; j < n; j++)
             {
-                if (j == curr)
+                if (j == curr || comp[j] != -1)
                     continue;
-
-                if (comp[j] == -1 && xstar[xpos(curr, j, inst)] > 0.5)
+                if (xstar[xpos(curr, j, inst)] > 0.5 + EPSILON)
                 {
                     comp[j] = ncomp;
                     queue[q_tail++] = j;
@@ -315,10 +339,26 @@ int build_components(const double *xstar, int *comp, instance *inst)
     return ncomp;
 }
 
+/**
+ * Adds a warm start to the CPLEX model using the provided solution
+ *
+ * @param env CPLEX environment
+ * @param lp CPLEX problem
+ * @param inst instance
+ * @param sol solution to be used for warm start
+ * @return 0 if successful, 1 otherwise
+ */
 int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solution *sol)
 {
+    if (!sol || !sol->initialized || !sol->tour)
+    {
+        print_error("Invalid or uninitialized solution in add_warm_start");
+        return EXIT_FAILURE;
+    }
+
     int n = inst->nnodes;
     int ncols = CPXgetnumcols(env, lp);
+
     int *indices = malloc(ncols * sizeof(int));
     double *values = calloc(ncols, sizeof(double));
 
@@ -328,44 +368,79 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
         return EXIT_FAILURE;
     }
 
-    for (int i = 0; i < n; i++)
-    {
-        int j = sol->tour[i + 1];
-        if (i != j)
-            values[xpos(i, j, inst)] = 1.0;
-    }
-
-    for (int i = 0; i < ncols; i++)
+    // Set all indices
+    for (int i = 0; i < ncols; ++i)
         indices[i] = i;
+
+    // Convert the tour into x variable values
+    for (int i = 0; i < n; ++i)
+    {
+        int from = sol->tour[i];
+        int to = sol->tour[i + 1]; // tour is closed: sol->tour[n] == sol->tour[0]
+        values[xpos(from, to, inst)] = 1.0;
+    }
 
     int beg = 0;
     int effort = CPX_MIPSTART_AUTO;
-    char *name = "heuristic_start";
+    char *mipstart_name = "heuristic_start";
 
-    int status = CPXaddmipstarts(env, lp, 1, ncols, &beg, indices, values, &effort, &name);
+    int status = CPXaddmipstarts(env, lp, 1, ncols, &beg, indices, values, &effort, &mipstart_name);
     if (status)
     {
-        print_error("CPXaddmipstarts failed");
+        fprintf(stderr, "Warning: CPXaddmipstarts failed (status %d)\n", status);
         return EXIT_FAILURE;
     }
+    else if (VERBOSE >= 50)
+        printf("Warm start added successfully with cost %.2f\n", sol->cost);
 
     free(indices);
     free(values);
     return EXIT_SUCCESS;
 }
 
+/**
+ * Attempts to patch a non-Hamiltonian solution into a feasible tour by
+ * reconnecting disconnected components.
+ *
+ * @param xstar solution vector
+ * @param inst problem instance
+ * @param sol solution to be constructed
+ * @param comp array indicating component index of each node
+ * @param ncomp number of components
+ *
+ * @return EXIT_SUCCESS if successful, EXIT_FAILURE otherwise
+ */
 int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp, int ncomp)
 {
     int n = inst->nnodes;
 
+    // === Allocate adjacency structures ===
     int **adj = malloc(n * sizeof(int *));
     int *degree = calloc(n, sizeof(int));
+    if (!adj || !degree)
+    {
+        print_error("Memory allocation failed [adj or degree]");
+        free(adj);
+        free(degree);
+        return EXIT_FAILURE;
+    }
+
     for (int i = 0; i < n; i++)
     {
-        adj[i] = malloc(2 * sizeof(int));
+        adj[i] = malloc(MAX_DEGREE * sizeof(int));
+        if (!adj[i])
+        {
+            print_error("Memory allocation failed [adj[i]]");
+            for (int j = 0; j < i; j++)
+                free(adj[j]);
+            free(adj);
+            free(degree);
+            return EXIT_FAILURE;
+        }
         degree[i] = 0;
     }
 
+    // === Build adjacency from xstar ===
     for (int i = 0; i < n; i++)
     {
         for (int j = i + 1; j < n; j++)
@@ -381,10 +456,12 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
     double best_extra_cost = CPX_INFBOUND;
     int best_i = -1, best_j = -1, best_u = -1, best_v = -1;
 
+    // === Search for best edge patch ===
     for (int i = 0; i < n; i++)
     {
-        if (degree[i] != 2)
+        if (degree[i] != MAX_DEGREE)
             continue;
+
         int j = adj[i][0];
         if (comp[i] != comp[j])
             continue;
@@ -428,7 +505,8 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
     printf("Patching: removing (%d,%d), adding (%d,%d) and (%d,%d) with extra cost %.2f\n",
            best_i, best_j, best_i, best_u, best_j, best_v, best_extra_cost);
 
-    for (int d = 0; d < 2; d++)
+    // === Apply patch ===
+    for (int d = 0; d < MAX_DEGREE; d++)
     {
         if (adj[best_i][d] == best_j)
         {
@@ -436,7 +514,7 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
             break;
         }
     }
-    for (int d = 0; d < 2; d++)
+    for (int d = 0; d < MAX_DEGREE; d++)
     {
         if (adj[best_j][d] == best_i)
         {
@@ -448,8 +526,21 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
     adj[best_u][degree[best_u]++] = best_i;
     adj[best_v][degree[best_v]++] = best_j;
 
+    // === Reconstruct tour ===
     int *tour = malloc((n + 1) * sizeof(int));
     int *visited = calloc(n, sizeof(int));
+    if (!tour || !visited)
+    {
+        print_error("Memory allocation failed [tour or visited]");
+        for (int i = 0; i < n; i++)
+            free(adj[i]);
+        free(adj);
+        free(degree);
+        free(tour);
+        free(visited);
+        return EXIT_FAILURE;
+    }
+
     int current = 0;
     tour[0] = current;
     visited[current] = 1;
@@ -463,6 +554,7 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
     }
     tour[n] = tour[0];
 
+    // === Finalize solution ===
     free_sol(sol);
     sol->tour = tour;
     sol->initialized = 1;
@@ -488,11 +580,13 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
 static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *userhandle)
 {
     instance *inst = (instance *)userhandle;
+    const int n = inst->nnodes;
+    const int max_edges = n * (n - 1) / 2;
+    int izero = 0;
+    char sense = 'L';
 
-    int n = inst->nnodes;
-    int max_edges = n * (n - 1) / 2;
-
-    double *xstar = (double *)malloc(inst->ncols * sizeof(double));
+    // === Allocate memory for solution vector ===
+    double *xstar = malloc(inst->ncols * sizeof(double));
     if (!xstar)
     {
         print_error("malloc failed for xstar");
@@ -507,7 +601,7 @@ static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contexti
         return 1;
     }
 
-    int *comp = (int *)malloc(n * sizeof(int));
+    int *comp = malloc(n * sizeof(int));
     if (!comp)
     {
         print_error("malloc failed for comp");
@@ -518,22 +612,22 @@ static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contexti
     int ncomp = build_components(xstar, comp, inst);
     if (ncomp <= 1)
     {
+        // Feasible — no subtours
         free(comp);
         free(xstar);
-        return 0; // feasible
+        return 0;
     }
 
-    // Add one SEC per component
-    int izero = 0;
-    char sense = 'L';
-
+    // === Loop over components to add lazy SEC constraints ===
     for (int k = 0; k < ncomp; k++)
     {
-        int *index = (int *)malloc(max_edges * sizeof(int));
-        double *value = (double *)malloc(max_edges * sizeof(double));
+        int *index = malloc(max_edges * sizeof(int));
+        double *value = malloc(max_edges * sizeof(double));
         if (!index || !value)
         {
-            print_error("malloc failed for cut data");
+            print_error("malloc failed for SEC cut arrays");
+            free(index);
+            free(value);
             free(comp);
             free(xstar);
             return 1;
@@ -552,13 +646,13 @@ static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contexti
             {
                 if (comp[j] != k)
                     continue;
+
                 index[nnz] = xpos(i, j, inst);
                 value[nnz++] = 1.0;
 
-                // Safety check
                 if (nnz >= max_edges)
                 {
-                    print_error("SEC constraint too large — aborting");
+                    print_error("SEC too large — aborting");
                     free(index);
                     free(value);
                     free(comp);
@@ -599,42 +693,51 @@ static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contexti
  */
 int apply_cplex_beneders(instance *inst, solution *sol)
 {
-    int n = inst->nnodes;
-    double start_time = second();
+    const int n = inst->nnodes;
+    const double start_time = second();
 
+    // === Initialize CPLEX ===
     int error;
     CPXENVptr env = CPXopenCPLEX(&error);
-    if (env == NULL)
+    if (!env)
     {
         print_error("CPXopenCPLEX error");
         return EXIT_FAILURE;
     }
 
     CPXLPptr lp = CPXcreateprob(env, &error, "TSP");
-    if (lp == NULL)
+    if (!lp)
     {
         print_error("CPXcreateprob error");
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
 
+    // === Build initial model ===
     if (build_model(inst, env, lp))
+    {
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
+    }
 
     inst->ncols = CPXgetnumcols(env, lp);
 
+    // === Try warm start from greedy heuristic ===
     solution warm_sol;
-    warm_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
-    if (warm_sol.tour == NULL)
+    warm_sol.tour = malloc((n + 1) * sizeof(int));
+    if (!warm_sol.tour)
     {
-        print_error("Memory allocation failed for warm_sol->tour");
+        print_error("Memory allocation failed [warm_sol.tour]");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
-    warm_sol.initialized = 0;
 
-    if (apply_greedy_search(inst, &warm_sol) == 0)
+    if (apply_greedy_search(inst, &warm_sol) == EXIT_SUCCESS)
     {
         if (add_warm_start(env, lp, inst, &warm_sol))
-            printf("Warning: failed to add warm start\n");
+            fprintf(stderr, "Warning: failed to add warm start\n");
         else if (VERBOSE >= 50)
             printf("Warm start injected with cost %.2f\n", warm_sol.cost);
         free_sol(&warm_sol);
@@ -642,13 +745,23 @@ int apply_cplex_beneders(instance *inst, solution *sol)
     else
     {
         printf("Warning: greedy warm start failed\n");
+        free(warm_sol.tour);
     }
 
     int *comp = malloc(n * sizeof(int));
+    if (!comp)
+    {
+        print_error("Memory allocation failed [comp]");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+
     double *xstar = NULL;
     int ncomp = -1;
     int iteration = 0;
 
+    // === Main optimization loop ===
     while (1)
     {
         iteration++;
@@ -657,12 +770,18 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         double remaining_time = inst->timelimit - elapsed;
         if (remaining_time <= 0.0)
         {
-            print_error("Time limit reached before full tour found.");
+            fprintf(stderr, "Time limit reached before full tour found.\n");
 
-            if (ncomp > 1)
+            if (ncomp > 1 && xstar)
             {
                 if (patch_solution(xstar, inst, sol, comp, ncomp))
+                {
+                    free(comp);
+                    free(xstar);
+                    CPXfreeprob(env, &lp);
+                    CPXcloseCPLEX(&env);
                     return EXIT_FAILURE;
+                }
             }
 
             break;
@@ -671,17 +790,26 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         CPXsetdblparam(env, CPX_PARAM_TILIM, remaining_time);
         CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
         CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 4);
+
         if (CPXmipopt(env, lp))
         {
             print_error("CPXmipopt error");
+            free(comp);
+            free(xstar);
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
             return EXIT_FAILURE;
         }
 
         int ncols = CPXgetnumcols(env, lp);
-        xstar = (double *)calloc(ncols, sizeof(double));
+        xstar = calloc(ncols, sizeof(double));
         if (CPXgetx(env, lp, xstar, 0, ncols - 1))
         {
             print_error("CPXgetx error");
+            free(comp);
+            free(xstar);
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
             return EXIT_FAILURE;
         }
 
@@ -692,16 +820,29 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         if (ncomp == 1)
         {
             if (build_solution(xstar, inst, sol))
+            {
+                free(comp);
+                free(xstar);
+                CPXfreeprob(env, &lp);
+                CPXcloseCPLEX(&env);
                 return EXIT_FAILURE;
+            }
             break;
         }
 
         if (add_sec(env, lp, comp, ncomp, inst))
+        {
+            free(comp);
+            free(xstar);
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
             return EXIT_FAILURE;
-        free(xstar);
+        }
     }
 
+    // === Cleanup ===
     free(comp);
+    free(xstar);
     CPXfreeprob(env, &lp);
     CPXcloseCPLEX(&env);
 
@@ -717,60 +858,78 @@ int apply_cplex_beneders(instance *inst, solution *sol)
  */
 int apply_cplex_branchcut(instance *inst, solution *sol)
 {
+    // === Initialize CPLEX ===
     int error;
     CPXENVptr env = CPXopenCPLEX(&error);
-    if (env == NULL)
+    if (!env)
     {
         print_error("CPXopenCPLEX error");
         return EXIT_FAILURE;
     }
 
     CPXLPptr lp = CPXcreateprob(env, &error, "TSP");
-    if (lp == NULL)
+    if (!lp)
     {
         print_error("CPXcreateprob error");
         CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
 
+    // === Build model ===
     if (build_model(inst, env, lp))
+    {
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
+    }
 
-    // Save ncols to use in callback
     inst->ncols = CPXgetnumcols(env, lp);
 
-    // Install lazy constraint callback (CANDIDATE context)
+    // === Set up callback for lazy constraints (SEC) ===
     CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
     if (CPXcallbacksetfunc(env, lp, contextid, my_callback, inst))
     {
         print_error("CPXcallbacksetfunc error");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
 
+    // === Configure CPLEX parameters ===
     CPXsetdblparam(env, CPX_PARAM_TILIM, inst->timelimit);
     CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
     CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 4);
 
+    // === Solve the model ===
     if (CPXmipopt(env, lp))
     {
         print_error("CPXmipopt error");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
 
-    // Extract final solution
+    // === Extract solution ===
     double *xstar = calloc(inst->ncols, sizeof(double));
     if (CPXgetx(env, lp, xstar, 0, inst->ncols - 1))
     {
         print_error("CPXgetx error");
+        free(xstar);
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
 
     if (build_solution(xstar, inst, sol))
     {
         print_error("Failed to build solution");
+        free(xstar);
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
 
+    // === Cleanup ===
     free(xstar);
     CPXfreeprob(env, &lp);
     CPXcloseCPLEX(&env);

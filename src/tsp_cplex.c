@@ -373,10 +373,17 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
         indices[i] = i;
 
     // Convert the tour into x variable values
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < n; i++)
     {
         int from = sol->tour[i];
-        int to = sol->tour[i + 1]; // tour is closed: sol->tour[n] == sol->tour[0]
+        int to = sol->tour[i + 1];
+
+        if (from < 0 || from >= n || to < 0 || to >= n || from == to)
+        {
+            fprintf(stderr, "Invalid tour edge: %d → %d (n = %d)\n", from, to, n);
+            continue;
+        }
+
         values[xpos(from, to, inst)] = 1.0;
     }
 
@@ -734,19 +741,23 @@ int apply_cplex_beneders(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    if (apply_greedy_search(inst, &warm_sol) == EXIT_SUCCESS)
-    {
-        if (add_warm_start(env, lp, inst, &warm_sol))
-            fprintf(stderr, "Warning: failed to add warm start\n");
-        else if (VERBOSE >= 50)
-            printf("Warm start injected with cost %.2f\n", warm_sol.cost);
-        free_sol(&warm_sol);
-    }
-    else
-    {
-        printf("Warning: greedy warm start failed\n");
-        free(warm_sol.tour);
-    }
+    /**
+     * NOT WORKING! SEEMS THAT THE SOLUTION HAS GARBAGE VALUES
+     **/
+
+    // if (apply_greedy_search(inst, &warm_sol))
+    // {
+    //     if (add_warm_start(env, lp, inst, &warm_sol))
+    //         fprintf(stderr, "Warning: failed to add warm start\n");
+    //     else if (VERBOSE >= 50)
+    //         printf("Warm start injected with cost %.2f\n", warm_sol.cost);
+    //     free_sol(&warm_sol);
+    // }
+    // else
+    // {
+    //     printf("Warning: greedy warm start failed\n");
+    //     free(warm_sol.tour);
+    // }
 
     int *comp = malloc(n * sizeof(int));
     if (!comp)

@@ -478,6 +478,120 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
 }
 
 /**
+ * Callback function for CPLEX to add SEC constraints
+ * @param context CPLEX callback context
+ * @param contextid context ID
+ * @param userhandle user data
+ *
+ * @return 0 if successful, 1 otherwise
+ */
+static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *userhandle)
+{
+    instance *inst = (instance *)userhandle;
+
+    int n = inst->nnodes;
+    int max_edges = n * (n - 1) / 2;
+
+    double *xstar = (double *)malloc(inst->ncols * sizeof(double));
+    if (!xstar)
+    {
+        print_error("malloc failed for xstar");
+        return 1;
+    }
+
+    double objval = CPX_INFBOUND;
+    if (CPXcallbackgetcandidatepoint(context, xstar, 0, inst->ncols - 1, &objval))
+    {
+        print_error("CPXcallbackgetcandidatepoint error");
+        free(xstar);
+        return 1;
+    }
+
+    int *comp = (int *)malloc(n * sizeof(int));
+    if (!comp)
+    {
+        print_error("malloc failed for comp");
+        free(xstar);
+        return 1;
+    }
+
+    int ncomp = build_components(xstar, comp, inst);
+    if (ncomp <= 1)
+    {
+        free(comp);
+        free(xstar);
+        return 0; // feasible
+    }
+
+    // Add one SEC per component
+    int izero = 0;
+    char sense = 'L';
+
+    for (int k = 0; k < ncomp; k++)
+    {
+        int *index = (int *)malloc(max_edges * sizeof(int));
+        double *value = (double *)malloc(max_edges * sizeof(double));
+        if (!index || !value)
+        {
+            print_error("malloc failed for cut data");
+            free(comp);
+            free(xstar);
+            return 1;
+        }
+
+        int nnz = 0;
+        int rhs = -1;
+
+        for (int i = 0; i < n; i++)
+        {
+            if (comp[i] != k)
+                continue;
+            rhs++;
+
+            for (int j = i + 1; j < n; j++)
+            {
+                if (comp[j] != k)
+                    continue;
+                index[nnz] = xpos(i, j, inst);
+                value[nnz++] = 1.0;
+
+                // Safety check
+                if (nnz >= max_edges)
+                {
+                    print_error("SEC constraint too large — aborting");
+                    free(index);
+                    free(value);
+                    free(comp);
+                    free(xstar);
+                    return 1;
+                }
+            }
+        }
+
+        if (rhs >= 1 && nnz > 0)
+        {
+            double rhs_val = (double)rhs;
+            if (CPXcallbackrejectcandidate(context, 1, nnz, &rhs_val, &sense, &izero, index, value))
+            {
+                print_error("CPXcallbackrejectcandidate error");
+                free(index);
+                free(value);
+                free(comp);
+                free(xstar);
+                return 1;
+            }
+        }
+
+        free(index);
+        free(value);
+    }
+
+    free(comp);
+    free(xstar);
+    return 0;
+}
+
+/**
  * Apply CPLEX to solve the TSP instance using the Benders decomposition method
  * @param inst instance
  * @param sol solution
@@ -587,6 +701,76 @@ int apply_cplex_beneders(instance *inst, solution *sol)
     }
 
     free(comp);
+    CPXfreeprob(env, &lp);
+    CPXcloseCPLEX(&env);
+
+    return EXIT_SUCCESS;
+}
+
+/**
+ * Apply CPLEX to solve the TSP instance using Branch and Cut method
+ * @param inst instance
+ * @param sol solution
+ *
+ * @return 0 if successful, 1 otherwise
+ */
+int apply_cplex_branchcut(instance *inst, solution *sol)
+{
+    int error;
+    CPXENVptr env = CPXopenCPLEX(&error);
+    if (env == NULL)
+    {
+        print_error("CPXopenCPLEX error");
+        return EXIT_FAILURE;
+    }
+
+    CPXLPptr lp = CPXcreateprob(env, &error, "TSP");
+    if (lp == NULL)
+    {
+        print_error("CPXcreateprob error");
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+
+    if (build_model(inst, env, lp))
+        return EXIT_FAILURE;
+
+    // Save ncols to use in callback
+    inst->ncols = CPXgetnumcols(env, lp);
+
+    // Install lazy constraint callback (CANDIDATE context)
+    CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
+    if (CPXcallbacksetfunc(env, lp, contextid, my_callback, inst))
+    {
+        print_error("CPXcallbacksetfunc error");
+        return EXIT_FAILURE;
+    }
+
+    CPXsetdblparam(env, CPX_PARAM_TILIM, inst->timelimit);
+    CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
+    CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 4);
+
+    if (CPXmipopt(env, lp))
+    {
+        print_error("CPXmipopt error");
+        return EXIT_FAILURE;
+    }
+
+    // Extract final solution
+    double *xstar = calloc(inst->ncols, sizeof(double));
+    if (CPXgetx(env, lp, xstar, 0, inst->ncols - 1))
+    {
+        print_error("CPXgetx error");
+        return EXIT_FAILURE;
+    }
+
+    if (build_solution(xstar, inst, sol))
+    {
+        print_error("Failed to build solution");
+        return EXIT_FAILURE;
+    }
+
+    free(xstar);
     CPXfreeprob(env, &lp);
     CPXcloseCPLEX(&env);
 

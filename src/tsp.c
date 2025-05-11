@@ -978,6 +978,18 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
 		}
+		else if (strcmp(method, "branch_and_cut") == 0)
+		{
+			if (apply_cplex_branchcut(inst, sol))
+			{
+				print_error("Error Solving with CPLEX");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
+
+			if (VERBOSE >= 50)
+				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
+		}
 		else
 		{
 			print_error("Invalid method");

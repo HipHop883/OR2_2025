@@ -947,3 +947,288 @@ int apply_cplex_branchcut(instance *inst, solution *sol)
 
     return EXIT_SUCCESS;
 }
+
+/**
+ * Apply CPLEX to solve the TSP instance using Hard Fixing heuristic
+ * @param inst instance
+ * @param sol solution to be filled and used as starting point
+ * 
+ * @return 0 if successful, 1 otherwise
+ */
+int apply_cplex_hardfix(instance *inst, solution *sol)
+{
+    const double start_time = second();
+    double time_elapsed;
+    solution current_best;
+    int status = EXIT_FAILURE;
+    double *xstar = NULL;
+    int *comp = NULL;
+    
+    // === Initialize CPLEX environment ===
+    int error;
+    CPXENVptr env = CPXopenCPLEX(&error);
+    if (!env) {
+        print_error("CPXopenCPLEX error");
+        return EXIT_FAILURE;
+    }
+
+    CPXLPptr lp = CPXcreateprob(env, &error, "TSP_HARDFIX");
+    if (!lp) {
+        print_error("CPXcreateprob error");
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+
+    // === Build initial model ===
+    if (build_model(inst, env, lp)) {
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+
+    // Store number of columns (variables)
+    inst->ncols = CPXgetnumcols(env, lp);
+
+    // === Set up callback for lazy constraints (SEC) ===
+    CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
+    if (CPXcallbacksetfunc(env, lp, contextid, my_callback, inst)) {
+        print_error("CPXcallbacksetfunc error");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+    
+    // === Generate initial solution using greedy heuristic ===
+    solution initial_sol = {0};
+    initial_sol.initialized = 0;
+    
+    initial_sol.tour = malloc((inst->nnodes + 1) * sizeof(int));
+    if (!initial_sol.tour) {
+        print_error("Memory allocation failed for initial_sol.tour");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+    
+    // Build a warm start directly
+    if (apply_greedy_search(inst, &initial_sol) != 0 || !initial_sol.initialized) {
+        print_error("Greedy warm start generation failed");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+    
+    if (add_warm_start(env, lp, inst, &initial_sol)) {
+        print_error("Failed to add warm start");
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+    
+    // Copy as a starting point for Hard Fixing
+    copy_sol(&initial_sol, &current_best);
+
+    // === Hard fixing main loop ===
+    const double percentage = 0.3; // Fix 30% of the edges  /// TODO: MAKE THIS A PARAMETER ///
+    int iteration = 0;
+    int improved = 0;
+    int n = inst->nnodes;
+    
+    // Allocate memory for component tracking (for potential patching)
+    comp = malloc(n * sizeof(int));
+    if (!comp) {
+        print_error("Memory allocation failed for comp array");
+        free_sol(&initial_sol);
+        free_sol(&current_best);
+        CPXfreeprob(env, &lp);
+        CPXcloseCPLEX(&env);
+        return EXIT_FAILURE;
+    }
+
+    while (1) {
+        iteration++;
+        time_elapsed = second() - start_time;
+        
+        // Check time limit
+        if (time_elapsed >= inst->timelimit) {
+            printf("Time limit reached after %d iterations (%d improvements)\n", 
+                   iteration-1, improved);
+            break;
+        }
+        
+        double remaining_time = inst->timelimit - time_elapsed;
+        
+        // Configure time limit for the subproblem
+        CPXsetdblparam(env, CPX_PARAM_TILIM, fmin(remaining_time, 10.0)); // Max 10 seconds per iteration
+        CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_OFF);   // Turn off CPLEX output for iterations
+        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 0);     // Minimal display
+        
+        // Reset variable bounds to original (unfix all variables)
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                int idx = xpos(i, j, inst);
+                if (CPXchgbds(env, lp, 1, &idx, "L", &(double){0.0})) {
+                    print_error("CPXchgbds error when unfixing variables");
+                    goto CLEANUP;
+                }
+            }
+        }
+        
+        // === Randomly fix edges from current_best solution ===
+        int fixed_count = 0;
+        
+        // First extract the edges from the current best tour
+        for (int i = 0; i < n; i++) {
+            int from = current_best.tour[i];
+            int to = current_best.tour[i+1];
+            
+            if (from > to) {
+                int temp = from;
+                from = to;
+                to = temp;
+            }
+            
+            // Decide randomly whether to fix this edge
+            if (((double)rand() / RAND_MAX) < percentage) {
+                int idx = xpos(from, to, inst);
+                double lb = 1.0;  // Fix to 1 (edge must be used)
+                
+                if (CPXchgbds(env, lp, 1, &idx, "L", &lb)) {
+                    print_error("CPXchgbds error when fixing variables");
+                    goto CLEANUP;
+                }
+                fixed_count++;
+            }
+        }
+        
+        if (VERBOSE >= 70) {
+            printf("Iteration %d: Fixed %d out of %d edges (%.1f%%)\n", 
+                   iteration, fixed_count, n, 100.0 * fixed_count / n);
+        }
+        
+        // Add MIP start from current best solution
+        if (add_warm_start(env, lp, inst, &current_best)) {
+            fprintf(stderr, "Warning: Failed to add MIP start in iteration %d\n", iteration);
+        }
+        
+        // === Solve the restricted problem ===
+        if (CPXmipopt(env, lp)) {
+            print_error("CPXmipopt error");
+            goto CLEANUP;
+        }
+        
+        // Check if we found a solution
+        int sol_stat = CPXgetstat(env, lp);
+        if (sol_stat == CPXMIP_OPTIMAL || sol_stat == CPXMIP_OPTIMAL_TOL || 
+            sol_stat == CPXMIP_TIME_LIM_FEAS) {
+            
+            // Allocate or reallocate xstar if needed
+            if (!xstar) {
+                xstar = calloc(inst->ncols, sizeof(double));
+                if (!xstar) {
+                    print_error("Memory allocation failed for xstar");
+                    goto CLEANUP;
+                }
+            }
+            
+            if (CPXgetx(env, lp, xstar, 0, inst->ncols - 1)) {
+                print_error("CPXgetx error");
+                goto CLEANUP;
+            }
+            
+            // Build the solution
+            solution new_sol;
+            new_sol.initialized = 0;
+            new_sol.tour = NULL;
+            
+            if (build_solution(xstar, inst, &new_sol)) {
+                print_error("Failed to build solution");
+                goto CLEANUP;
+            }
+            
+            // Check if we improved
+            if (new_sol.cost < current_best.cost - EPSILON) {
+                improved++;
+                printf("Iteration %d: Improved solution from %.2f to %.2f (-%0.2f)\n", 
+                       iteration, current_best.cost, new_sol.cost, current_best.cost - new_sol.cost);
+                       
+                free_sol(&current_best);
+                copy_sol(&new_sol, &current_best);
+            } else if (VERBOSE >= 70) {
+                printf("Iteration %d: No improvement (current best: %.2f)\n", 
+                       iteration, current_best.cost);
+            }
+            
+            free_sol(&new_sol);
+        } else if (VERBOSE >= 50) {
+            printf("Iteration %d: No feasible solution found (status %d)\n", iteration, sol_stat);
+        }
+    }
+
+    // === Time expired - Check final solution and try patching if needed ===
+    if (xstar) {
+        int ncomp = build_components(xstar, comp, inst);
+        
+        // If the last solution had multiple components, try to patch it
+        if (ncomp > 1) {
+            printf("Final solution has %d components - attempting to patch\n", ncomp);
+            solution patched_sol;
+            patched_sol.initialized = 0;
+            patched_sol.tour = NULL;
+            
+            if (patch_solution(xstar, inst, &patched_sol, comp, ncomp) == EXIT_SUCCESS) {
+                // Check if patched solution is better than current best
+                if (patched_sol.initialized && patched_sol.cost < current_best.cost - EPSILON) {
+                    printf("Patched solution improved from %.2f to %.2f\n", 
+                           current_best.cost, patched_sol.cost);
+                    free_sol(&current_best);
+                    copy_sol(&patched_sol, &current_best);
+                }
+                free_sol(&patched_sol);
+            }
+        }
+    }
+    
+    // Copy best solution to output
+    copy_sol(&current_best, sol);
+    status = EXIT_SUCCESS;
+    
+CLEANUP:
+    if (xstar) free(xstar);
+    if (comp) free(comp);
+    free_sol(&current_best);
+    free_sol(&initial_sol);
+    CPXfreeprob(env, &lp);
+    CPXcloseCPLEX(&env);
+    
+    return status;
+}
+
+/**
+ * Creates a deep copy of a solution
+ *
+ * @param src source solution
+ * @param dst destination solution
+ */
+void copy_sol(const solution *src, solution *dst)
+{
+    if (!src || !src->initialized || !src->tour) {
+        return;
+    }
+    
+    int n = 0;
+    while (src->tour[n] != src->tour[0] || n == 0) {
+        n++;
+    }
+    
+    free_sol(dst);
+    dst->tour = malloc((n + 1) * sizeof(int));
+    
+    if (dst->tour) {
+        for (int i = 0; i <= n; i++) {
+            dst->tour[i] = src->tour[i];
+        }
+        dst->initialized = 1;
+        dst->cost = src->cost;
+    }
+}

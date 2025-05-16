@@ -5,5 +5,7 @@
 
 int apply_cplex_beneders(instance *inst, solution *sol);
 int apply_cplex_branchcut(instance *inst, solution *sol);
+int apply_cplex_hardfix(instance *inst, solution *sol);
+void copy_sol(const solution *src, solution *dst);
 
 #endif /* TSP_CPLEX_H_ */

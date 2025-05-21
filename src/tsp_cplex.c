@@ -805,8 +805,8 @@ int apply_cplex_benders(instance *inst, solution *sol)
         }
 
         CPXsetdblparam(env, CPX_PARAM_TILIM, remaining_time);
-        CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
-        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 4);
+        CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF); // Turn on\off CPLEX output for iterations
+        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0); // Minimal display
 
         if (CPXmipopt(env, lp))
         {
@@ -914,8 +914,9 @@ int apply_cplex_branchcut(instance *inst, solution *sol)
 
     // === Configure CPLEX parameters ===
     CPXsetdblparam(env, CPX_PARAM_TILIM, inst->timelimit);
-    CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
-    CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 4);
+    CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF); // Turn on\off CPLEX output for iterations
+    CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0); // Minimal display
+        
 
     // === Solve the model ===
     if (CPXmipopt(env, lp))
@@ -1063,11 +1064,11 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         }
         
         double remaining_time = inst->timelimit - time_elapsed;
-        
+ 
         // Configure time limit for the subproblem
-        CPXsetdblparam(env, CPX_PARAM_TILIM, fmin(remaining_time, 10.0)); // Max 10 seconds per iteration
-        CPXsetintparam(env, CPX_PARAM_SCRIND, CPX_OFF);   // Turn off CPLEX output for iterations
-        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, 0);     // Minimal display
+        CPXsetdblparam(env, CPX_PARAM_TILIM, remaining_time);
+        CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF); // Turn on\off CPLEX output for iterations
+        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0); // Minimal display
         
         // Reset variable bounds to original (unfix all variables)
         for (int i = 0; i < n; i++) {
@@ -1387,10 +1388,10 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         double remaining_time = inst->timelimit - time_elapsed;
         
         // Configure parameters for the subproblem
-        CPXsetdblparam(env, CPX_PARAM_TILIM, fmin(remaining_time, 30.0)); // Max 30 seconds per iteration
+        CPXsetdblparam(env, CPX_PARAM_TILIM, remaining_time);
         CPXsetintparam(env, CPX_PARAM_NODELIM, node_limit);  // Limit nodes per iteration
         CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF);
-        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 3 : 0);
+        CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0);
         
         // Remove previous local branching constraint if it exists
         if (lb_row >= 0) {

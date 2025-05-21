@@ -968,7 +968,7 @@ int execute_selected_method(instance *inst, solution *sol)
 		}
 		else if (strcmp(method, "benders") == 0)
 		{
-			if (apply_cplex_beneders(inst, sol))
+			if (apply_cplex_benders(inst, sol))
 			{
 				print_error("Error Solving with CPLEX");
 				free(method_str);
@@ -1002,10 +1002,22 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
 		}
+		else if (strcmp(method, "local_branch") == 0)
+		{
+			if (apply_cplex_localbranch(inst, sol))
+			{
+				print_error("Error Solving with CPLEX");
+				free(method_str);
+				return EXIT_FAILURE;
+			}
+
+			if (VERBOSE >= 50)
+				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
+		}
 		else
 		{
 			print_error("Invalid method");
-			print_error("USAGE: -method [n_n|two_opt|random|vns|tabu] (separated by '+')");
+			print_error("USAGE: -method [n_n|two_opt|random|vns|tabu|benders|branch_and_cut|hard_fix|local_branch] (separated by '+')");
 			free(method_str);
 			return EXIT_FAILURE;
 		}

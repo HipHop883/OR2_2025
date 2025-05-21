@@ -32,6 +32,15 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
     {
         best_cost = best_sol->cost; // Use the existing cost
     }
+        
+    if (!best_sol->tour) {
+        best_sol->tour = malloc((inst->nnodes + 1) * sizeof(int));
+        if (!best_sol->tour) {
+            print_error("Memory allocation failed for best_sol->tour");
+            free(current_sol.tour);
+            return EXIT_FAILURE;
+        }
+    }
 
     for (int i = 0; i < N_GREEDY_STARTS; i++)
     {

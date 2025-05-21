@@ -536,6 +536,19 @@ void generate_random_nodes(instance *inst, int nnodes)
 	if (VERBOSE >= 50)
 		printf("Generating random nodes...\n");
 
+	inst->xcoord = (double *)malloc(nnodes * sizeof(double));
+	inst->ycoord = (double *)malloc(nnodes * sizeof(double));
+	inst->cost_matrix = (double **)calloc(inst->nnodes, sizeof(double));
+	for (int i = 0; i < inst->nnodes; i++)
+	{
+		inst->cost_matrix[i] = (double *)calloc(inst->nnodes, sizeof(double));
+	}
+	if (inst->xcoord == NULL || inst->ycoord == NULL || inst->cost_matrix == NULL)
+	{
+		print_error("Memory allocation failed");
+		exit(EXIT_FAILURE);
+	}
+
 	for (int i = 0; i < nnodes; i++)
 	{
 		inst->xcoord[i] = rand01() * MAX_X;

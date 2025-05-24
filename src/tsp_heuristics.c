@@ -91,9 +91,19 @@ static int resize_tabu_list(tabuList *tabu, int new_tenure)
 
 static void free_tabu(tabuList *tabu)
 {
-    for (int i = 0; i < tabu->tenure; i++)
-        free(tabu->tabu_list[i]);
-    free(tabu->tabu_list);
+    if (!tabu)
+        return;
+
+    if (tabu->tabu_list)
+    {
+        for (int i = 0; i < tabu->tenure; i++)
+        {
+            if (tabu->tabu_list[i])
+                free(tabu->tabu_list[i]);
+        }
+        free(tabu->tabu_list);
+    }
+
     free(tabu);
 }
 
@@ -226,8 +236,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
     best_sol->cost = current_sol->cost;
 
-    //int min_kicks = inst->vns_kmin;
-    //int max_kicks = inst->vns_kmax;
+    // int min_kicks = inst->vns_kmin;
+    // int max_kicks = inst->vns_kmax;
 
     // Gnuplot setup
     FILE *gp = NULL;
@@ -249,8 +259,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     }
 
     int iter = 0;
-    //int best_iter = 0;
-    //double best_cost_local = best_sol->cost;
+    // int best_iter = 0;
+    // double best_cost_local = best_sol->cost;
 
     // Array to save red line
     int *best_iters = NULL;
@@ -286,8 +296,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         {
             best_sol->cost = current_sol->cost;
             memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
-            //best_cost_local = best_sol->cost;
-            //best_iter = iter;
+            // best_cost_local = best_sol->cost;
+            // best_iter = iter;
         }
 
         if (inst->plot == 0 && gp)
@@ -487,7 +497,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
     sol->cost = best_sol->cost;
     sol->initialized = 1; // Mark as initialized
 
-    // free_tabu(tabu);
+    free_tabu(tabu);
     free(best_sol->tour);
     free(best_sol);
     free(current_sol->tour);

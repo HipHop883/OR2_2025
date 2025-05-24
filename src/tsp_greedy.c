@@ -12,7 +12,7 @@
  * @param inst pointer to the TSP instance
  * @param best_sol solution structure to be filled with the best found tour
  * @return 0 on success
- */
+ */ 
 int apply_greedy_search(const instance *inst, solution *best_sol)
 {
     double starting_time = second();

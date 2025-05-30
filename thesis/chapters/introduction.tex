@@ -4,4 +4,45 @@ It asks for the shortest possible route that visits each node in a graph exactly
 In 1972, Richard M. Karp proved that the TSP is NP-hard, implying that the computation time needed to solve it can grow exponentially with the size of the input \cite{Karp1972}. Despite this complexity, 
 many exact and approximate algorithms have been developed over the years, offering different trade-offs between optimality and efficiency. The current state-of-the-art in solving large-scale 
 instances of the problem is the Concorde solver, developed by Applegate, Bixby, Chvátal, and Cook, which uses advanced techniques in combinatorial optimization, linear programming, and cutting-plane methods \cite{Applegate2006}. 
-The goal of this thesis is not to propose new methods capable of competing with Concorde, but rather to explore, implement, and compare basic yet effective algorithmic approaches that are computationally accessible and still capable of producing meaningful results.
+The goal of this thesis is not to propose new methods capable of competing with Concorde, but rather to explore, implement, 
+and compare basic yet effective algorithmic approaches that are computationally accessible and still capable of producing meaningful results.
+
+
+\section{Problem Formulation}
+
+Let us consider an undirected graph $G = (V, E)$, where $V$ is the set of $|V| = N$ nodes (or vertices), 
+and $E$ is the set of $|E| = M$ edges. A \textit{Hamiltonian cycle} of $G$, denoted by $G^* = (V, E^*)$, 
+is a subgraph whose edges form a cycle that visits each node $v \in V$ exactly once.
+We define a cost function $c : E \rightarrow \mathbb{R}^+$ that assigns a non-negative cost $c_e = c(e)$ to each edge $e \in E$. 
+The objective of the Travelling Salesman Problem (TSP) is to find a Hamiltonian cycle in $G$ that minimizes the total cost, defined as:
+\[
+\text{cost}(\text{cycle}) := \sum_{e \in \text{cycle}} c(e)
+\]
+
+This problem can be formulated as an Integer Linear Programming (ILP) model. We define binary decision variables $x_e$ to indicate whether edge $e$ is included in the optimal cycle:
+\[
+x_e =
+\begin{cases}
+1 & \text{if } e \in E^* \\
+0 & \text{otherwise}
+\end{cases}
+\quad \forall e \in E
+\]
+
+The ILP model is as follows:
+\begin{align}
+\text{minimize} \quad & \sum_{e \in E} c_e x_e \label{eq:ilp_obj} \\
+\text{subject to} \quad & \sum_{e \in \delta(v)} x_e = 2 \quad \forall v \in V \label{eq:ilp_degree} \\
+& \sum_{e \in E(S)} x_e \leq |S| - 1 \quad \forall S \subset V,\, v_1 \in S \label{eq:ilp_sec} \\
+& x_e \in \{0, 1\} \quad \forall e \in E \label{eq:ilp_binary}
+\end{align}
+
+Constraint~\eqref{eq:ilp_degree} ensures that each node has degree 2, i.e., it is entered and exited exactly once. 
+However, these constraints alone are not sufficient to guarantee a single, valid Hamiltonian cycle: the solution may consist of multiple disjoint cycles. 
+To prevent this, the model includes constraint~\eqref{eq:ilp_sec}, known as the \textit{Subtour Elimination Constraints} (SECs), 
+which ensure that the solution forms a single connected cycle where every node $v \neq v_1$ is reachable from $v_1$.
+
+Despite their theoretical importance, SECs are defined for every subset $S \subset V$ containing $v_1$, and their number is exponential in $N$. 
+Including all of them simultaneously is therefore computationally infeasible.
+
+Throughout this report, all pseudocode and algorithmic approaches will assume an undirected, complete graph $G = (V, E)$ and a cost function $c : E \rightarrow \mathbb{R}^+$.

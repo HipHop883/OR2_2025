@@ -2,6 +2,8 @@
 #include "tsp_greedy.h"
 #include "utils.h"
 
+#define DIVIDER "-----------------------------------------------------------"
+
 static int is_tabu_move(tabuList *tabu, int i, int j)
 {
     if (i > j)
@@ -123,8 +125,8 @@ static int best_2opt_not_tabu(instance *inst, solution *sol, solution *best_sol,
 
             if ((!is_tabu && delta < best_delta && delta != 0) || (is_tabu && new_cost + EPSILON < best_sol->cost))
             {
-                if (is_tabu)
-                    printf("[ASPIRATION] new cost: %.2lf (best: %.2lf)\n", new_cost, best_sol->cost);
+                if (is_tabu && VERBOSE >= 50)
+                    printf("[ASPIRATION] %-34s %10.2f\n", "Accepted move with cost:", new_cost);
 
                 best_delta = delta;
                 best_i = i;
@@ -404,7 +406,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
     if (!tabu)
         return EXIT_FAILURE;
 
-    if (!sol->initialized) // Check if solution is not initialized
+    if (!sol->initialized)
     {
         if (generate_random_path(inst, sol) != 0)
         {
@@ -445,6 +447,8 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
 
     while (!check_time(inst, starting_time))
     {
+        int did_log = 0;
+
         if (best_2opt_not_tabu(inst, current_sol, best_sol, tabu) == -1)
             print_error("No valid 2-opt move found");
 
@@ -454,20 +458,27 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
             best_sol->cost = current_sol->cost;
             tabu->iterations_without_improvement = 0;
 
-            if (VERBOSE >= 20)
-                printf("[UPDATE] Iter %d — new best cost: %.2lf\n", iter, best_sol->cost);
+            if (VERBOSE >= 10)
+            {
+                did_log = 1;
+                printf("[TABU] %-40s%11d\n", "New best found at iter:", iter);
+                printf("[TABU] %-40s%11.2f\n", "New best cost:", best_sol->cost);
+            }
         }
         else
         {
             tabu->iterations_without_improvement++;
         }
 
+        // Diversification trigger
         if (tabu->iterations_without_improvement > no_improve_limit)
         {
             if (VERBOSE >= 40)
-                printf("[TABU] Diversification triggered at iteration %d\n", iter);
+            {
+                did_log = 1;
+                printf("[TABU] %-40s%11d\n", "Diversification triggered at:", iter);
+            }
 
-            // Perform a random 2-opt kick
             int i = rand() % (nnodes - 2) + 1;
             int j = i + 1 + rand() % (nnodes - i - 1);
             reverse_path_segment(i, j, current_sol);
@@ -475,38 +486,54 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
             if (evaluate_path_cost(inst, current_sol) != 0)
                 print_error("Failed to evaluate path after diversification");
 
-            // Increase tenure to promote diversification
+            // Increase tenure
             int new_tenure = tabu->tenure + 5;
             if (new_tenure > tabu->max_tenure)
                 new_tenure = tabu->max_tenure;
+
             resize_tabu_list(tabu, new_tenure);
 
             if (VERBOSE >= 60)
-                printf("[TABU] Increased tenure to %d\n", new_tenure);
+            {
+                did_log = 1;
+                printf("[TABU] %-40s%11d\n", "Increased tenure to:", new_tenure);
+            }
 
             tabu->iterations_without_improvement = 0;
         }
         else if (tabu->iterations_without_improvement == 0 && tabu->tenure > tabu->min_tenure)
         {
-            // Decrease tenure to intensify search
             int new_tenure = tabu->tenure - 1;
             if (new_tenure < tabu->min_tenure)
                 new_tenure = tabu->min_tenure;
+
             resize_tabu_list(tabu, new_tenure);
 
             if (VERBOSE >= 60)
-                printf("[TABU] Decreased tenure to %d\n", new_tenure);
+            {
+                did_log = 1;
+                printf("[TABU] %-40s%11d\n", "Decreased tenure to:", new_tenure);
+            }
         }
+
+        if (did_log && VERBOSE >= 10)
+            printf("%s\n", DIVIDER);
 
         iter++;
     }
 
     if (VERBOSE >= 20)
-        printf("Tabu Search stopped due to time limit.\n");
+        printf("[TABU] Search terminated due to time limit.\n");
+
+    if (VERBOSE >= 10)
+    {
+        printf("[TABU] %-40s%11.2f\n", "Final best cost:", best_sol->cost);
+        printf("[TABU] %-40s%11.3fs\n", "Total elapsed time:", second() - starting_time);
+    }
 
     memcpy(sol->tour, best_sol->tour, sizeof(int) * (nnodes + 1));
     sol->cost = best_sol->cost;
-    sol->initialized = 1; // Mark as initialized
+    sol->initialized = 1;
 
     free_tabu(tabu);
     free(best_sol->tour);

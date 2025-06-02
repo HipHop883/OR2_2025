@@ -714,7 +714,7 @@ int evaluate_path_cost(const instance *inst, solution *sol)
 	{
 		double edge_cost = inst->cost_matrix[sol->tour[i]][sol->tour[i + 1]];
 
-		if (VERBOSE >= 70)
+		if (VERBOSE >= 80)
 			printf("Cost from node %d to node %d: %lf\n", sol->tour[i], sol->tour[i + 1], edge_cost);
 		cost_p += edge_cost;
 	}
@@ -722,7 +722,7 @@ int evaluate_path_cost(const instance *inst, solution *sol)
 	// Add the cost to return to the starting node
 	double return_cost = inst->cost_matrix[sol->tour[inst->nnodes - 1]][sol->tour[0]];
 
-	if (VERBOSE >= 70)
+	if (VERBOSE >= 80)
 		printf("Cost from node %d to node %d: %lf\n", sol->tour[inst->nnodes - 1], sol->tour[0], return_cost);
 	cost_p += return_cost;
 	// printf("Total cost: %lf\n", cost_p);

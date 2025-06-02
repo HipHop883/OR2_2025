@@ -261,6 +261,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     }
 
     int iter = 0;
+    int last_logged_best = -1;
+
     // int best_iter = 0;
     // double best_cost_local = best_sol->cost;
 
@@ -298,8 +300,13 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         {
             best_sol->cost = current_sol->cost;
             memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
-            // best_cost_local = best_sol->cost;
-            // best_iter = iter;
+
+            if (VERBOSE >= 10 && iter != last_logged_best)
+            {
+                printf("[VNS] %-40s%11d\n", "New best found at iter:", iter);
+                printf("[VNS] %-40s%11.2f\n", "New best cost:", best_sol->cost);
+                last_logged_best = iter;
+            }
         }
 
         if (inst->plot == 0 && gp)
@@ -340,6 +347,9 @@ int apply_heuristic_vns(instance *inst, solution *sol)
             kicks = (int)(base_kicks * inst->vns_learning_rate);
         }
 
+        if (VERBOSE >= 70)
+            printf("[VNS] Applying %d 3-opt kicks for diversification at iter %d\n", kicks, iter);
+
         for (int i = 0; i < kicks; i++)
         {
             if (apply_three_opt(inst, current_sol) != 0)
@@ -356,10 +366,12 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         {
             printf("Gnuplot pipe error\n");
         }
+
         iter++;
     }
 
-    printf("TIME FOR DO VNS %lf\n", second() - starting_time_vns);
+    if (VERBOSE >= 20)
+        printf("[VNS] Total elapsed time: %.3fs\n", second() - starting_time_vns);
 
     if (gp)
     {

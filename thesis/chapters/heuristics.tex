@@ -1,0 +1,45 @@
+A heuristic is a practical problem-solving technique designed to produce good-enough solutions within a reasonable time frame, 
+especially when exact methods are too slow or infeasible. Given the NP-hard nature of the Travelling Salesman Problem (TSP), 
+computing the optimal solution can be computationally expensive even for moderately sized instances. For this reason, heuristic methods 
+play a crucial role in tackling the problem efficiently. Heuristics do not guarantee optimality, but they can often yield solutions 
+that are sufficiently close to the best possible one. This trade-off between accuracy and speed makes heuristics particularly valuable 
+when timely decision-making is more important than absolute precision.
+
+In this chapter, several heuristic strategies for the TSP are presented, highlighting their underlying principles, implementation, and performance.
+
+\section{Nearest Neighbour (Greedy)}
+
+One of the most intuitive heuristic approaches to the Travelling Salesman Problem is the Nearest Neighbor algorithm, which follows a greedy strategy. 
+A \textit{greedy} algorithm builds a solution step by step by always choosing the locally optimal option, with the hope that this leads to a good global solution.
+In the context of the TSP, the algorithm starts from an initial node and, at each iteration, selects the nearest unvisited node as the next step in the tour. 
+This process continues until all nodes have been visited exactly once, and the cycle is closed by returning to the starting point.
+However, the quality of the solution obtained using this method depends heavily on the starting node, as different starting points may lead to significantly 
+different tours.
+Despite its simplicity and speed, the Nearest Neighbor algorithm does not guarantee an optimal solution. Still, it often produces a reasonable approximation 
+in a fraction of the time required by exact methods, making it suitable for large instances where exact algorithms are computationally expensive.
+
+\begin{algorithm}
+\caption{Nearest Neighbor Heuristic}
+\begin{algorithmic}[1]
+\Require Starting node $s \in V$
+\Ensure Hamiltonian cycle of $G$, cost of cycle
+\State $cycle \gets [s]$
+\State $cost \gets 0$
+\For{$i \gets 0$ to $|V| - 2$}
+  \State $next \gets \arg\min_{v \in V \setminus cycle} c(cycle[i], v)$
+  \State $cost \gets cost + c(cycle[i], next)$
+  \State $cycle[i+1] \gets next$
+\EndFor
+\State $cost \gets cost + c(cycle[|V| - 1], s)$
+\State \Return $cycle$, $cost$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Results Analysis}
+
+The greedy algorithm often selects locally optimal edges without considering long-term implications, which may lead to expensive connections, 
+especially when few unvisited nodes remain. This behavior can result in unnecessarily long edges and poor-quality tours. Such issues are particularly 
+evident in Euclidean instances, where the resulting path may include edge crossings, which are absent in optimal solutions. To address these limitations, 
+the next section introduces the 2-opt heuristic, a simple yet effective local search technique aimed at improving tour quality by eliminating such inefficiencies.
+
+\section{Two-Opt}

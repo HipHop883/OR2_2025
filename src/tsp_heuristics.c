@@ -462,18 +462,29 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
             tabu->iterations_without_improvement++;
         }
 
-        // Dynamically adjust tenure
         if (tabu->iterations_without_improvement > no_improve_limit)
         {
+            if (VERBOSE >= 40)
+                printf("[TABU] Diversification triggered at iteration %d\n", iter);
+
+            // Perform a random 2-opt kick
+            int i = rand() % (nnodes - 2) + 1;
+            int j = i + 1 + rand() % (nnodes - i - 1);
+            reverse_path_segment(i, j, current_sol);
+
+            if (evaluate_path_cost(inst, current_sol) != 0)
+                print_error("Failed to evaluate path after diversification");
+
             // Increase tenure to promote diversification
             int new_tenure = tabu->tenure + 5;
             if (new_tenure > tabu->max_tenure)
                 new_tenure = tabu->max_tenure;
             resize_tabu_list(tabu, new_tenure);
-            tabu->iterations_without_improvement = 0;
 
             if (VERBOSE >= 60)
                 printf("[TABU] Increased tenure to %d\n", new_tenure);
+
+            tabu->iterations_without_improvement = 0;
         }
         else if (tabu->iterations_without_improvement == 0 && tabu->tenure > tabu->min_tenure)
         {

@@ -3,6 +3,7 @@
 #include "tsp_greedy.h"
 
 #define N_GREEDY_STARTS 10 // Number of random starts for multi-start greedy
+#define DIVIDER "-----------------------------------------------------------"
 
 /**
  * Applies a multi-start greedy heuristic using the nearest neighbor method.
@@ -12,14 +13,13 @@
  * @param inst pointer to the TSP instance
  * @param best_sol solution structure to be filled with the best found tour
  * @return 0 on success
- */ 
+ */
 int apply_greedy_search(const instance *inst, solution *best_sol)
 {
     double starting_time = second();
 
     solution current_sol;
     current_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
-
     if (!current_sol.tour)
     {
         print_error("Memory allocation failed in solve_greedy");
@@ -27,15 +27,16 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
     }
 
     double best_cost = CPX_INFBOUND;
-
-    if (best_sol->initialized) // Check if already initialized
+    if (best_sol->initialized)
     {
-        best_cost = best_sol->cost; // Use the existing cost
+        best_cost = best_sol->cost;
     }
-        
-    if (!best_sol->tour) {
+
+    if (!best_sol->tour)
+    {
         best_sol->tour = malloc((inst->nnodes + 1) * sizeof(int));
-        if (!best_sol->tour) {
+        if (!best_sol->tour)
+        {
             print_error("Memory allocation failed for best_sol->tour");
             free(current_sol.tour);
             return EXIT_FAILURE;
@@ -46,23 +47,47 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
     {
         if (check_time(inst, starting_time))
         {
-            if (VERBOSE >= 20)
-                printf("Greedy search stopped early due to time limit.\n");
+            if (VERBOSE >= 10)
+                printf("[GREEDY] %-38s%11d\n", "Stopped early due to time limit:", i);
             break;
         }
 
         int start_node = rand() % inst->nnodes;
+
+        if (VERBOSE >= 50)
+        {
+            printf("[GREEDY] %-38s%11d\n", "Start index:", i + 1);
+            printf("[GREEDY] %-38s%11d\n", "Starting node:", start_node);
+        }
+
         apply_nearest_neighbor(inst, &current_sol, start_node);
+
+        if (VERBOSE >= 20)
+            printf("[GREEDY] %-38s%11.2f\n", "Tour cost from node:", current_sol.cost);
 
         if (current_sol.cost < best_cost)
         {
             best_cost = current_sol.cost;
             memcpy(best_sol->tour, current_sol.tour, (inst->nnodes + 1) * sizeof(int));
+
+            if (VERBOSE >= 10)
+                printf("[GREEDY] %-38s%11.2f\n", "NEW BEST FOUND. Cost:", best_cost);
         }
+
+        if (VERBOSE >= 50)
+            printf("[GREEDY] %-38s%11.2f\n", "Current best after this start:", best_cost);
+
+        printf("%s\n", DIVIDER);
     }
 
-    best_sol->cost = best_cost; // Update best_sol cost
-    best_sol->initialized = 1;  // Mark as initialized
+    best_sol->cost = best_cost;
+    best_sol->initialized = 1;
+
+    if (VERBOSE >= 10)
+    {
+        printf("[GREEDY] %-38s%11.2f\n", "Final best cost:", best_cost);
+        printf("[GREEDY] %-38s%11.3fs\n", "Total elapsed time:", second() - starting_time);
+    }
 
     free(current_sol.tour);
     return EXIT_SUCCESS;
@@ -79,10 +104,6 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
 int apply_nearest_neighbor(const instance *inst, solution *sol, int start_node)
 {
     double time = second();
-    if (VERBOSE >= 50)
-    {
-        printf("Applying nearest neighbor heuristic from node %d...\n", start_node);
-    }
 
     int nnodes = inst->nnodes;
     int *visited = (int *)calloc(nnodes, sizeof(int));
@@ -113,22 +134,16 @@ int apply_nearest_neighbor(const instance *inst, solution *sol, int start_node)
         current = next;
     }
 
-    sol->tour[nnodes] = sol->tour[0]; // close the tour
+    sol->tour[nnodes] = sol->tour[0];
     free(visited);
-
-    if (VERBOSE >= 50)
-    {
-        printf("Nearest neighbor heuristic applied\n");
-        printf("Elapsed time: %lf\n", second() - time);
-        printf("--------------------------------------------\n");
-    }
 
     evaluate_path_cost(inst, sol);
 
-    if (!sol->initialized) // Mark as initialized only if not already initialized
-    {
+    if (VERBOSE >= 50)
+        printf("[NN]     %-38s%11.3fs\n", "Tour built in:", second() - time);
+
+    if (!sol->initialized)
         sol->initialized = 1;
-    }
 
     return EXIT_SUCCESS;
 }

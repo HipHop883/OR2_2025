@@ -42,4 +42,131 @@ especially when few unvisited nodes remain. This behavior can result in unnecess
 evident in Euclidean instances, where the resulting path may include edge crossings, which are absent in optimal solutions. To address these limitations, 
 the next section introduces the 2-opt heuristic, a simple yet effective local search technique aimed at improving tour quality by eliminating such inefficiencies.
 
+\newpage
+
 \section{Two-Opt}
+
+The \textit{2-opt} algorithm is a local search optimization technique designed to improve a given (possibly sub-optimal) tour 
+in the Travelling Salesman Problem. It works by iteratively removing two edges from the tour and reconnecting the resulting paths 
+in the opposite way, with the goal of reducing the overall cost of the cycle.
+Formally, we can interpret 2-opt as a particular case of a more general class of heuristics known as \textit{k-opt}, 
+where $k$ edges are removed and reconnected to form a new valid tour. In the 2-opt case, we identify two edges $(p_i, p_{i+1})$ 
+and $(p_j, p_{j+1})$ such that replacing them with $(p_i, p_j)$ and $(p_{i+1}, p_{j+1})$, while reversing the intermediate segment between $p_{i+1}$ and $p_j$. 
+The necessary condition for this move to be beneficial is:
+
+\begin{equation}
+    c_{p_i,p_{i+1}} + c_{p_j,p_{j+1}} > c_{p_i,p_j} + c_{p_{i+1},p_{j+1}}
+\end{equation}
+
+If this condition holds, the new configuration yields a lower-cost solution:
+
+\begin{align*}
+    \text{cost(new cycle)} &= \text{cost(old cycle)} - (c_{p_i,p_{i+1}} + c_{p_j,p_{j+1}}) \\
+    &\quad + (c_{p_i,p_j} + c_{p_{i+1},p_{j+1}}) \\
+    &< \text{cost(old cycle)}
+\end{align*}
+
+After identifying such a pair of edges, the segment of the tour between nodes $p_{i+1}$ and $p_j$ is reversed to maintain tour feasibility.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[c]{.4\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \begin{scope}[every node/.style={circle,thick,draw}]
+                \node (I) at (0,0) {$p_i$};
+                \node (JJ) at (0,3) {$p_{j+1}$};
+                \node (II) at (2.5,4) {$p_{i+1}$};
+                \node (J) at (4.5,1) {$p_j$};
+            \end{scope}
+            \begin{scope}[>={Stealth[black]}, every node/.style={fill=white,circle},
+                          every edge/.style={draw=red,very thick}]
+                \draw[->,black] (I) -- (II);
+                \draw[->,black] (J) -- (JJ);
+            \end{scope}
+        \end{tikzpicture}
+        \caption{Before the move}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[c]{.4\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \begin{scope}[every node/.style={circle,thick,draw}]
+                \node (I) at (0,0) {$p_i$};
+                \node (JJ) at (0,3) {$p_{j+1}$};
+                \node (II) at (2.5,4) {$p_{i+1}$};
+                \node (J) at (4.5,1) {$p_j$};
+            \end{scope}
+            \begin{scope}[>={Stealth[black]}, every node/.style={fill=white,circle},
+                          every edge/.style={draw=blue,very thick}]
+                \draw[->,blue] (I) -- (J);
+                \draw[->,blue] (II) -- (JJ);
+            \end{scope}
+        \end{tikzpicture}
+        \caption{After the move}
+    \end{subfigure}
+    \caption{Example of a 2-opt move eliminating edge crossing.}
+    \label{fig:2optmove}
+\end{figure}
+
+
+As shown in Figure~\ref{fig:2optmove}, this operation is particularly useful in Euclidean instances, where removing intersecting edges 
+usually improves the tour cost significantly. The process is repeated iteratively: at each step, the algorithm scans the tour looking 
+for a pair of edges satisfying the inequality. If found, the edges are swapped and the search continues. 
+When no further improvement can be found, the procedure terminates. This yields a solution that is often significantly better than the initial one, 
+although not necessarily optimal.
+
+To enhance the quality of the initial tour, in our implementation the 2-opt algorithm is applied as a post-processing step to refine the tour obtained 
+with the Nearest Neighbor heuristic. 
+
+????? TODO
+Specifically, the greedy procedure is run from all possible starting nodes, and for each resulting tour, 
+the 2-opt heuristic is applied independently. This exhaustive variant can produce high-quality solutions at the cost of increased computation time. 
+?????
+
+\subsection{Pseudocode}
+
+\begin{algorithm}[H]
+\caption{Two-Opt Heuristic for TSP}
+\label{alg:twoopt}
+\textbf{Input:} A Hamiltonian cycle \texttt{solution} of a graph $G$, with associated cost\\
+\textbf{Output:} An improved Hamiltonian cycle (locally optimal w.r.t. 2-opt), updated cost
+\begin{algorithmic}[1]
+\Procedure{ApplyTwoOpt}{$solution$, $nnodes$}
+    \State $improved \gets$ \textbf{true}
+    \While{$improved$}
+        \State $improved \gets$ \textbf{false}
+        \For{$i \gets 0$ \textbf{to} $nnodes - 2$}
+            \For{$j \gets i + 1$ \textbf{to} $nnodes - 1$}
+                \State $\Delta \gets$ \Call{CostDelta}{$i$, $j$, $solution$}
+                \If{$\Delta < 0$}
+                    \State \Call{ReverseSubsequence}{$solution$, $i + 1$, $j$}
+                    \State $solution.cost \gets solution.cost + \Delta$
+                    \State $improved \gets$ \textbf{true}
+                \EndIf
+            \EndFor
+        \EndFor
+    \EndWhile
+    \State \Return $solution$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{CostDelta and Subsequence Reversal}
+\label{alg:subroutines}
+\begin{algorithmic}[1]
+\Function{CostDelta}{$i$, $j$, $solution$}
+    \State Let $p_i, p_{i+1}, p_j, p_{j+1}$ be the involved nodes
+    \State \Return $c(p_i, p_j) + c(p_{i+1}, p_{j+1}) - c(p_i, p_{i+1}) - c(p_j, p_{j+1})$
+\EndFunction
+
+\Procedure{ReverseSubsequence}{$solution$, $start$, $end$}
+    \State Reverse the order of nodes in $solution$ between indices $start$ and $end$ (inclusive)
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+The \texttt{ApplyTwoOpt} procedure iteratively applies improving 2-opt moves until no further improvement is possible. 
+The cost difference \texttt{CostDelta} evaluates the gain of removing two edges and reconnecting them in the opposite direction. 
+If an improvement is found, the affected segment of the tour is reversed.

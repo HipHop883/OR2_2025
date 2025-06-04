@@ -1,0 +1,83 @@
+\section{Metaheuristics}
+
+A metaheuristic is a high-level, abstract problem-solving strategy designed to efficiently explore and exploit large solution spaces 
+in complex optimization problems. Unlike algorithms tailored to specific instances, metaheuristics are general-purpose frameworks 
+that guide subordinate heuristics—leveraging iterative improvement, intelligent search patterns, and adaptive behavior to find near-optimal solutions.
+
+In our experiments, we employ metaheuristics that use the \textit{2-opt} algorithm as a foundational local search heuristic. 
+Specifically, we take greedy solutions refined by 2-opt as initial configurations and further enhance them using one of two metaheuristic methods: 
+\textbf{Tabu Search} and \textbf{Variable Neighborhood Search (VNS)}.
+
+These strategies offer the ability to explore a broader search space than simple heuristics by incorporating mechanisms that allow 
+occasional acceptance of worse solutions— thereby escaping local optima. We demonstrate that even relatively simple metaheuristic ideas, 
+when combined with previously introduced heuristics, can yield solutions remarkably close to the optimal ones.
+
+\section{Tabu Search}
+
+Tabu Search is a metaheuristic developed to efficiently explore the solution space while avoiding local optima. 
+Originally introduced by Fred Glover in 1986 and later formalized in 1989~\cite{Glover:TabuSearch}, it is well-suited for combinatorial problems like the Traveling Salesman Problem (TSP).
+
+The method enhances a basic local search (in our case, 2-opt) by allowing non-improving moves and using a \textit{tabu list} to prevent cycling back to recently visited solutions.
+
+\subsection{Search Strategy}
+
+The search alternates between two phases:
+\begin{itemize}
+    \item \textbf{Intensification:} The algorithm performs 2-opt moves to locally improve the current solution.
+    \item \textbf{Diversification:} When no improvement occurs for a specified number of iterations, a random move is introduced to escape local minima, 
+        and the tabu tenure is increased to promote exploration.
+\end{itemize}
+
+\subsection{Implemented Mechanism}
+
+In our implementation, the algorithm follows these steps:
+
+\begin{enumerate}
+    \item Generate an initial solution, either randomly or greedily.
+    \item At each iteration, evaluate all possible 2-opt moves and select the best one not present in the tabu list.
+    \item If the selected move does not improve the current solution, it is added to the tabu list.
+    \item If a better solution is found and the tenure is greater than the minimum, the tenure is decreased to focus the search locally.
+    \item If no improvement is made over a certain number of iterations, a random move is performed and the tenure is increased to enhance diversification.
+\end{enumerate}
+
+This results in a dynamic adjustment of the tabu tenure, based on the recent progress of the search, without relying on predefined functions or schedules.
+
+\subsection{Tabu List Details}
+
+Each tabu move corresponds to a 2-opt edge swap, and is represented by storing the two removed edges, $(p_i, p_{i+1})$ and $(p_j, p_{j+1})$. 
+These moves are kept in the tabu list for a number of iterations defined by the current tenure. The list helps prevent the reversal of recent transformations 
+and encourages the algorithm to explore new regions of the solution space.
+
+\subsection{Pseudocode}
+
+\begin{algorithm}
+\caption{Tabu Search (simplified)}
+\begin{algorithmic}
+    \State $\text{sol} \gets$ initial solution
+    \State $\text{best\_sol} \gets \text{sol}$
+    \State $\text{tabulist} \gets \emptyset$
+    \While{time limit not exceeded}
+        \State $\text{move} \gets$ best 2-opt move not in tabu list
+        \State Apply $\text{move}$ to $\text{sol}$
+        \If{$\text{sol}$ is better than $\text{best\_sol}$}
+            \State $\text{best\_sol} \gets \text{sol}$
+            \If{tenure $>$ minimum}
+                \State Decrease tenure
+            \EndIf
+        \Else
+            \State Add $\text{move}$ to tabu list
+            \State Increase counter for non-improving iterations
+        \EndIf
+        \If{counter exceeds threshold}
+            \State Apply a random move
+            \If{tenure $<$ maximum}
+                \State Increase tenure
+            \EndIf
+        \EndIf
+    \EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+The version of Tabu Search implemented here uses a simple yet adaptive strategy to balance exploration and exploitation. 
+The dynamic adjustment of the tabu tenure—based on the quality of recent iterations—provides effective guidance through the solution space 
+without introducing unnecessary complexity.

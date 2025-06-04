@@ -20,18 +20,18 @@ in a fraction of the time required by exact methods, making it suitable for larg
 
 \begin{algorithm}
 \caption{Nearest Neighbor Heuristic}
-\begin{algorithmic}[1]
-\Require Starting node $s \in V$
-\Ensure Hamiltonian cycle of $G$, cost of cycle
-\State $cycle \gets [s]$
-\State $cost \gets 0$
-\For{$i \gets 0$ to $|V| - 2$}
-  \State $next \gets \arg\min_{v \in V \setminus cycle} c(cycle[i], v)$
-  \State $cost \gets cost + c(cycle[i], next)$
-  \State $cycle[i+1] \gets next$
-\EndFor
-\State $cost \gets cost + c(cycle[|V| - 1], s)$
-\State \Return $cycle$, $cost$
+\begin{algorithmic}
+  \Require Starting node $s \in V$
+  \Ensure Hamiltonian cycle of $G$, cost of cycle
+  \State $cycle \gets [s]$
+  \State $cost \gets 0$
+  \For{$i \gets 0$ to $|V| - 2$}
+    \State $next \gets \arg\min_{v \in V \setminus cycle} c(cycle[i], v)$
+    \State $cost \gets cost + c(cycle[i], next)$
+    \State $cycle[i+1] \gets next$
+  \EndFor
+  \State $cost \gets cost + c(cycle[|V| - 1], s)$
+  \State \Return $cycle$, $cost$
 \end{algorithmic}
 \end{algorithm}
 
@@ -126,12 +126,12 @@ the 2-opt heuristic is applied independently. This exhaustive variant can produc
 
 \subsection{Pseudocode}
 
-\begin{algorithm}[H]
+\begin{algorithm}
 \caption{Two-Opt Heuristic for TSP}
 \label{alg:twoopt}
 \textbf{Input:} A Hamiltonian cycle \texttt{solution} of a graph $G$, with associated cost\\
 \textbf{Output:} An improved Hamiltonian cycle (locally optimal w.r.t. 2-opt), updated cost
-\begin{algorithmic}[1]
+\begin{algorithmic}
 \Procedure{ApplyTwoOpt}{$solution$, $nnodes$}
     \State $improved \gets$ \textbf{true}
     \While{$improved$}
@@ -152,10 +152,10 @@ the 2-opt heuristic is applied independently. This exhaustive variant can produc
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}[H]
+\begin{algorithm}
 \caption{CostDelta and Subsequence Reversal}
 \label{alg:subroutines}
-\begin{algorithmic}[1]
+\begin{algorithmic}
 \Function{CostDelta}{$i$, $j$, $solution$}
     \State Let $p_i, p_{i+1}, p_j, p_{j+1}$ be the involved nodes
     \State \Return $c(p_i, p_j) + c(p_{i+1}, p_{j+1}) - c(p_i, p_{i+1}) - c(p_j, p_{j+1})$

@@ -81,3 +81,142 @@ and encourages the algorithm to explore new regions of the solution space.
 The version of Tabu Search implemented here uses a simple yet adaptive strategy to balance exploration and exploitation. 
 The dynamic adjustment of the tabu tenure—based on the quality of recent iterations—provides effective guidance through the solution space 
 without introducing unnecessary complexity.
+
+\clearpage
+
+\section{Variable Neighborhood Search (VNS)}
+
+A known limitation of the Tabu Search algorithm is the need to carefully tune several hyperparameters, such as the size and policy 
+of the tabu list (static or dynamic tenure), which may be unaffordable in real-world scenarios and can lead to overfitting. 
+Furthermore, diversification steps in Tabu Search might waste computational resources without significantly improving solution quality.
+
+A simpler alternative is the \textit{Variable Neighborhood Search (VNS)} metaheuristic~\cite{Hansen2009}, 
+which addresses the same problem from a different perspective. Rather than maintaining a tabu list to prevent reversals, 
+VNS uses random \textit{k-opt} swaps, called \textbf{kicks}, to escape local minima. Since a k-opt move alters more than two edges, 
+it is less likely to be undone by a simple 2-opt move.
+
+\subsection{Algorithm Description}
+
+The VNS algorithm iteratively improves a solution using 2-opt until no better neighbor is found. Then, it performs a series of random 3-opt kicks 
+to perturb the solution and continues the search. This avoids complete restarts (as in multistart heuristics) and ensures better locality preservation.
+
+The number of kicks is randomly selected within a fixed range $[k_{\text{min}}, k_{\text{max}}]$, making these the only hyperparameters of the method. 
+Setting $k$ too high leads to excessive perturbation (mimicking a restart), while too few kicks may not help escape the local minimum. 
+This trade-off is analyzed experimentally in Section~\ref{sec:results}. !!!!!!!!!!!!!!!TODO!!!!!!!!!!!!!!!!!!!
+
+\begin{algorithm}
+\caption{VNS}
+\label{alg:vns}
+\begin{algorithmic}
+\Procedure{VNS}{$solution$}
+    \State $solution \gets$ \Call{Greedy}{$solution$}
+    \While{not \Call{Timeout}{}}
+        \State $move \gets$ \Call{FindBest2OptSwap}{$solution$}
+        \If{\Call{Delta}{$move$} $\leq 0$}
+            \For{$i = 1$ to \Call{Random}{$k_{\min}, k_{\max}$}}
+                \State $move \gets$ \Call{Random3OptSwap}{$solution$}
+                \State $solution \gets$ \Call{Apply}{$solution$, $move$}
+            \EndFor
+        \Else
+            \State $solution \gets$ \Call{Apply}{$solution$, $move$}
+        \EndIf
+    \EndWhile
+    \State \Return $solution$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{3-Opt Kick Structure}
+
+Each kick is implemented as a 3-opt move affecting three edges. Figure~\ref{fig:3optkick} illustrates the transformation: 
+three existing edges are removed, and three new ones are inserted, generating a different tour configuration. These kicks are stochastic and 
+designed to avoid short cycles or reversals.
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[c]{.4\textwidth}
+        \centering
+        \resizebox{\linewidth}{!}{
+            \begin{tikzpicture}
+                \begin{scope}[every node/.style={circle,thick,draw}]
+                    \node (I) at (2.5,4) {$p_i$};
+                    \node (II) at (0,3) {$p_{i+1}$};
+                    \node (J) at (0,0) {$p_j$};
+                    \node (JJ) at (2,-1) {$p_{j+1}$};
+                    \node (K) at (4.5,0.3) {$p_k$};
+                    \node (KK) at (4.5,2.7) {$p_{k+1}$};
+                \end{scope}
+
+                \begin{scope}[>={Stealth[black]}, every node/.style={fill=white,circle},
+                            every edge/.style={draw=red,very thick}]
+                    \path[->] (I) edge[draw=black] (II);
+                    \path[->] (J) edge[draw=black] (JJ);
+                    \path[->] (K) edge[draw=black] (KK);
+                    \path[->] (II) edge[dashed, draw=black, thin, bend right=40] (J);
+                    \path[->] (JJ) edge[dashed, draw=black, thin, bend right=40] (K);
+                    \path[->] (KK) edge[dashed, draw=black, thin, bend right=40] (I);
+                \end{scope}
+            \end{tikzpicture}
+        }
+    \end{subfigure}
+    \hspace{1em}
+    \raisebox{-0.5\height}{$\Rightarrow$}
+    \hspace{1em}
+    \begin{subfigure}[c]{.4\textwidth}
+        \centering
+        \resizebox{\linewidth}{!}{
+            \begin{tikzpicture}
+                \begin{scope}[every node/.style={circle,thick,draw}]
+                    \node (I) at (2.5,4) {$p_i$};
+                    \node (II) at (0,3) {$p_{i+1}$};
+                    \node (J) at (0,0) {$p_j$};
+                    \node (JJ) at (2,-1) {$p_{j+1}$};
+                    \node (K) at (4.5,0.3) {$p_k$};
+                    \node (KK) at (4.5,2.7) {$p_{k+1}$};
+                \end{scope}
+
+                \begin{scope}[>={Stealth[black]}, every node/.style={fill=white,circle},
+                            every edge/.style={draw=red,very thick}]
+                    \path[->] (I) edge[draw=blue] (K);
+                    \path[->] (JJ) edge[draw=blue] (II);
+                    \path[->] (J) edge[draw=blue] (KK);
+                    \path[->] (II) edge[dashed, draw=black, thin, bend right=40] (J);
+                    \path[->] (K) edge[dashed, draw=blue, bend left=40] (JJ);
+                    \path[->] (KK) edge[dashed, draw=black, thin, bend right=40] (I);
+                \end{scope}
+            \end{tikzpicture}
+        }
+    \end{subfigure}
+    \caption{Effect of a 3-opt kick applied to a TSP tour.}
+    \label{fig:3optkick}
+\end{figure}
+
+In some cases, a single 3-opt is sufficient to escape a local minimum; in others, multiple perturbations are necessary. 
+To handle this, we adopted a multithreaded strategy that performs parallel VNS searches with different numbers of kicks and selects 
+the best result after reapplying 2-opt.
+
+\subsection{Pseudocode}
+
+\begin{algorithm}
+\caption{VNS high-level pseudocode}
+\label{alg:vns_highlevel}
+\begin{algorithmic}
+\State \textbf{Input:} starting node $s \in V$
+\State \textbf{Output:} Hamiltonian cycle and its cost
+\State
+\State $(cycle, cost) \gets$ \Call{Greedy}{$s$, $V$}
+\While{time not exceeded}
+    \State $(cycle', cost') \gets$ \Call{ApplyRandom3OptKicks}{$cycle$}
+    \State $(cycle', cost') \gets$ \Call{Apply2Opt}{$cycle'$}
+    \If{$cost' < cost$}
+        \State $(cycle, cost) \gets (cycle', cost')$
+    \EndIf
+\EndWhile
+\State \Return $(cycle, cost)$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Performance and Comparison}
+
+%The VNS algorithm consistently outperforms Tabu Search, yielding up to 3\% better results on average. 
+%This improvement is primarily due to VNS’s lower dependence on fine-tuning and simpler logic, enabling better scalability and robustness.

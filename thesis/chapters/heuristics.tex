@@ -7,16 +7,15 @@ when timely decision-making is more important than absolute precision.
 
 In this chapter, several heuristic strategies for the TSP are presented, highlighting their underlying principles, implementation, and performance.
 
-\section{Nearest Neighbour (Greedy)}
+\section{Nearest Neighbour - Greedy}
 
-One of the most intuitive heuristic approaches to the Travelling Salesman Problem is the Nearest Neighbor algorithm, which follows a greedy strategy. 
+One of the most intuitive heuristic approaches to the Travelling Salesman Problem is the \textbf{Nearest Neighbor} (NN) algorithm, which follows a greedy strategy. 
 A \textit{greedy} algorithm builds a solution step by step by always choosing the locally optimal option, with the hope that this leads to a good global solution.
 In the context of the TSP, the algorithm starts from an initial node and, at each iteration, selects the nearest unvisited node as the next step in the tour. 
 This process continues until all nodes have been visited exactly once, and the cycle is closed by returning to the starting point.
 However, the quality of the solution obtained using this method depends heavily on the starting node, as different starting points may lead to significantly 
 different tours.
-Despite its simplicity and speed, the Nearest Neighbor algorithm does not guarantee an optimal solution. Still, it often produces a reasonable approximation 
-in a fraction of the time required by exact methods, making it suitable for large instances where exact algorithms are computationally expensive.
+While NN is fast and easy to implement, its performance depends heavily on the starting node and often produces suboptimal solutions. Still, it often produces a reasonable approximation in a fraction of the time required by exact methods, making it suitable for large instances where exact algorithms are computationally expensive.
 
 \begin{algorithm}
 \caption{Nearest Neighbor Heuristic}
@@ -48,7 +47,7 @@ evident in Euclidean instances, where the resulting path may include edge crossi
     \label{fig:nn-example}
 \end{figure}
 
-Figure~\ref{fig:nn-example} illustrates the best tour generated running the Nearest Neighbor heuristic from every starting node on the well-known \textit{Att48} instance, it is easy to observe that the tour contains several edge crossings. The cost of the tour is \textbf{12012} which is significantly higher than the optimal solution cost of \textbf{10628}.
+Figure~\ref{fig:nn-example} illustrates the best tour obtained by running the Nearest Neighbor heuristic from each possible starting node on the \textit{Att48} instance. Several edge crossings are visible, indicating inefficiencies. The resulting tour cost is \textbf{12012}, significantly higher than the optimal cost of \textbf{10628}.
 
 To address these limitations, the next section introduces the 2-opt heuristic, a simple yet effective local search technique aimed at improving tour quality by eliminating such inefficiencies.
 
@@ -62,17 +61,26 @@ where $k$ edges are removed and reconnected to form a new valid tour. In the 2-o
 and $(p_j, p_{j+1})$ such that replacing them with $(p_i, p_j)$ and $(p_{i+1}, p_{j+1})$, while reversing the intermediate segment between $p_{i+1}$ and $p_j$. 
 The necessary condition for this move to be beneficial is:
 
+The 2-opt move is beneficial only if replacing the two selected edges reduces the overall tour cost. 
+Consider the current edges \((p_i, p_{i+1})\) and \((p_j, p_{j+1})\). 
+We propose replacing them with \((p_i, p_j)\) and \((p_{i+1}, p_{j+1})\), 
+which effectively reverses the intermediate segment of the tour.
+
+The move is accepted if the total cost decreases, i.e., if:
+
 \begin{equation}
-    c_{p_i,p_{i+1}} + c_{p_j,p_{j+1}} > c_{p_i,p_j} + c_{p_{i+1},p_{j+1}}
+    c(p_i, p_{i+1}) + c(p_j, p_{j+1}) > c(p_i, p_j) + c(p_{i+1}, p_{j+1})
+    \label{eq:2opt-condition}
 \end{equation}
 
-If this condition holds, the new configuration yields a lower-cost solution:
+Equivalently, the cost change \(\Delta\) resulting from this move can be computed as:
 
-\begin{align*}
-    \text{cost(new cycle)} &= \text{cost(old cycle)} - (c_{p_i,p_{i+1}} + c_{p_j,p_{j+1}}) \\
-    &\quad + (c_{p_i,p_j} + c_{p_{i+1},p_{j+1}}) \\
-    &< \text{cost(old cycle)}
-\end{align*}
+\begin{equation}
+    \Delta = [c(p_i, p_j) + c(p_{i+1}, p_{j+1})] - [c(p_i, p_{i+1}) + c(p_j, p_{j+1})]
+    \label{eq:2opt-delta}
+\end{equation}
+
+If \(\Delta < 0\), the move yields a shorter tour and is therefore accepted.
 
 After identifying such a pair of edges, the segment of the tour between nodes $p_{i+1}$ and $p_j$ is reversed to maintain tour feasibility.
 
@@ -124,13 +132,7 @@ for a pair of edges satisfying the inequality. If found, the edges are swapped a
 When no further improvement can be found, the procedure terminates. This yields a solution that is often significantly better than the initial one, 
 although not necessarily optimal.
 
-To enhance the quality of the initial tour, in our implementation the 2-opt algorithm is applied as a post-processing step to refine the tour obtained 
-with the Nearest Neighbor heuristic. 
-
-????? TODO
-Specifically, the greedy procedure is run from all possible starting nodes, and for each resulting tour, 
-the 2-opt heuristic is applied independently. This exhaustive variant can produce high-quality solutions at the cost of increased computation time. 
-?????
+To improve the Nearest Neighbor result, the 2-opt heuristic is applied as a post-processing step to the best tour found among all possible NN starting nodes. This selective refinement avoids unnecessary computation while still producing a significantly improved solution.
 
 \subsection{Pseudocode}
 
@@ -181,7 +183,7 @@ If an improvement is found, the affected segment of the tour is reversed.
 
 \subsection{Results Analysis}
 To prove the effectiveness of the 2-opt approach, we apply it to the best tour generated by NN heuristic presented in Section \ref{sec:nn-analysis}.
-Figure \ref{fig:nn-2opt-example} shows how this technique is as simple as it is effective, all the crossings in the tour have been eliminated leading to a much better tour at firsth glance.
+Figure \ref{fig:nn-2opt-example} shows how this technique is as simple as it is effective. All edge crossings have been eliminated, resulting in a visibly more efficient tour.
 
 \begin{figure}[h!]
     \centering

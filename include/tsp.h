@@ -62,6 +62,9 @@ typedef struct
 	double **cost_matrix;
 	double starting_time;
 
+	// Greedy params
+	int greedy_starts;
+
 	// VNS params
 	int vns_kmin;
 	int vns_kmax;

@@ -2,7 +2,6 @@
 #include "tsp.h"
 #include "tsp_greedy.h"
 
-#define N_GREEDY_STARTS 10 // Number of random starts for multi-start greedy
 #define DIVIDER "-----------------------------------------------------------"
 
 /**
@@ -43,7 +42,9 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
         }
     }
 
-    for (int i = 0; i < N_GREEDY_STARTS; i++)
+    int greedy_starts = fmin(inst->greedy_starts, inst->nnodes);
+
+    for (int i = 0; i < greedy_starts; i++)
     {
         if (check_time(inst, starting_time))
         {

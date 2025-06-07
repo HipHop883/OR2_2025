@@ -453,6 +453,24 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
+		else if (!strcmp(argv[i], "--greedy-starts") || !strcmp(argv[i], "-gs"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->greedy_starts = atoi(argv[++i]);
+
+				if (inst->greedy_starts < 0)
+				{
+					fprintf(stderr, "Error: Greedy Starts value must be non-negative\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: Greedy Starts value is missing\n");
+				help = 1;
+			}
+		}
 	}
 
 	// Validation
@@ -1116,6 +1134,8 @@ void init(instance *inst)
 	inst->plot = 1;
 
 	inst->starting_time = second();
+
+	inst->greedy_starts = 10;
 
 	inst->vns_kmin = 1;
 	inst->vns_kmax = 5;

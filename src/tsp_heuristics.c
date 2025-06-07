@@ -140,7 +140,7 @@ static int best_2opt_not_tabu(instance *inst, solution *sol, solution *best_sol,
 
     reverse_path_segment(best_i, best_j, sol);
 
-    if (evaluate_path_cost(inst, sol) != 0)
+    if (evaluate_path_cost(inst, sol))
         return -1;
 
     add_tabu_move(tabu, best_i, best_j);
@@ -224,7 +224,7 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     else
     {
         // Otherwise, it generates a random path
-        if (generate_random_path(inst, current_sol) != EXIT_SUCCESS)
+        if (generate_random_path(inst, current_sol))
         {
             print_error("Random path failed in vns");
             free(current_sol->tour);
@@ -237,9 +237,6 @@ int apply_heuristic_vns(instance *inst, solution *sol)
 
     memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
     best_sol->cost = current_sol->cost;
-
-    // int min_kicks = inst->vns_kmin;
-    // int max_kicks = inst->vns_kmax;
 
     // Gnuplot setup
     FILE *gp = NULL;
@@ -293,7 +290,7 @@ int apply_heuristic_vns(instance *inst, solution *sol)
 
     while (!check_time(inst, starting_time_vns))
     {
-        if (apply_two_opt(inst, current_sol) != EXIT_SUCCESS)
+        if (apply_two_opt(inst, current_sol))
             print_error("2-opt failed in VNS");
 
         if (current_sol->cost < best_sol->cost)
@@ -352,7 +349,7 @@ int apply_heuristic_vns(instance *inst, solution *sol)
 
         for (int i = 0; i < kicks; i++)
         {
-            if (apply_three_opt(inst, current_sol) != 0)
+            if (apply_three_opt(inst, current_sol))
                 print_error("3-opt failed in VNS");
         }
 
@@ -420,7 +417,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
 
     if (!sol->initialized)
     {
-        if (generate_random_path(inst, sol) != 0)
+        if (generate_random_path(inst, sol))
         {
             print_error("Random path failed in tabu");
             free_tabu(tabu);
@@ -495,7 +492,7 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
             int j = i + 1 + rand() % (nnodes - i - 1);
             reverse_path_segment(i, j, current_sol);
 
-            if (evaluate_path_cost(inst, current_sol) != 0)
+            if (evaluate_path_cost(inst, current_sol))
                 print_error("Failed to evaluate path after diversification");
 
             // Increase tenure

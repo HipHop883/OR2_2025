@@ -36,13 +36,21 @@ in a fraction of the time required by exact methods, making it suitable for larg
 \end{algorithm}
 
 \subsection{Results Analysis}
-
+\label{sec:nn-analysis}
 The greedy algorithm often selects locally optimal edges without considering long-term implications, which may lead to expensive connections, 
 especially when few unvisited nodes remain. This behavior can result in unnecessarily long edges and poor-quality tours. Such issues are particularly 
-evident in Euclidean instances, where the resulting path may include edge crossings, which are absent in optimal solutions. To address these limitations, 
-the next section introduces the 2-opt heuristic, a simple yet effective local search technique aimed at improving tour quality by eliminating such inefficiencies.
+evident in Euclidean instances, where the resulting path may include edge crossings, which are absent in optimal solutions.
 
-\newpage
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/TSP_n_n.png}
+    \caption{Nearest Neighbor heuristic solution.}
+    \label{fig:nn-example}
+\end{figure}
+
+Figure~\ref{fig:nn-example} illustrates the best tour generated running the Nearest Neighbor heuristic from every starting node on the well-known \textit{Att48} instance, it is easy to observe that the tour contains several edge crossings. The cost of the tour is \textbf{12012} which is significantly higher than the optimal solution cost of \textbf{10628}.
+
+To address these limitations, the next section introduces the 2-opt heuristic, a simple yet effective local search technique aimed at improving tour quality by eliminating such inefficiencies.
 
 \section{Two-Opt}
 

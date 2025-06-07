@@ -288,6 +288,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         best_points_count++;
     }
 
+    int no_improvement_count = 0;
+
     while (!check_time(inst, starting_time_vns))
     {
         if (apply_two_opt(inst, current_sol))
@@ -304,6 +306,12 @@ int apply_heuristic_vns(instance *inst, solution *sol)
                 printf("[VNS] %-40s%11.2f\n", "New best cost:", best_sol->cost);
                 last_logged_best = iter;
             }
+
+            no_improvement_count = 0;
+        }
+        else
+        {
+            no_improvement_count++;
         }
 
         if (inst->plot == 0 && gp)
@@ -342,6 +350,10 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         {
             int base_kicks = (rand() % (inst->vns_kmax - inst->vns_kmin + 1)) + inst->vns_kmin;
             kicks = (int)(base_kicks * inst->vns_learning_rate);
+
+            kicks += no_improvement_count / 10;
+            if (kicks > inst->nnodes / 2)
+                kicks = inst->nnodes / 2;
         }
 
         if (VERBOSE >= 70)

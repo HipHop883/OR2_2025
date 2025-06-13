@@ -1,11 +1,10 @@
-The Travelling Salesman Problem (TSP) is one of the most well-known and extensively studied problems in the field of Operations Research. 
-First mathematically formulated in the 19th century by the mathematicians William Rowan Hamilton and Thomas Kirkman \cite{Biggs1986Graph}, the TSP began to attract significant scientific attention in the 1950s. 
-It asks for the shortest possible route that visits each node in a graph exactly once and returns to the starting point—essentially, the shortest Hamiltonian cycle. 
-In 1972, Richard M. Karp proved that the TSP is NP-hard, implying that the computation time needed to solve it can grow exponentially with the size of the input \cite{Karp1972}. Despite this complexity, 
-many exact and approximate algorithms have been developed over the years, offering different trade-offs between optimality and efficiency. The current state-of-the-art in solving large-scale 
-instances of the problem is the Concorde solver, developed by Applegate, Bixby, Chvátal, and Cook, which uses advanced techniques in combinatorial optimization, linear programming, and cutting-plane methods \cite{Applegate2006}. 
-The goal of this thesis is not to propose new methods capable of competing with Concorde, but rather to explore, implement, 
-and compare basic yet effective algorithmic approaches that are computationally accessible and still capable of producing meaningful results.
+The Travelling Salesman Problem (TSP) has long served as a benchmark in combinatorial optimization and computational complexity. Although its origins can be traced back to the 19\textsuperscript{th} century with the work of Hamilton and Kirkman~\cite{Biggs1986Graph}, it was not until the mid-20\textsuperscript{th} century that the problem gained serious scientific traction. The TSP asks whether a minimal-cost cycle exists that visits each node in a graph exactly once and returns to the starting point—a problem later proven to be NP-hard by Richard M. Karp in 1972~\cite{Karp1972}.
+
+The relevance of the TSP extends well beyond its theoretical appeal: it arises naturally in domains such as logistics, manufacturing, genome sequencing, and circuit design. Solving it efficiently has therefore been a longstanding goal in both academic and industrial research. Over the years, a wide variety of algorithms have been proposed, ranging from exact methods based on integer programming to heuristic and metaheuristic approaches.
+
+One of the most advanced exact solvers is Concorde, which incorporates sophisticated techniques such as cutting planes, branch-and-bound, and polyhedral combinatorics~\cite{Applegate2006}. While extremely powerful, tools like Concorde are complex to implement and computationally intensive.
+
+This thesis focuses on more accessible algorithmic strategies for solving the TSP. Rather than aiming for optimality at any cost, the goal is to explore and compare classic heuristics and metaheuristics in terms of their practicality, computational efficiency, and solution quality across a range of problem instances.
 
 
 \section{Problem Formulation}

@@ -14,43 +14,38 @@ when combined with previously introduced heuristics, can yield solutions remarka
 
 \section{Tabu Search}
 
-Tabu Search is a metaheuristic developed to efficiently explore the solution space while avoiding local optima. 
-Originally introduced by Fred Glover in 1986 and later formalized in 1989~\cite{Glover:TabuSearch}, it is well-suited for combinatorial problems like the Traveling Salesman Problem (TSP).
-
-The method enhances a basic local search (in our case, 2-opt) by allowing non-improving moves and using a \textit{tabu list} to prevent cycling back to recently visited solutions.
+Tabu Search is a metaheuristic designed to efficiently explore the solution space while avoiding entrapment in local optima. Originally introduced by Fred Glover in 1986 and formalized in 1989~\cite{Glover:TabuSearch}, it is particularly effective for combinatorial optimization problems such as the Traveling Salesman Problem (TSP). It enhances local search by allowing non-improving moves and uses a memory structure, known as the \textit{tabu list}, to prevent cycling back to recently visited solutions.
 
 \subsection{Search Strategy}
 
-The search alternates between two phases:
+The algorithm alternates between two phases:
+
 \begin{itemize}
-    \item \textbf{Intensification:} The algorithm performs 2-opt moves to locally improve the current solution.
-    \item \textbf{Diversification:} When no improvement occurs for a specified number of iterations, a random move is introduced to escape local minima, 
-        and the tabu tenure is increased to promote exploration.
+    \item \textbf{Intensification:} A standard 2-opt local search is applied to refine the current solution by exploring its neighborhood until a local minima.
+    \item \textbf{Diversification:} When no improvement occurs for a fixed number of iterations, a perturbation is introduced (via a random move), and the tabu tenure is increased to promote broader exploration of the solution space.
 \end{itemize}
 
 \subsection{Implemented Mechanism}
 
-In our implementation, the algorithm follows these steps:
+Our implementation follows this procedure:
 
 \begin{enumerate}
-    \item Generate an initial solution, either randomly or greedily.
-    \item At each iteration, evaluate all possible 2-opt moves and select the best one not present in the tabu list.
-    \item If the selected move does not improve the current solution, it is added to the tabu list.
-    \item If a better solution is found and the tenure is greater than the minimum, the tenure is decreased to focus the search locally.
-    \item If no improvement is made over a certain number of iterations, a random move is performed and the tenure is increased to enhance diversification.
+    \item Generate an initial solution, either randomly or using a greedy heuristic.
+    \item At each iteration, evaluate all possible 2-opt moves and select the best one that is not tabu, unless it satisfies the aspiration criterion.
+    \item Apply the move; if it does not improve the solution, it is added to the tabu list.
+    \item If a better solution is found, and the tenure is greater than the minimum, the tenure is decreased to intensify the search locally.
+    \item If no improvement is observed for a specified number of iterations, a random move is performed and the tenure is increased to encourage exploration.
 \end{enumerate}
 
-This results in a dynamic adjustment of the tabu tenure, based on the recent progress of the search, without relying on predefined functions or schedules.
+This approach results in a simple yet adaptive mechanism for dynamically adjusting the tabu tenure based on the search progress. It does not rely on predefined schedules or functions and allows the algorithm to adaptively balance between exploration and exploitation.
 
 \subsection{Tabu List Details}
 
-Each tabu move corresponds to a 2-opt edge swap, and is represented by storing the two removed edges, $(p_i, p_{i+1})$ and $(p_j, p_{j+1})$. 
-These moves are kept in the tabu list for a number of iterations defined by the current tenure. The list helps prevent the reversal of recent transformations 
-and encourages the algorithm to explore new regions of the solution space.
+Each tabu entry represents a 2-opt move, recorded by storing the indices of the swapped edges. These entries remain in the tabu list for a number of iterations determined by the current tenure. The list prevents the immediate reversal of recent moves, guiding the search toward unexplored areas of the solution space. The aspiration criterion permits overriding the tabu status if a move leads to a better solution than any previously found.
 
 \subsection{Pseudocode}
 
-\begin{algorithm}
+\begin{algorithm}[H]
 \caption{Tabu Search (simplified)}
 \begin{algorithmic}
     \State $\text{sol} \gets$ initial solution
@@ -66,9 +61,9 @@ and encourages the algorithm to explore new regions of the solution space.
             \EndIf
         \Else
             \State Add $\text{move}$ to tabu list
-            \State Increase counter for non-improving iterations
+            \State Increase non-improvement counter
         \EndIf
-        \If{counter exceeds threshold}
+        \If{non-improvement counter exceeds threshold}
             \State Apply a random move
             \If{tenure $<$ maximum}
                 \State Increase tenure
@@ -78,9 +73,16 @@ and encourages the algorithm to explore new regions of the solution space.
 \end{algorithmic}
 \end{algorithm}
 
-The version of Tabu Search implemented here uses a simple yet adaptive strategy to balance exploration and exploitation. 
-The dynamic adjustment of the tabu tenure—based on the quality of recent iterations—provides effective guidance through the solution space 
-without introducing unnecessary complexity.
+\subsection{Search Behavior Analysis}
+
+To better understand the behavior of Tabu Search, we logged the solution cost and tabu tenure at each iteration and visualized them in Figure~\ref{fig:tabu_plot}. The plot shows how the algorithm initially descends rapidly from a greedy starting solution, then undergoes phases of stagnation and diversification. The tenure increases during these periods to promote exploration, while aspiration criteria allow breakthroughs despite tabu constraints. As the plot illustrates, most of the improvement occurs early, but the dynamic tenure adaptation enables occasional improvements even in late iterations.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/tabu_run_att48.png}
+    \caption{Evolution of solution cost (blue), best solution found (orange), and tabu tenure (purple, right axis) across iterations for Tabu Search on \texttt{att48}. Red crosses indicate when a new best solution was discovered.}
+    \label{fig:tabu_plot}
+\end{figure}
 
 \clearpage
 

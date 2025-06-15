@@ -197,6 +197,18 @@ static tabuList *init_tabu_list(instance *inst)
  */
 int apply_heuristic_vns(instance *inst, solution *sol)
 {
+    FILE *log_file = NULL;
+    if (VERBOSE >= 30)
+    {
+        log_file = fopen("logs/vns_log.csv", "w");
+        if (!log_file)
+        {
+            print_error("Failed to open log file for VNS");
+            return EXIT_FAILURE;
+        }
+        fprintf(log_file, "iteration,current_cost,best_cost,kicks\n");
+    }
+
     if (!inst || !sol->tour || inst->nnodes <= 0 || !inst->cost_matrix)
         return EXIT_FAILURE;
 
@@ -238,56 +250,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     memcpy(best_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
     best_sol->cost = current_sol->cost;
 
-    // Gnuplot setup
-    FILE *gp = NULL;
-    if (inst->plot == 0)
-    {
-        gp = popen("gnuplot -persist", "w");
-        if (gp)
-        {
-            char filename[256];
-            sprintf(filename, "plot/TSP_Heuristic_%s.png", inst->method);
-
-            fprintf(gp, "set terminal png\n");
-            fprintf(gp, "set output '%s'\n", filename);
-            fprintf(gp, "set title 'TSP VNS Solution Cost vs Iteration'\n");
-            fprintf(gp, "set xlabel 'Iteration'\n");
-            fprintf(gp, "set ylabel 'Solution Cost'\n");
-            fprintf(gp, "plot '-' with lines title 'Costs', '-' with lines lc rgb 'red' title 'Best costs'\n");
-        }
-    }
-
     int iter = 0;
     int last_logged_best = -1;
-
-    // int best_iter = 0;
-    // double best_cost_local = best_sol->cost;
-
-    // Array to save red line
-    int *best_iters = NULL;
-    double *best_costs = NULL;
-    int best_points_count = 0;
-    int best_points_capacity = 0;
-
-    if (inst->plot == 0 && gp)
-    {
-        best_points_capacity = 100; // Initial Capacity
-        best_iters = (int *)malloc(best_points_capacity * sizeof(int));
-        best_costs = (double *)malloc(best_points_capacity * sizeof(double));
-
-        if (!best_iters || !best_costs)
-        {
-            print_error("Memory allocation failed for best_iters/best_costs");
-            free(best_iters);
-            free(best_costs);
-            return EXIT_FAILURE;
-        }
-
-        best_iters[best_points_count] = 0;
-        best_costs[best_points_count] = best_sol->cost;
-        best_points_count++;
-    }
-
     int no_improvement_count = 0;
 
     while (!check_time(inst, starting_time_vns))
@@ -312,33 +276,6 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         else
         {
             no_improvement_count++;
-        }
-
-        if (inst->plot == 0 && gp)
-        {
-            // Check if the it needs to realloc the array
-            if (best_points_count >= best_points_capacity)
-            {
-                best_points_capacity *= 2; // Double the capacity
-                int *tmp_iters = (int *)realloc(best_iters, best_points_capacity * sizeof(int));
-                double *tmp_costs = (double *)realloc(best_costs, best_points_capacity * sizeof(double));
-
-                if (!tmp_iters || !tmp_costs)
-                {
-                    print_error("Memory reallocation failed for best_iters/best_costs");
-                    free(tmp_iters);
-                    free(tmp_costs);
-                    return EXIT_FAILURE;
-                }
-
-                best_iters = tmp_iters;
-                best_costs = tmp_costs;
-            }
-
-            // Save the new best_cost
-            best_iters[best_points_count] = iter;
-            best_costs[best_points_count] = best_sol->cost;
-            best_points_count++;
         }
 
         int kicks;
@@ -367,13 +304,9 @@ int apply_heuristic_vns(instance *inst, solution *sol)
 
         evaluate_path_cost(inst, current_sol);
 
-        if (gp)
+        if (log_file)
         {
-            fprintf(gp, "%d %lf\n", iter, current_sol->cost);
-        }
-        else if (inst->plot == 0)
-        {
-            printf("Gnuplot pipe error\n");
+            fprintf(log_file, "%d,%.6f,%.6f,%d\n", iter, current_sol->cost, best_sol->cost, kicks);
         }
 
         iter++;
@@ -382,26 +315,8 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     if (VERBOSE >= 20)
         printf("[VNS] Total elapsed time: %.3fs\n", second() - starting_time_vns);
 
-    if (gp)
-    {
-        fprintf(gp, "e\n");
-
-        // Send all points of the best cost to GnuPlot
-        for (int i = 0; i < best_points_count; i++)
-        {
-            fprintf(gp, "%d %lf\n", best_iters[i], best_costs[i]);
-        }
-        fprintf(gp, "e\n");
-        fflush(gp);
-        pclose(gp);
-    }
-    else if (inst->plot == 0)
-    {
-        printf("Gnuplot pipe error\n");
-    }
-
-    if (VERBOSE >= 20)
-        printf("VNS stopped due to time limit.\n");
+    if (log_file)
+        fclose(log_file);
 
     memcpy(sol->tour, best_sol->tour, sizeof(int) * (inst->nnodes + 1));
     sol->cost = best_sol->cost;

@@ -417,6 +417,18 @@ int apply_heuristic_vns(instance *inst, solution *sol)
 
 int apply_heuristic_tabu(instance *inst, solution *sol)
 {
+    FILE *log_file = NULL;
+    if (VERBOSE >= 30)
+    {
+        log_file = fopen("logs/tabu_log.csv", "w");
+        if (!log_file)
+        {
+            print_error("Failed to open log file for Tabu Search");
+            return EXIT_FAILURE;
+        }
+        fprintf(log_file, "iteration,current_cost,best_cost,tenure\n");
+    }
+
     if (!inst || !sol)
         return EXIT_FAILURE;
 
@@ -541,7 +553,15 @@ int apply_heuristic_tabu(instance *inst, solution *sol)
             printf("%s\n", DIVIDER);
 
         iter++;
+
+        if (log_file)
+        {
+            fprintf(log_file, "%d,%.6f,%.6f,%d\n", iter, current_sol->cost, best_sol->cost, tabu->tenure);
+        }
     }
+
+    if (log_file)
+        fclose(log_file);
 
     if (VERBOSE >= 20)
         printf("[TABU] Search terminated due to time limit.\n");

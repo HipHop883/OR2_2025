@@ -48,5 +48,4 @@ ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right', fontsize=10)
 
 # Layout and export
 plt.tight_layout()
-plt.savefig("tabu_search_final_plot.png", dpi=300)
 plt.show()

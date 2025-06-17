@@ -81,6 +81,21 @@ typedef struct
 	int ncols;
 } instance;
 
+/**
+ * Types of 3-opt reconnection moves.
+ * Defines how the three segments (A, B, C) are reversed or not.
+ */
+enum ThreeOptType
+{
+	TYPE_0, ///< Identity
+	TYPE_1, ///< Reverse A
+	TYPE_2, ///< Reverse B
+	TYPE_3, ///< Reverse C
+	TYPE_4, ///< Reverse A and B
+	TYPE_5, ///< Reverse A and C
+	TYPE_6	///< Reverse B and C
+};
+
 void init(instance *inst);
 int parse_command_line(int argc, char **argv, instance *inst);
 

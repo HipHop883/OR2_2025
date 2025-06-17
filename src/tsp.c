@@ -1151,90 +1151,154 @@ void init(instance *inst)
 }
 
 /**
- * Generate 3-opt positions: fills positions[0..2] with valid indices for a 3-opt move.
- * @param tsp TSP instance
- * @param positions array of 3 integers
+ * Generate random indices for a 3-opt move.
+ *
+ * @param tsp Pointer to the TSP instance
+ * @param i Pointer to store index i
+ * @param j Pointer to store index j
+ * @param k Pointer to store index k
  * @return void
  */
-static void generate_three_opt_positions(instance *tsp, int *positions)
+static void generate_three_opt_indices(instance *tsp, int *i, int *j, int *k)
 {
+	int nnodes = tsp->nnodes;
 	while (1)
 	{
-		positions[0] = rand() % tsp->nnodes;
-		positions[1] = rand() % tsp->nnodes;
-		positions[2] = rand() % tsp->nnodes;
-		qsort(positions, 3, sizeof(int), compar);
-
-		// Ensure the positions are sufficiently apart:
-		if (positions[1] > positions[0] + 1 &&
-			positions[2] > positions[1] + 1 &&
-			positions[2] + 1 < tsp->nnodes)
-		{
+		*i = rand() % (nnodes - 3);
+		*j = *i + 1 + rand() % (nnodes - *i - 2);
+		*k = *j + 1 + rand() % (nnodes - *j - 1);
+		if (*k < nnodes - 1)
 			break;
-		}
 	}
 }
 
 /**
- * Perform a 3-opt swap on the current solution, storing the result in the new solution.
- * @param tsp TSP instance
- * @param current_sol current solution
- * @param new_tour new solution path
- * @param positions array of 3 integers
+ * Copy a segment of the tour from src to dst. It works both in normal or reversed order, updating
+ * the write position in the destination array.
+ *
+ * @param dst Destination tour array
+ * @param src Source tour array
+ * @param pos Pointer to current write position in dst
+ * @param start Start index in src
+ * @param end End index in src
+ * @param reverse If 1, copy in reverse order; if 0, copy normally
  * @return void
  */
-static void perform_three_opt_swap(instance *tsp, solution *current_sol, int *new_tour, int *positions)
+static void copy_segment(int *dst, int *src, int *pos, int start, int end, int reverse)
 {
-	// Copy segment from index 0 to positions[0] unchanged.
-	memcpy(new_tour, current_sol->tour, sizeof(int) * (positions[0] + 1));
-	int pos = positions[0] + 1;
-
-	// Reverse the segment between positions[0]+1 and positions[1].
-	for (int i = positions[1]; i >= positions[0] + 1; i--)
+	if (reverse)
 	{
-		new_tour[pos++] = current_sol->tour[i];
+		for (int i = end; i >= start; i--)
+			dst[(*pos)++] = src[i];
 	}
-
-	// Reverse the segment between positions[1]+1 and positions[2].
-	for (int i = positions[2]; i >= positions[1] + 1; i--)
+	else
 	{
-		new_tour[pos++] = current_sol->tour[i];
+		for (int i = start; i <= end; i++)
+			dst[(*pos)++] = src[i];
 	}
-
-	// Copy the remainder of the tour from positions[2]+1 to the end.
-	memcpy(new_tour + pos, current_sol->tour + positions[2] + 1, sizeof(int) * (tsp->nnodes - positions[2] - 1));
 }
 
 /**
- * Recompute the solution cost after applying a 3-opt swap.
- * @param tsp TSP instance
- * @param solution solution path
- * @return 0 if the solution cost is recomputed successfully, -1 otherwise
+ * Apply a 3-opt move to the tour based on given type and cut indices.
+ * The move reconnects the segments (i+1 to j), (j+1 to k), and (k+1 to end)
+ * based on the specified 3-opt move type.
+ *
+ * @param tsp Pointer to the TSP instance
+ * @param src_tour Source tour array
+ * @param dst_tour Destination tour array to store the result
+ * @param i First cut index
+ * @param j Second cut index
+ * @param k Third cut index
+ * @param type Type of 3-opt move to apply (enum ThreeOptType)
+ * @return void
+ */
+static void apply_three_opt_move(instance *tsp, int *src_tour, int *dst_tour, int i, int j, int k, enum ThreeOptType type)
+{
+	int pos = 0;
+	int nnodes = tsp->nnodes;
+
+	// Copy prefix 0..i
+	memcpy(dst_tour, src_tour, sizeof(int) * (i + 1));
+	pos = i + 1;
+
+	int reverse_A = 0, reverse_B = 0, reverse_C = 0;
+
+	switch (type)
+	{
+	case TYPE_0:
+		break;
+	case TYPE_1:
+		reverse_A = 1;
+		break;
+	case TYPE_2:
+		reverse_B = 1;
+		break;
+	case TYPE_3:
+		reverse_C = 1;
+		break;
+	case TYPE_4:
+		reverse_A = reverse_B = 1;
+		break;
+	case TYPE_5:
+		reverse_A = reverse_C = 1;
+		break;
+	case TYPE_6:
+		reverse_B = reverse_C = 1;
+		break;
+	}
+
+	copy_segment(dst_tour, src_tour, &pos, i + 1, j, reverse_A);		  // Segment A
+	copy_segment(dst_tour, src_tour, &pos, j + 1, k, reverse_B);		  // Segment B
+	copy_segment(dst_tour, src_tour, &pos, k + 1, nnodes - 1, reverse_C); // Segment C
+
+	dst_tour[nnodes] = dst_tour[0]; // Close tour
+}
+
+/**
+ * Apply the 3-opt heuristic to a solution. *
+ * Randomly selects a valid (i, j, k) triple and evaluates all 7 possible
+ * 3-opt reconnection types. Applies the best one (lowest total cost).
+ *
+ * @param tsp Pointer to the TSP instance
+ * @param sol Pointer to the solution to update
+ * @return 0 if the 3-opt heuristic is applied successfully, -1 on error
  */
 int apply_three_opt(instance *tsp, solution *sol)
 {
 	if (!tsp->cost_matrix || tsp->nnodes <= 0)
-	{
 		return -1;
+
+	int i, j, k;
+	generate_three_opt_indices(tsp, &i, &j, &k);
+
+	int nnodes = tsp->nnodes;
+	int *new_tour = malloc(sizeof(int) * (nnodes + 1));
+	int *best_tour = malloc(sizeof(int) * (nnodes + 1));
+	if (!new_tour || !best_tour)
+		return -1;
+
+	double best_cost = CPX_INFBOUND;
+
+	for (int move = 0; move < 7; move++)
+	{
+		apply_three_opt_move(tsp, sol->tour, new_tour, i, j, k, move);
+
+		double cost = 0;
+		for (int n = 0; n < nnodes; n++)
+			cost += tsp->cost_matrix[new_tour[n]][new_tour[n + 1]];
+
+		if (cost < best_cost)
+		{
+			best_cost = cost;
+			memcpy(best_tour, new_tour, sizeof(int) * (nnodes + 1));
+		}
 	}
 
-	int positions[3];
-	generate_three_opt_positions(tsp, positions);
+	memcpy(sol->tour, best_tour, sizeof(int) * (nnodes + 1));
+	sol->cost = best_cost;
 
-	int *temp_tour = (int *)malloc(sizeof(int) * (tsp->nnodes + 1));
-	if (temp_tour == NULL)
-	{
-		return -1;
-	}
-
-	// Apply the 3-opt swap using the generated positions.
-	perform_three_opt_swap(tsp, sol, temp_tour, positions);
-	memcpy(sol->tour, temp_tour, sizeof(int) * (tsp->nnodes + 1));
-
-	free(temp_tour);
-
-	// Recompute and update the solution cost.
-	evaluate_path_cost(tsp, sol);
+	free(new_tour);
+	free(best_tour);
 
 	return 0;
 }

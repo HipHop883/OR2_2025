@@ -218,7 +218,19 @@ the best result after reapplying 2-opt.
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Performance and Comparison}
+\subsection{Search Behavior Analysis}
 
-%The VNS algorithm consistently outperforms Tabu Search, yielding up to 3\% better results on average. 
-%This improvement is primarily due to VNS’s lower dependence on fine-tuning and simpler logic, enabling better scalability and robustness.
+To better understand the internal dynamics of the VNS algorithm, we tracked the solution cost, number of 3-opt kicks applied, and moments when new best solutions were discovered. Figure~\ref{fig:vns_plot} shows a representative run on the \texttt{att48} instance. This execution was deliberately performed with a reduced time limit in order to produce a visually rich and interpretable trace of the algorithm's behavior over a large number of iterations. The results should therefore be interpreted qualitatively rather than quantitatively.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/vns_run_att48.png}
+    \caption{Evolution of solution cost (blue), best solution found (orange), and number of 3-opt kicks (green, right axis) across iterations for VNS on \texttt{att48}. Red crosses indicate new best solutions.}
+    \label{fig:vns_plot}
+\end{figure}
+
+As the plot illustrates, the algorithm alternates between local refinement phases using 2-opt and diversification phases driven by a variable number of 3-opt kicks. The current solution cost (blue) exhibits significant fluctuation, especially during early iterations, as the algorithm explores different regions of the solution space. These fluctuations are a natural consequence of aggressive perturbations, which often increase the solution cost before re-converging toward local optima.
+
+The number of 3-opt kicks applied (green, right axis) tends to grow over time as the algorithm intensifies its efforts to escape increasingly stubborn local minima. Periodic improvements to the best solution (orange), marked by red crosses, indicate successful escapes and demonstrate the role of kicks in broadening the search beyond immediate neighborhoods.
+
+While this run was not intended to produce optimal results, it clearly shows the iterative interaction between intensification and diversification mechanisms that define the VNS approach.

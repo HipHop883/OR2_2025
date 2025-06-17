@@ -1287,11 +1287,8 @@ int apply_three_opt(instance *tsp, solution *sol)
 		for (int n = 0; n < nnodes; n++)
 			cost += tsp->cost_matrix[new_tour[n]][new_tour[n + 1]];
 
-		if (cost < best_cost)
-		{
-			best_cost = cost;
-			memcpy(best_tour, new_tour, sizeof(int) * (nnodes + 1));
-		}
+		best_cost = cost;
+		memcpy(best_tour, new_tour, sizeof(int) * (nnodes + 1));
 	}
 
 	memcpy(sol->tour, best_tour, sizeof(int) * (nnodes + 1));

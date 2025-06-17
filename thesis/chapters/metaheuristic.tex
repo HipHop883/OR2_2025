@@ -104,7 +104,7 @@ to perturb the solution and continues the search. This avoids complete restarts 
 
 The number of kicks is randomly selected within a fixed range $[k_{\text{min}}, k_{\text{max}}]$, making these the only hyperparameters of the method. 
 Setting $k$ too high leads to excessive perturbation (mimicking a restart), while too few kicks may not help escape the local minimum. 
-This trade-off is analyzed experimentally in Section~\ref{sec:results}. !!!!!!!!!!!!!!!TODO!!!!!!!!!!!!!!!!!!!
+This trade-off is analyzed experimentally in Section~\ref{sec:results}.\todo{trade off analysis nella sezione dei rsiultati}
 
 \begin{algorithm}
 \caption{VNS}
@@ -129,7 +129,7 @@ This trade-off is analyzed experimentally in Section~\ref{sec:results}. !!!!!!!!
 \end{algorithm}
 
 \subsection{3-Opt Kick Structure}
-
+\todo{Vedere se è ancora coerente con la nuova implementazione}
 Each kick is implemented as a 3-opt move affecting three edges. Figure~\ref{fig:3optkick} illustrates the transformation: 
 three existing edges are removed, and three new ones are inserted, generating a different tour configuration. These kicks are stochastic and 
 designed to avoid short cycles or reversals.

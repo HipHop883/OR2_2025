@@ -296,13 +296,36 @@ int apply_heuristic_vns(instance *inst, solution *sol)
         if (VERBOSE >= 70)
             printf("[VNS] Applying %d 3-opt kicks for diversification at iter %d\n", kicks, iter);
 
+        solution *best_kick_sol = (solution *)malloc(sizeof(solution));
+        best_kick_sol->tour = (int *)malloc(sizeof(int) * (inst->nnodes + 1));
+        memcpy(best_kick_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
+        best_kick_sol->cost = CPX_INFBOUND;
+
         for (int i = 0; i < kicks; i++)
         {
-            if (apply_three_opt(inst, current_sol))
+            solution *kick_sol = (solution *)malloc(sizeof(solution));
+            kick_sol->tour = (int *)malloc(sizeof(int) * (inst->nnodes + 1));
+            memcpy(kick_sol->tour, current_sol->tour, sizeof(int) * (inst->nnodes + 1));
+            kick_sol->cost = current_sol->cost;
+
+            if (apply_three_opt(inst, kick_sol))
                 print_error("3-opt failed in VNS");
+
+            evaluate_path_cost(inst, kick_sol);
+
+            if (kick_sol->cost < best_kick_sol->cost)
+            {
+                memcpy(best_kick_sol->tour, kick_sol->tour, sizeof(int) * (inst->nnodes + 1));
+                best_kick_sol->cost = kick_sol->cost;
+            }
+
+            free_sol(kick_sol);
         }
 
-        evaluate_path_cost(inst, current_sol);
+        memcpy(current_sol->tour, best_kick_sol->tour, sizeof(int) * (inst->nnodes + 1));
+        current_sol->cost = best_kick_sol->cost;
+
+        free_sol(best_kick_sol);
 
         if (log_file)
         {

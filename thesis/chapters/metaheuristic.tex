@@ -102,39 +102,17 @@ it is less likely to be undone by a simple 2-opt move.
 The VNS algorithm iteratively improves a solution using 2-opt until no better neighbor is found. Then, it performs a series of random 3-opt kicks 
 to perturb the solution and continues the search. This avoids complete restarts (as in multistart heuristics) and ensures better locality preservation.
 
-The number of kicks is randomly selected within a fixed range $[k_{\text{min}}, k_{\text{max}}]$, making these the only hyperparameters of the method. 
-Setting $k$ too high leads to excessive perturbation (mimicking a restart), while too few kicks may not help escape the local minimum. 
-This trade-off is analyzed experimentally in Section~\ref{sec:results}.\todo{trade off analysis nella sezione dei rsiultati}
-
-\begin{algorithm}
-\caption{VNS}
-\label{alg:vns}
-\begin{algorithmic}
-\Procedure{VNS}{$solution$}
-    \State $solution \gets$ \Call{Greedy}{$solution$}
-    \While{not \Call{Timeout}{}}
-        \State $move \gets$ \Call{FindBest2OptSwap}{$solution$}
-        \If{\Call{Delta}{$move$} $\leq 0$}
-            \For{$i = 1$ to \Call{Random}{$k_{\min}, k_{\max}$}}
-                \State $move \gets$ \Call{Random3OptSwap}{$solution$}
-                \State $solution \gets$ \Call{Apply}{$solution$, $move$}
-            \EndFor
-        \Else
-            \State $solution \gets$ \Call{Apply}{$solution$, $move$}
-        \EndIf
-    \EndWhile
-    \State \Return $solution$
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
+The number of kicks is randomly selected within a fixed range $[k_{\text{min}}, k_{\text{max}}]$ and scaled by a learning factor. 
+This value is further adjusted based on the number of iterations since the last improvement, allowing the algorithm to increase its exploration 
+as it stagnates. This trade-off is analyzed experimentally in Section~\ref{sec:results}.\todo{trade off analysis nella sezione dei rsiultati}
 
 \subsection{3-Opt Kick Structure}
-\todo{Vedere se è ancora coerente con la nuova implementazione}
-Each kick is implemented as a 3-opt move affecting three edges. Figure~\ref{fig:3optkick} illustrates the transformation: 
-three existing edges are removed, and three new ones are inserted, generating a different tour configuration. These kicks are stochastic and 
-designed to avoid short cycles or reversals.
 
-\begin{figure}[h]
+Each kick is implemented as a 3-opt move, which removes three edges and reconnects the resulting segments using one of seven possible reconnection types. 
+For each kick, a valid triple of split indices $(i, j, k)$ is selected at random, and all reconnection variants are evaluated. 
+The configuration with the lowest cost is retained and applied to the current solution. Figure~\ref{fig:3optkick} illustrates a typical 3-opt transformation.
+
+\begin{figure}[H]
     \centering
     \begin{subfigure}[c]{.4\textwidth}
         \centering
@@ -193,30 +171,33 @@ designed to avoid short cycles or reversals.
     \label{fig:3optkick}
 \end{figure}
 
-In some cases, a single 3-opt is sufficient to escape a local minimum; in others, multiple perturbations are necessary. 
-To handle this, we adopted a multithreaded strategy that performs parallel VNS searches with different numbers of kicks and selects 
-the best result after reapplying 2-opt.
-
 \subsection{Pseudocode}
 
-\begin{algorithm}
+\begin{algorithm}[H]
 \caption{VNS high-level pseudocode}
 \label{alg:vns_highlevel}
 \begin{algorithmic}
-\State \textbf{Input:} starting node $s \in V$
-\State \textbf{Output:} Hamiltonian cycle and its cost
+\State \textbf{Input:} Instance \texttt{inst}, initial solution \texttt{sol}
+\State \textbf{Output:} Best solution found
 \State
-\State $(cycle, cost) \gets$ \Call{Greedy}{$s$, $V$}
+\If{solution not initialized}
+    \State Generate initial path (greedy or random)
+\EndIf
 \While{time not exceeded}
-    \State $(cycle', cost') \gets$ \Call{ApplyRandom3OptKicks}{$cycle$}
-    \State $(cycle', cost') \gets$ \Call{Apply2Opt}{$cycle'$}
-    \If{$cost' < cost$}
-        \State $(cycle, cost) \gets (cycle', cost')$
+    \State Apply 2-opt to refine \texttt{sol}
+    \If{\texttt{sol} improves}
+        \State Update best known solution
+    \Else
+        \State Compute number of 3-opt kicks (based on $[k_{\min}, k_{\max}]$, learning rate, stagnation)
+        \For{each kick}
+            \State Apply 3-opt with best of 7 reconnection types
+        \EndFor
     \EndIf
 \EndWhile
-\State \Return $(cycle, cost)$
+\State \Return best solution found
 \end{algorithmic}
 \end{algorithm}
+
 
 \subsection{Search Behavior Analysis}
 
@@ -231,6 +212,8 @@ To better understand the internal dynamics of the VNS algorithm, we tracked the 
 
 As the plot illustrates, the algorithm alternates between local refinement phases using 2-opt and diversification phases driven by a variable number of 3-opt kicks. The current solution cost (blue) exhibits significant fluctuation, especially during early iterations, as the algorithm explores different regions of the solution space. These fluctuations are a natural consequence of aggressive perturbations, which often increase the solution cost before re-converging toward local optima.
 
-The number of 3-opt kicks applied (green, right axis) tends to grow over time as the algorithm intensifies its efforts to escape increasingly stubborn local minima. Periodic improvements to the best solution (orange), marked by red crosses, indicate successful escapes and demonstrate the role of kicks in broadening the search beyond immediate neighborhoods.
+The number of 3-opt kicks applied (green, right axis) tends to grow over time as the algorithm adapts to longer periods without improvement. 
+This allows for progressively broader exploration of the solution space. Periodic improvements to the best solution (orange), marked by red crosses, 
+highlight successful escapes from local minima.
 
 While this run was not intended to produce optimal results, it clearly shows the iterative interaction between intensification and diversification mechanisms that define the VNS approach.

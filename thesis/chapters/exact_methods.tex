@@ -11,3 +11,84 @@ CPLEX is a high-performance solver for linear programming (LP), mixed-integer pr
 It provides a rich set of APIs, allowing for integration into custom optimization workflows, along with powerful features like presolving, cutting planes, heuristics, and branch-and-bound algorithms. One of the most useful functionalities of CPLEX for combinatorial optimization problems, such as the Traveling Salesman Problem (TSP), is the support for \emph{callbacks}. These allow users to interact with the solver during the optimization process, for example, by adding constraints dynamically (lazy constraints) or customizing branching decisions.
 
 In this work, CPLEX is used to solve the integer linear programming (ILP) formulation of the TSP, taking advantage of its support for dynamic constraint generation to efficiently handle the exponential number of Subtour Elimination Constraints.
+
+\section{Benders Decomposition}
+
+Benders Decomposition is a general technique for solving large-scale mixed-integer problems by iteratively decomposing them into a master problem and one or more subproblems. 
+
+In our implementation, the main idea is to:
+\begin{itemize}
+    \item Solve a relaxed version of the ILP model without SECs.
+    \item Analyze the resulting solution to detect subtours (disconnected components).
+    \item Add one or more SECs to eliminate these subtours.
+    \item Repeat the process until a connected solution is found.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{benders_flow.drawio.png}
+    \caption{Flowchart of the Benders-like solving loop for the TSP.}
+    \label{fig:benders_flowchart}
+\end{figure}
+
+\subsection{Cycle Detection and SEC Addition.}
+The solution provided by CPLEX after each iteration is typically fractional or disconnected. To restore feasibility, we apply a component detection procedure: all edges \( x_{ij} \) such that \( x_{ij} > 0.5 \) are considered part of the current solution, and a union-find-like structure is used to identify the connected components.
+
+For each component \( C_k \), we add the following constraint:
+\[
+\sum_{\substack{i,j \in C_k \\ i \neq j}} x_{ij} \leq |C_k| - 1
+\]
+This ensures that in future iterations, such subtours will be avoided.
+
+\subsection{Pseudocode}
+\begin{algorithm}[H]
+\caption{Subtour Elimination Loop}
+\begin{algorithmic}[1]
+\State Initialize \texttt{comp[i] = -1} for all nodes $i$, and set \texttt{ncomp = 0}
+\Repeat
+    \State Solve the relaxed ILP using \texttt{CPXmipopt}
+    \State Extract solution and build components from $x^*_{ij} > 0.5$
+    \State \texttt{ncomp} $\gets$ number of connected components
+    \If{$ncomp > 1$}
+        \For{each component $C_k$}
+            \State Add SEC: $\sum_{i,j \in C_k} x_{ij} \leq |C_k| - 1$
+        \EndFor
+    \EndIf
+\Until{\texttt{ncomp} = 1 or time limit reached}
+\end{algorithmic}
+\end{algorithm}
+
+The entire loop is managed manually, CPLEX is invoked multiple times, at each iteration with an updated model that includes new constraints.
+
+\subsection{Patching Heuristic}
+
+In cases where the solving loop exceeds the time limit or fails to converge to a single connected component, we introduce a fallback heuristic called \emph{patching}, which aims to merge disconnected subtours into a feasible Hamiltonian cycle.
+
+The algorithm works as follows:
+\begin{itemize}
+    \item Identify all components (subtours) in the current solution.
+    \item For each pair of components, consider removing an edge from one component and connecting its endpoint to a node in the other component.
+    \item Compute the extra cost for each reconnection and select the pair that minimizes the increase in total cost.
+    \item Repeat the operation until all components are merged into a single tour.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pre_patch.drawio.png}
+        \caption{Disconnected subtours (MIP solution)}
+        \label{fig:pre_patch}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{post_patch.drawio.png}
+        \caption{Final tour after patching}
+        \label{fig:post_patch}
+    \end{subfigure}
+    \caption{Visual example of the patching heuristic. The initial MIP solution contains multiple disconnected cycles (a), which are then merged into a single feasible tour (b) using edge reconnection.}
+    \label{fig:patching_combined}
+\end{figure}
+
+Finally, once a patched tour is constructed, a local optimization phase (e.g., 2-opt) can optionally be applied to refine the solution quality. Obviously, this solution does not guarantee optimality, but it is a reliable fallback in case the Benders loop does not have enough time to reach the global minimum.

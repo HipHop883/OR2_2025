@@ -1,0 +1,13 @@
+Despite the promising results achievable with a well-designed heuristic, it is necessary to consider strategies aimed at finding the optimal solution.
+
+Before going into the implementation of exact methods, we must first examine the problem formulation introduced in Section~\ref{sec:prob-form}, particularly the Subtour Elimination Constraints in Equation~\ref{eq:ilp_sec}. It is important to highlight that the number of SECs grows exponentially with respect to the number of nodes in the instance, making it infeasible to generate all of them upfront, even for problems of moderate size.
+
+This section presents the implementation of exact methods whose goal is to generate SECs in a more intelligent and efficient manner, leveraging CPLEX to solve the resulting mathematical model.
+
+\section{CPLEX}
+
+CPLEX is a high-performance solver for linear programming (LP), mixed-integer programming (MIP), and quadratic programming problems. It is widely used in both academic research and industrial applications due to its efficiency, scalability, and support for advanced solving techniques.
+
+It provides a rich set of APIs, allowing for integration into custom optimization workflows, along with powerful features like presolving, cutting planes, heuristics, and branch-and-bound algorithms. One of the most useful functionalities of CPLEX for combinatorial optimization problems, such as the Traveling Salesman Problem (TSP), is the support for \emph{callbacks}. These allow users to interact with the solver during the optimization process, for example, by adding constraints dynamically (lazy constraints) or customizing branching decisions.
+
+In this work, CPLEX is used to solve the integer linear programming (ILP) formulation of the TSP, taking advantage of its support for dynamic constraint generation to efficiently handle the exponential number of Subtour Elimination Constraints.

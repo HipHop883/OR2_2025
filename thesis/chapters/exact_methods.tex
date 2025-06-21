@@ -92,3 +92,39 @@ The algorithm works as follows:
 \end{figure}
 
 Finally, once a patched tour is constructed, a local optimization phase (e.g., 2-opt) can optionally be applied to refine the solution quality. Obviously, this solution does not guarantee optimality, but it is a reliable fallback in case the Benders loop does not have enough time to reach the global minimum.
+
+\section{Branch-and-Cut}
+
+Branch-and-Cut is a state-of-the-art exact method for solving the TSP and many other combinatorial problems. It extends the classical Branch-and-Bound algorithm by dynamically adding valid inequalities (cuts) to the model, such as Subtour Elimination Constraints (SECs), during the exploration of the branch-and-bound tree.
+
+In our implementation, we leverage CPLEX’s built-in support for \texttt{lazy constraint callbacks} to detect and eliminate subtours on-the-fly. This allows us to start from a relaxed ILP formulation and enforce connectivity only when needed, without pre-generating the exponential number of SECs.
+
+\subsection{Lazy Constraint Mechanism}
+
+Rather than rebuilding the model after each solution, Branch-and-Cut integrates subtour elimination directly into the solving loop through a callback mechanism. After each integer-feasible solution is identified by the solver, a callback is triggered to verify whether the current edge selection forms a valid Hamiltonian cycle. This is achieved by analyzing the connected components of the solution. If multiple subtours are found, one or more violated SECs are generated and dynamically injected into the model as lazy constraints.
+
+This logic can be visualized using the flow in Figure~\ref{fig:benders_flowchart}, with the only difference being that SECs are injected directly into the CPLEX solver, and the model is not rebuilt from scratch at each iteration.
+
+This interaction happens entirely within the solver, reducing overhead and fully exploiting CPLEX’s branch-and-bound engine. In our implementation, this is realized by registering a lazy constraint callback under the candidate solution context, which ensures that only integer-feasible solutions are inspected. The integration is fully transparent to the solver's internal mechanisms, preserving performance.
+
+\subsection{Pseudocode}
+
+\begin{algorithm}[H]
+\caption{Callback-based Subtour Elimination}
+\begin{algorithmic}[1]
+\State Define lazy constraint callback function:
+\Statex \quad Extract $x^*_{ij}$ from current solution
+\Statex \quad Build connected components from $x^*_{ij} > 0.5$
+\If{\texttt{ncomp} $>$ 1}
+    \For{each component $C_k$}
+        \State Add SEC: $\sum_{i,j \in C_k} x_{ij} \leq |C_k| - 1$
+    \EndFor
+\EndIf
+\State Attach callback to CPLEX model
+\State Solve the ILP using \texttt{CPXmipopt}
+\end{algorithmic}
+\end{algorithm}
+
+The callback logic relies on identifying connected components from the edge variables $x_{ij}$ using a simple traversal procedure. Subtours are detected efficiently and corresponding SECs are added using CPLEX's lazy constraint API, avoiding the need to rebuild the model.
+
+This structure ensures that any subtour detected during the search is immediately eliminated, allowing the solver to explore only feasible (or corrected) branches.

@@ -36,3 +36,52 @@ The main benefits of Hard Fixing lie in its ability to guide the solver toward p
 \State \Return $x^\text{best}$
 \end{algorithmic}
 \end{algorithm}
+
+\section{Local Branching}
+
+Local Branching is a matheuristic strategy that refines an existing solution by exploring its neighborhood through a restricted MIP model. Rather than using traditional local search operators such as 2-opt or 3-opt—whose complexity can grow exponentially with neighborhood size—this technique introduces a constraint that defines a neighborhood implicitly, allowing the solver to search within it efficiently.
+
+Given a reference solution \( x^h \), the local branching neighborhood \( N(x^h) \) is defined as the set of solutions that differ from \( x^h \) in at most \( k \) variables. In the context of the TSP, this is typically implemented by enforcing the following constraint:
+\[
+\sum_{(i,j) \in E : x^h_{ij} = 1} x_{ij} \geq n - k
+\]
+This forces the solver to retain at least \( n - k \) of the edges from the reference tour, effectively limiting the exploration to a region close to \( x^h \).
+
+The parameter \( k \) controls the size of the neighborhood:
+\begin{itemize}
+    \item \( k = 0 \) leads to a fully fixed tour (no flexibility),
+    \item \( k = n \) allows for more exploration but with less structure,
+    \item intermediate values like \( k = 20 \) often balance intensification and diversification effectively.
+\end{itemize}
+
+The method begins with a greedy solution and iteratively solves restricted models using CPLEX. At each iteration:
+\begin{itemize}
+    \item If a better solution is found, \( k \) is reset to its initial value.
+    \item If no improvement is found, \( k \) is increased to allow broader exploration.
+    \item The search is bounded by a global time limit, and each subproblem is further limited by a maximum number of branch-and-bound nodes.
+\end{itemize}
+
+If the resulting solution is disconnected, a fallback patching heuristic is applied (see Section~\ref{ssec:patching}).
+
+\subsection{Pseudocode}
+
+\begin{algorithm}[H]
+\caption{Local Branching Matheuristic}
+\begin{algorithmic}[1]
+\State Generate initial solution \( x^0 \) using a greedy heuristic
+\State \( x^{\text{best}} \gets x^0 \)
+\State Set initial neighborhood size \( k \gets k_{\text{min}} \)
+\Repeat
+    \State Build local branching constraint centered at \( x^{\text{best}} \) with size \( k \)
+    \State Solve the restricted MIP with node/time limits
+    \If{a better solution \( x \) is found}
+        \State \( x^{\text{best}} \gets x \), reset \( k \gets k_{\text{min}} \)
+    \ElsIf{solution is disconnected}
+        \State Apply patching heuristic
+    \Else
+        \State Increase \( k \) (diversification)
+    \EndIf
+\Until{global time limit is reached or \( k > k_{\text{max}} \)}
+\State \Return \( x^{\text{best}} \)
+\end{algorithmic}
+\end{algorithm}

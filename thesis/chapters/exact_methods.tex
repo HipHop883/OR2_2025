@@ -62,7 +62,7 @@ This ensures that in future iterations, such subtours will be avoided.
 The entire loop is managed manually, CPLEX is invoked multiple times, at each iteration with an updated model that includes new constraints.
 
 \subsection{Patching Heuristic}
-
+\label{ssec:patching}
 In cases where the solving loop exceeds the time limit or fails to converge to a single connected component, we introduce a fallback heuristic called \emph{patching}, which aims to merge disconnected subtours into a feasible Hamiltonian cycle.
 
 The algorithm works as follows:

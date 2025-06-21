@@ -1,7 +1,38 @@
-\section{Matheuristics}
-
 In this section, we introduce a class of techniques known as \emph{matheuristics}, which aim to combine the efficiency of heuristic methods with the mathematical models used in the exact methods presented in Chapter~\ref{chap:exact-methods}.
 
 This hybrid approach has proven effective across a wide range of combinatorial problems, often requiring minimal problem-specific adaptation. The term \emph{matheuristics} was originally coined during a workshop held in Bertinoro, Italy, in 2006, to describe the growing number of strategies situated at the intersection between classical optimization and heuristic design.
 
 In the context of the TSP, matheuristics provide a valuable compromise: they allow us to exploit high-quality heuristic solutions while still benefiting from the precision and structure of mathematical models. In the next sections, we will focus on two such strategies: \emph{Hard Fixing} and \emph{Local Branching}.
+
+\section{Hard Fixing}
+
+Hard Fixing is a matheuristic strategy designed to balance the exploration power of mathematical programming with the speed of heuristics. The method is based on iteratively solving reduced Mixed Integer Programming (MIP) models where a subset of the decision variables is fixed, while the remaining ones are left free for optimization.
+
+The process begins with the construction of an initial feasible tour using a greedy heuristic; this tour serves as the starting point for the fixing phase. At each iteration, a percentage of edges from the current best solution is selected and fixed — that is, their corresponding variables are constrained to be part of the tour (\( x_{ij} = 1 \)). The remaining variables are left unfixed, and CPLEX is invoked to solve the restricted problem with a reduced time limit.
+
+Edges are selected for fixing probabilistically: each edge in the tour has a fixed probability (e.g., 30\%) of being selected. This randomized selection introduces diversification, allowing the algorithm to explore different neighborhoods at each iteration.
+
+After solving the subproblem, if a better solution is found, it replaces the current best, and the process repeats until the global time limit is reached. If the resulting solution is disconnected, a fallback patching heuristic is invoked to merge multiple subtours into a single tour, as previously described in Section~\ref{ssec:patching}.
+
+The main benefits of Hard Fixing lie in its ability to guide the solver toward promising regions of the search space without solving the full model from scratch. This makes it particularly suitable for medium-to-large TSP instances where exact methods alone may not converge in reasonable time.
+
+\subsection{Pseudocode}
+
+\begin{algorithm}[H]
+\caption{Hard Fixing Matheuristic}
+\begin{algorithmic}[1]
+\State Generate initial solution $x^0$ using a greedy heuristic
+\State $x^\text{best} \gets x^0$
+\Repeat
+    \State Select subset $E_\text{fix} \subseteq \{e \in E : x^\text{best}_e = 1\}$ with fixed probability $p$
+    \State Fix variables $x_e = 1$ for all $e \in E_\text{fix}$
+    \State Solve the restricted MIP with CPLEX and time limit $\tau$
+    \If{solution is feasible and better than $x^\text{best}$}
+        \State $x^\text{best} \gets x$
+    \ElsIf{solution is disconnected}
+        \State Apply patching heuristic to obtain a feasible tour
+    \EndIf
+\Until{global time limit is reached}
+\State \Return $x^\text{best}$
+\end{algorithmic}
+\end{algorithm}

@@ -26,11 +26,16 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
+	double *execution_times = (double *)malloc(max_runs * sizeof(double));
+	if (!execution_times)
+	{
+		print_error("Memory allocation failed for execution_times array");
+		return EXIT_FAILURE;
+	}
+
 	instance inst;
 	init(&inst);
 	solution sol; // Safe init
-
-	//double t1 = second();
 
 	// Parse command line
 	if (parse_command_line(argc, argv, &inst))
@@ -57,6 +62,7 @@ int main(int argc, char **argv)
 
 		printf("Number of nodes: %d\n", inst.nnodes);
 
+		double t1 = second();
 		// Run the method and print the cost of the solution
 		if (execute_selected_method(&inst, &sol))
 		{
@@ -67,10 +73,12 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 		}
 
+		double elapsed_time = second() - t1;
+
 		// Print final cost
 		printf("Total tour cost: %.2lf\n", sol.cost);
 
-		double t2 = second();
+		execution_times[i] = elapsed_time;
 		best_costs[i] = sol.cost;
 
 		// Plot the solution path using Gnuplot
@@ -107,7 +115,7 @@ int main(int argc, char **argv)
 
 		if (VERBOSE >= 1)
 		{
-			printf("TSP solved in %lf seconds\n", t2 - inst.starting_time);
+			printf("TSP solved in %lf seconds\n", elapsed_time);
 		}
 
 		free_sol(&sol);
@@ -115,7 +123,13 @@ int main(int argc, char **argv)
 
 	free_instance(&inst);
 
-	update_perf_csv(&inst, best_costs, max_runs);
-
+	if (!strcmp(inst.method, "benders") || !strcmp(inst.method, "branch_and_cut"))
+	{
+		update_perf_csv(&inst, execution_times, max_runs);
+	}
+	else
+	{
+		update_perf_csv(&inst, best_costs, max_runs);
+	}
 	return EXIT_SUCCESS;
 }

@@ -81,13 +81,13 @@ int runs(int argc, char **argv)
  * If the current instance_id (constructed from inst's VNS parameters)
  * is not present in the header, it is added (and the number of algorithms is increased).
  * Then, for each run (from 1 to num_runs), the cost value in the corresponding column
- * is updated with run_costs[i]. If a run row doesn't exist, it is appended.
+ * is updated with run_results[i]. If a run row doesn't exist, it is appended.
  *
  * @param inst       The current instance (provides method, timelimit, VNS params, seed, etc.)
- * @param run_costs  An array of double values, one per run (length num_runs).
+ * @param run_results  An array of double values, one per run (length num_runs).
  * @param num_runs   Number of runs in the current execution.
  */
-void update_perf_csv(const instance *inst, double *run_costs, int num_runs)
+void update_perf_csv(const instance *inst, double *run_results, int num_runs)
 {
     char csv_filename[256];
     sprintf(csv_filename, "runs/%s_%.2lf.csv", inst->method, inst->timelimit);
@@ -112,6 +112,14 @@ void update_perf_csv(const instance *inst, double *run_costs, int num_runs)
         sprintf(instance_id, "tabu_tenure_%d_%d_%d_noimpr_%d_seed_%d",
                 inst->tabu_min, inst->tabu_tenure, inst->tabu_max,
                 inst->tabu_noimprove, inst->randomseed);
+    }
+    else if (!strcmp(inst->method, "benders"))
+    {
+        sprintf(instance_id, "benders_seed_%d", inst->randomseed);
+    }
+    else if (!strcmp(inst->method, "branch_and_cut"))
+    {
+        sprintf(instance_id, "branch_and_cut_seed_%d", inst->randomseed);
     }
     else
     {
@@ -228,7 +236,7 @@ void update_perf_csv(const instance *inst, double *run_costs, int num_runs)
                     if (j == col_index)
                     {
                         char cost_str[64];
-                        sprintf(cost_str, "%.2lf", run_costs[i]);
+                        sprintf(cost_str, "%.6lf", run_results[i]);
                         strcat(new_row, cost_str);
                     }
                     else if (j < token_count)
@@ -254,7 +262,7 @@ void update_perf_csv(const instance *inst, double *run_costs, int num_runs)
                     if (j == col_index)
                     {
                         char cost_str[64];
-                        sprintf(cost_str, "%.2lf", run_costs[i]);
+                        sprintf(cost_str, "%.2lf", run_results[i]);
                         strcat(new_row, cost_str);
                     }
                     else
@@ -275,7 +283,7 @@ void update_perf_csv(const instance *inst, double *run_costs, int num_runs)
                 if (j == col_index)
                 {
                     char cost_str[64];
-                    sprintf(cost_str, "%.2lf", run_costs[i]);
+                    sprintf(cost_str, "%.2lf", run_results[i]);
                     strcat(new_row, cost_str);
                 }
                 else

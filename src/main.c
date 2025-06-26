@@ -39,22 +39,24 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	// Load problem instance
-	if (load_instance(&inst))
-	{
-		print_error("Error reading input");
-		free_instance(&inst);
-		free_sol(&sol);
-
-		return EXIT_FAILURE;
-	}
-
-	printf("Number of nodes: %d\n", inst.nnodes);
-
-	set_seed(inst.randomseed);
+	int master_seed = inst.randomseed;
 
 	for (int i = 0; i < max_runs; i++)
 	{
+		set_seed(master_seed + i);
+
+		// Load problem instance
+		if (load_instance(&inst))
+		{
+			print_error("Error reading input");
+			free_instance(&inst);
+			free_sol(&sol);
+
+			return EXIT_FAILURE;
+		}
+
+		printf("Number of nodes: %d\n", inst.nnodes);
+
 		// Run the method and print the cost of the solution
 		if (execute_selected_method(&inst, &sol))
 		{

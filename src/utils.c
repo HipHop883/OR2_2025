@@ -314,3 +314,32 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
     free(lines);
     fclose(fp);
 }
+
+/**
+ * Creates a deep copy of a solution
+ *
+ * @param src source solution
+ * @param dst destination solution
+ */
+void copy_sol(const solution *src, solution *dst)
+{
+    if (!src || !src->initialized || !src->tour) {
+        return;
+    }
+    
+    int n = 0;
+    while (src->tour[n] != src->tour[0] || n == 0) {
+        n++;
+    }
+    
+    free_sol(dst);
+    dst->tour = malloc((n + 1) * sizeof(int));
+    
+    if (dst->tour) {
+        for (int i = 0; i <= n; i++) {
+            dst->tour[i] = src->tour[i];
+        }
+        dst->initialized = 1;
+        dst->cost = src->cost;
+    }
+}

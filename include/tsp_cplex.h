@@ -6,7 +6,6 @@
 int apply_cplex_benders(instance *inst, solution *sol);
 int apply_cplex_branchcut(instance *inst, solution *sol);
 int apply_cplex_hardfix(instance *inst, solution *sol);
-void copy_sol(const solution *src, solution *dst);
 int apply_cplex_localbranch(instance *inst, solution *sol);
 
 #endif /* TSP_CPLEX_H_ */

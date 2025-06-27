@@ -9,5 +9,6 @@ void set_seed(int seed);
 double rand01();
 int runs(int argc, char **argv);
 void update_perf_csv(const instance *inst, double *run_costs, int num_runs);
+void copy_sol(const solution *src, solution *dst);
 
 #endif // UTILS_H

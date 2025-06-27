@@ -1,10 +1,36 @@
-In this section, we present and analyze the results obtained from the experiments conducted on the methods introduced in the previous chapters. For each macro category, we developed two algorithms. In the following analysis, we will fine-tune the parameters of each algorithm to identify their optimal configurations. Subsequently, we will compare the best-performing configurations of the two approaches within each category.
+In this section, we present and analyze the results obtained from the experiments conducted on the methods introduced in the previous chapters. For each macro category, we implemented two algorithmic approaches. Our analysis is divided into two phases: first, we fine-tune the main parameters (when applicable), and then we compare the best-performing configurations within each category.
 
 \section{Methodology}
-Each category will be analyzed saparately and following a specific approach. In general two parameters will be common on all the experiments: the numer of nodes, the time limit and the number of runs. The number of nodes and the time limit will change depending on the methods we're analyzing to fit the specific goals of the experiments, while the number of runs will be fixed to 20 for each configuration tested. In order to ensure statistical significance we will use Performance Profiles to compare the results of the algorithms.
+
+Each group of algorithms will be analyzed independently following a consistent methodology. Three main parameters are considered in all experiments:
+\begin{itemize}
+    \item \textbf{Number of nodes:} This varies depending on the nature of the method (e.g., fewer nodes for exact methods, more for heuristics and metaheuristics).
+    \item \textbf{Time limit:} Fixed for each experiment to ensure comparability across algorithms.
+    \item \textbf{Number of runs:} Each configuration is tested on 20 different randomly generated instances to guarantee statistical significance.
+\end{itemize}
+
+To enable a rigorous comparison, we rely on \textbf{Performance Profiles}, a graphical tool that allows us to assess and visualize the comparative efficiency of different algorithms across a suite of problem instances.
+
+\subsection{Instance Generation}
+
+The TSP instances used in our experiments are generated randomly. Each instance consists of a set of points placed on a 2D grid $[0, 10\,000] \times [0, 10\,000]$, with coordinates sampled from an i.i.d. uniform distribution. The cost matrix for each instance is computed using the Euclidean distance between points, optionally rounded according to the ATT formula from TSPLIB.
 
 \subsection{Experimental Setup}
-\todo{Inserire hardware usato e versione di CPLEX}
+
+All experiments were conducted on a machine equipped with an Intel Core i7-10510U processor and 16 GB of RAM. The exact methods were solved using \textbf{IBM ILOG CPLEX 22.1.2}, interfaced via its C API. Heuristic and metaheuristic algorithms were developed in C for performance, while Python was used to manage experiment automation and result visualization.
 
 \subsection{Performance Profiles}
-\todo{definizione perfprof}
+
+To compare the performance of different algorithms across a common set of instances, we used performance profiles. These were generated with a Python script developed by Domenico Salvagnin. The script processes a CSV table containing the results of each algorithm on each instance, and compares the performance of each algorithm to the best obtained on the same instance.
+This approach enables us to build plots that show, for each algorithm, how often it performs within a certain range of the best result, offering a clear visual summary of relative performance. For heuristics and metaheuristics, the comparison is based on the cost of the best solution found; for exact methods, on the time required to find the optimal solution.
+
+For each class of methods, the following parameters were used in the experiments:
+\begin{itemize}
+    \item \textbf{Heuristics:} 1000-node instances, time limit of 120 seconds.
+    \item \textbf{Metaheuristics:} 1000-node instances, time limit of 120 seconds.
+    \item \textbf{Exact methods:} 200-node instances, time limit of 120 seconds.
+    
+    
+\end{itemize}
+
+Each test was repeated over 20 instances, initialized with different random seeds. All results are reported in the form of performance profiles to ensure clarity and comparability.

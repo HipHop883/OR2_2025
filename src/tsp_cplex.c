@@ -371,6 +371,12 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
     int n = inst->nnodes;
     int ncols = CPXgetnumcols(env, lp);
 
+    if (ncols <= 0)
+    {
+        print_error("CPXgetnumcols returned invalid column count");
+        return EXIT_FAILURE;
+    }
+
     int *indices = malloc(ncols * sizeof(int));
     double *values = calloc(ncols, sizeof(double));
 
@@ -407,6 +413,8 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
     if (status)
     {
         fprintf(stderr, "Warning: CPXaddmipstarts failed (status %d)\n", status);
+        free(indices);
+        free(values);
         return EXIT_FAILURE;
     }
     else if (VERBOSE >= 50)
@@ -744,9 +752,10 @@ int apply_cplex_benders(instance *inst, solution *sol)
 
     inst->ncols = CPXgetnumcols(env, lp);
 
-    // === Try warm start from greedy heuristic ===
+    // === Try warm start from two-opt ===
     solution warm_sol;
     warm_sol.tour = malloc((n + 1) * sizeof(int));
+    warm_sol.initialized = 0;
     if (!warm_sol.tour)
     {
         print_error("Memory allocation failed [warm_sol.tour]");
@@ -755,23 +764,20 @@ int apply_cplex_benders(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    /**
-     * NOT WORKING! SEEMS THAT THE SOLUTION HAS GARBAGE VALUES
-     **/
+    if (apply_two_opt(inst, &warm_sol) == 0)
+    { 
+        if (add_warm_start(env, lp, inst, &warm_sol))
+            fprintf(stderr, "Warning: failed to add warm start\n");
+        else if (VERBOSE >= 50)
+            printf("Warm start injected with cost %.2f\n", warm_sol.cost);
 
-    // if (apply_greedy_search(inst, &warm_sol))
-    // {
-    //     if (add_warm_start(env, lp, inst, &warm_sol))
-    //         fprintf(stderr, "Warning: failed to add warm start\n");
-    //     else if (VERBOSE >= 50)
-    //         printf("Warm start injected with cost %.2f\n", warm_sol.cost);
-    //     free_sol(&warm_sol);
-    // }
-    // else
-    // {
-    //     printf("Warning: greedy warm start failed\n");
-    //     free(warm_sol.tour);
-    // }
+        free_sol(&warm_sol);
+    }
+    else
+    {
+        printf("Warning: two-opt warm start failed\n");
+        free(warm_sol.tour);
+    }
 
     int *comp = malloc(n * sizeof(int));
     if (!comp)
@@ -827,7 +833,19 @@ int apply_cplex_benders(instance *inst, solution *sol)
         }
 
         int ncols = CPXgetnumcols(env, lp);
+
+        if (xstar) free(xstar);
         xstar = calloc(ncols, sizeof(double));
+
+        if (!xstar)
+        {
+            print_error("Memory allocation failed [xstar]");
+            free(comp);
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
+            return EXIT_FAILURE;
+        }
+
         if (CPXgetx(env, lp, xstar, 0, ncols - 1))
         {
             print_error("CPXgetx error");

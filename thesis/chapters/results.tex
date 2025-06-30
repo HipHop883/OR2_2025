@@ -34,3 +34,50 @@ For each class of methods, the following parameters were used in the experiments
 \end{itemize}
 
 Each test was repeated over 20 instances, initialized with different random seeds. All results are reported in the form of performance profiles to ensure clarity and comparability.
+
+\section{Parameters tuning}
+
+\subsection{Tabu Search}
+As discussed in Section~\ref{sec:tabu}, Tabu Search relies on a short-term memory of forbidden moves, whose size is governed by the base tenure \(T\).  In many works one selects a single ratio \(\alpha\) and sets \(T=\frac{N_{\mathrm{nodes}}}{\alpha}\), but this hides the fact that the method can be tuned more flexibly by independently controlling the dynamic bounds \(T_{\min}\) and \(T_{\max}\).
+
+In our implementation we therefore allow the user to specify all parameters directly, allowing also for setting the cutoff for forced diversification, \(N_{\mathrm{ni}}\). Conceptually, however, it is still suggested to leverage the ratio \(\alpha\) to derive the base tenure \(T\).
+
+Table~\ref{tab:tabu-configs} reports the eight configurations where we tried to span as many different search behaviors as possible.
+
+\begin{table}[h]
+  \centering
+  \caption{Tabu Search configurations and rationale}
+  \label{tab:tabu-configs}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{|c|c|c|c|l|}
+    \hline
+    \textbf{$T$} & \textbf{$T_{\min}$} & \textbf{$T_{\max}$} & \textbf{$N_{\mathrm{ni}}$} & \textbf{Description} \\ 
+    \hline
+    227 & 10 & 227 & 500 & Good balance, but no expansion beyond the initial tenure. \\
+    \hline
+    250 & 10  & 375  & 500  & Moderate diversification via expanded max tenure. \\ 
+    \hline
+    208 & 5   & 416  & 1000 & Broad tenure span allows prolonged exploration before reset. \\ 
+    \hline
+    278 & 20  & 278  & 250  & Fixed high tenure intensifies local moves with quick shake-up. \\ 
+    \hline
+    167 & 10  & 167  & 500  & Small tenure forces rapid neighborhood changes. \\ 
+    \hline
+    333 & 10  & 500  & 500  & Max tenure scaled to problem size supports deeper history. \\ 
+    \hline
+    100 & 5   & 500  & 200  & Very short base tenure and low cutoff for intense shaking. \\ 
+    \hline
+    400 & 50  & 400  & 2000 & Large tenure and high cutoff delay diversification for global search. \\ 
+    \hline
+  \end{tabular}%
+  }
+\end{table}
+
+Results highlight that configurations with a large base tenure and a wide dynamic span tend to converge more quickly to high-quality incumbents. In particular:
+\begin{itemize}
+  \item \emph{High base tenure}: retaining a long short-term memory before forcing diversification produces the best overall performance, by exploiting promising regions.
+  \item \emph{Wide dynamic window}: allowing the tabu tenure to expand and contract over a large interval helps escape local optima when progress stalls.
+  \item \emph{Medium settings}: a moderate base tenure with a moderately sized dynamic range provides a reasonable trade-off between intensification and diversification, but does not match the extremes.
+  \item \emph{Small or rigid tenure}: very short or fixed tabu lists lead to slower discovery of good solutions and a greater risk of stagnation.
+\end{itemize}
+

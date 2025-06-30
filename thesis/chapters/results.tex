@@ -144,3 +144,12 @@ After tuning the parameters of the Tabu Search and VNS algorithms we now compare
 \end{figure}
 
 Looking at Figure \ref{fig:best-heuristic-profiles} there is no doubt on the superiority of the Tabu Search algorithm, the method configurations used in the comparison cover different search behaviours and all outperform the VNS configurations.
+
+One more interesting comparison is to check how an approach as simple as the Nearest Neighbor with 2-opt compares to the best heuristic. The results are shown in Figure \ref{fig:nn-vs-best-heuristic} and clearly show that the complicated and time-demanding search performed by Tabu is justifide by the quality of the solutions found, which is significantly better.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth]{nn_tabu_profiles.pdf}
+  \caption{Tabu Search compared to Nearest Neighbor with 2-opt.}
+  \label{fig:nn-vs-best-heuristic}
+\end{figure}

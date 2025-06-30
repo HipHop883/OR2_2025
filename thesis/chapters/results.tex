@@ -81,3 +81,39 @@ Results highlight that configurations with a large base tenure and a wide dynami
   \caption{Performance profiles for the Tabu Search configurations.}
   \label{fig:tabu-profiles}
 \end{figure}
+
+\subsection{Varable Neighborhood Search}
+\label{ssec:vns-tuning}
+
+To find the best configuration for the VNS algorithm, we focused on the parameters that control the number of 3-opt “kicks” applied per iteration. We let the user specify a fixed number of kicks \(J\) or an adaptive scheme that draws a number of kicks uniformly from a range \([k_{\min},k_{\max}]\), scaled by a learning rate \(\lambda\). Table~\ref{tab:vns-configs} summarizes the settings we evaluated:
+
+\begin{table}[H]
+  \centering
+  \caption{VNS configurations}
+  \label{tab:vns-configs}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{|c|c|c|c|c|l|}
+    \hline
+    \textbf{ID} & \(\boldsymbol{k_{\min}}\) & \(\boldsymbol{k_{\max}}\) & \(\boldsymbol{\lambda}\) & \(\boldsymbol{J}\) & \textbf{Description} \\ 
+    \hline
+    1 & 2   & 4   & 1.00 & -  & Balanced adaptive kicks. \\ 
+    2 & 1   & 5   & 1.00 & -  & Wide range for broader exploration. \\ 
+    3 & 2   & 6   & 1.00 & -  & Extended range for more diversification. \\ 
+    4 & 1   & 10  & 1.00 & -  & Very wide span, high diversification. \\ 
+    5 & 2   & 4   & 0.50 & -  & Conservative kicks (half learning rate). \\ 
+    8 & 2   & 4   & 2.00 & -  & Aggressive kicks (double learning rate). \\ 
+    6 & -   & -   & -    & 3  & Fixed few kicks per iteration. \\ 
+    7 & -   & -   & -    & 10 & Fixed many kicks, conservative scale. \\ 
+    \hline
+  \end{tabular}%
+  }
+\end{table}
+
+Results presented in Figure \ref{fig:vns-profiles} suggest that a fixed number of kicks per iterations is more effective than adaptive schemes. In particular, the more kicks are applied the better the results, with the with the configuration applying 10 kicks outperforming all others. Anyways, the adaptive schemes still perform reasonably well, especially when the range of kicks is wide enough to allow for sufficient exploration.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{vns_profiles.pdf}
+  \caption{Performance profiles for the VNS configurations.}
+  \label{fig:vns-profiles}
+\end{figure}

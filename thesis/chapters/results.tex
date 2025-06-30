@@ -44,7 +44,7 @@ In our implementation we therefore allow the user to specify all parameters dire
 
 Table~\ref{tab:tabu-configs} reports the eight configurations where we tried to span as many different search behaviors as possible.
 
-\begin{table}[h]
+\begin{table}[H]
   \centering
   \caption{Tabu Search configurations and rationale}
   \label{tab:tabu-configs}
@@ -81,3 +81,9 @@ Results highlight that configurations with a large base tenure and a wide dynami
   \item \emph{Small or rigid tenure}: very short or fixed tabu lists lead to slower discovery of good solutions and a greater risk of stagnation.
 \end{itemize}
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{tabu_profiles.pdf}
+  \caption{Performance profiles for the eight Tabu Search configurations (see Table~\ref{tab:tabu-configs}).}
+  \label{fig:tabu-profiles}
+\end{figure}

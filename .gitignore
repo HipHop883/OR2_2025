@@ -17,7 +17,6 @@ tsp_solver
 *.log
 *.out
 *.toc
-*.pdf
 *.bbl
 *.bcf
 *.blg
@@ -27,3 +26,5 @@ tsp_solver
 *.fdb_latexmk
 *.fls
 .clang-format
+
+thesis/main.pdf

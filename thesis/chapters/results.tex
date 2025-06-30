@@ -117,3 +117,18 @@ Results presented in Figure \ref{fig:vns-profiles} suggest that a fixed number o
   \caption{Performance profiles for the VNS configurations.}
   \label{fig:vns-profiles}
 \end{figure}
+
+\section{Methods comparison}
+
+\subsection{Best Heuristic}
+
+After tuning the parameters of the Tabu Search and VNS algorithms we now compare their performance to determine the best heuristic for solving the TSP. We assume that the experiments performed during the parameters tuning phase cover a wide range of search behaviors and thus considering the four best configurations of each method is sufficient to draw conclusions on the overall performance of the two methods.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth]{best_heuristic_profiles.pdf}
+  \caption{Performance profiles to compare VNS and Tabu Search.}
+  \label{fig:best-heuristic-profiles}
+\end{figure}
+
+Looking at Figure \ref{fig:best-heuristic-profiles} there is no doubt on the superiority of the Tabu Search algorithm, the method configurations used in the comparison cover different search behaviours and all outperform the VNS configurations.

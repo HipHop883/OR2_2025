@@ -37,6 +37,18 @@ Each test was repeated over 20 instances, initialized with different random seed
 
 \section{Parameters tuning}
 
+\subsection{Nearest Neighbor - Greedy}
+\label{ssec:nn-tuning}
+
+In the case of Nearest Neighbor method we don't have any parameters to tune, but we can analyze if the Two-Opt step is beneficial or not. It is intuitive from the definion presented in section \ref{sec:2opt} that the 2-opt step is always beneficial, as it can only improve the quality of the tour. For completeness, we report the performance profiles of the Nearest Neighbor method with and without the 2-opt step in Figure~\ref{fig:nn-profiles}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{greedy_profiles.pdf}
+  \caption{Performance profiles for the Greedy method.}
+  \label{fig:nn-profiles}
+\end{figure}
+
 \subsection{Tabu Search}
 \label{ssec:tabu-tuning}
 As discussed in Section~\ref{sec:tabu}, Tabu Search relies on a short-term memory of forbidden moves, whose size is governed by the base tenure \(T\).  In many works one selects a single ratio \(\alpha\) and sets \(T=\frac{N_{\mathrm{nodes}}}{\alpha}\), but this hides the fact that the method can be tuned more flexibly by independently controlling the dynamic bounds \(T_{\min}\) and \(T_{\max}\).

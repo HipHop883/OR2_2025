@@ -52,6 +52,7 @@ Figure~\ref{fig:nn-example} illustrates the best tour obtained by running the Ne
 To address these limitations, the next section introduces the 2-opt heuristic, a simple yet effective local search technique aimed at improving tour quality by eliminating such inefficiencies.
 
 \section{Two-Opt}
+\label{sec:2opt}
 
 The \textit{2-opt} algorithm is a local search optimization technique designed to improve a given (possibly sub-optimal) tour 
 in the Travelling Salesman Problem. It works by iteratively removing two edges from the tour and reconnecting the resulting paths 
@@ -208,4 +209,4 @@ To evaluate the improvement quantitatively, we can compare the cost of the tour 
     \label{tab:nn-vs-2opt}
 \end{table}
 
-These results are only meant to give an idea of the effectiveness of the 2-opt heuristic, some more rigorous analysis will be presented in Section XX \todo[inline]{Aggiungere riferimento alla sezione analisi perfprof}
+These results are only meant to give an idea of the effectiveness of the 2-opt heuristic, some more rigorous analysis will be presented in Section \ref{ssec:nn-tuning}.

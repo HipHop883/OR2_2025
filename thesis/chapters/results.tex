@@ -132,7 +132,7 @@ Results presented in Figure \ref{fig:vns-profiles} suggest that a fixed number o
 
 \section{Methods comparison}
 
-\subsection{Best Heuristic}
+\subsection{Best Heuristic - Full time limit}
 
 After tuning the parameters of the Tabu Search and VNS algorithms we now compare their performance to determine the best heuristic for solving the TSP. We assume that the experiments performed during the parameters tuning phase cover a wide range of search behaviors and thus considering the four best configurations of each method is sufficient to draw conclusions on the overall performance of the two methods.
 
@@ -147,9 +147,22 @@ Looking at Figure \ref{fig:best-heuristic-profiles} there is no doubt on the sup
 
 One more interesting comparison is to check how an approach as simple as the Nearest Neighbor with 2-opt compares to the best heuristic. The results are shown in Figure \ref{fig:nn-vs-best-heuristic} and clearly show that the complicated and time-demanding search performed by Tabu is justifide by the quality of the solutions found, which is significantly better.
 
-\begin{figure}[h]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.8\textwidth]{nn_tabu_profiles.pdf}
   \caption{Tabu Search compared to Nearest Neighbor with 2-opt.}
   \label{fig:nn-vs-best-heuristic}
+\end{figure}
+
+\subsection{Best Heuristic - Short Time Budget}
+
+All CPLEX-based exact methods are initialized with a heuristic solution obtained by allocating 10\% of the total time limit to the heuristic. To identify the most effective warm-start configuration, we therefore evaluate our top Tabu Search settings using a reduced time budget of 12 seconds. The best-performing configuration from this experiment will be used to warm-start the exact methods, which are compared in the next chapter. Since the instances of exact methods will be smaller, we are now searching for percentages of the number of nodes to set the tenure size, rather than absolute values.
+
+From Figure \ref{fig:fast-heuristic} we can see that the best-performing configuration now is the one with a tenure size of around 28\% of the number of nodes and a minimum size of 2\%. This is a sigificant difference from the previous experiments, where the bigger tenure size was the best, this is likely due to the fact that with a short time limit the algorithm needs to explore more and thus a smaller tenure size allows for more diversification.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fast_heuristic_profiles.pdf}
+  \caption{Tabu Search performance profiles under a 12-second time limit.}
+  \label{fig:fast-heuristic}
 \end{figure}

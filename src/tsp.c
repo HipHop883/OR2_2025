@@ -579,10 +579,10 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("  -vlr,   --vns_lr <float>   Learning rate for VNS (default: 1.0)\n");
 		printf("  -vjps,  --vns_jumps <int>  Number of jumps for VNS (default: 0)\n");
 		printf("Tabu Search:\n");
-		printf("  -tten,    --tabu-tenure <int> 	Initial tabu tenure size (default: 0)\n");
-		printf("  -ttenmin, --tabu-min <int> 		Minimum tabu tenure size (default: 0)\n");
-		printf("  -ttenmax, --tabu-max <int> 		Maximum tabu tenure size (default: 0)\n");
-		printf("  -tnoimpr, --tabu-noimprove <int> 	No improve limit for Tabu (default: 0)\n");
+		printf("  -tten,    --tabu-tenure <int> 	Initial tabu tenure size (default: (min_tenure + max_tenure) / 2)\n");
+		printf("  -ttenmin, --tabu-min <int> 		Minimum tabu tenure size (default: nnodes / 10)\n");
+		printf("  -ttenmax, --tabu-max <int> 		Maximum tabu tenure size (default: nnodes + nnodes / 10)\n");
+		printf("  -tnoimpr, --tabu-noimprove <int> 	No improve limit for Tabu (default: 50)\n");
 		printf("Hard Fixing CPLEX:\n");
 		printf("  -hf_p, --hard_fixing_percentage <float> Hard fixing percentage (default: 0.3)\n");
 

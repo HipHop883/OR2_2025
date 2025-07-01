@@ -105,11 +105,10 @@ int load_instance(instance *inst)
 			if (strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0)
 			{
 				token1 = strtok(NULL, " :");
-				if (strncmp(token1, "ATT", 3) != 0)
-				{
-					print_error(" format error:  only EDGE_WEIGHT_TYPE == ATT implemented so far!!!!!!");
-					return EXIT_FAILURE;
-				}
+				if (strncmp(token1, "ATT", 3) == 0) inst->edge_weight = 0;		
+				else if (strncmp(token1, "EUC_2D", 6) == 0) inst->edge_weight = 1;
+				else inst->edge_weight = -1;
+
 				active_section = 0;
 				continue;
 			}
@@ -471,6 +470,24 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
+		else if (!strcmp(argv[i], "--hard_fixing_percentage") || !strcmp(argv[i], "-hf_p"))
+		{
+			if (i +1 < argc)
+			{
+				inst->hard_fixing_percentage = atof(argv[++i]);
+
+				if (inst->hard_fixing_percentage < 0 || inst->hard_fixing_percentage > 1)
+				{
+					fprintf(stderr, "Error: Hard fixing percentage must be between 0 and 1\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: Hard fixing percentage is missing\n");
+				help = 1;
+			}
+		}
 	}
 
 	// Validation
@@ -517,6 +534,26 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			printf("%-15s : %d\n", "--nnodes", inst->nnodes);
 		printf("%-15s : %d\n", "--seed", inst->randomseed);
 		printf("%-15s : %.2f\n", "--time_limit", inst->timelimit);
+		if (strcmp(inst->method, "n_n") == 0)
+			printf("%-15s : %d\n", "--greedy_starts", inst->greedy_starts);
+		else if (strcmp(inst->method, "vns") == 0)
+		{
+			printf("%-15s : %d\n", "--vns_kmin", inst->vns_kmin);
+			printf("%-15s : %d\n", "--vns_kmax", inst->vns_kmax);
+			printf("%-15s : %.2f\n", "--vns_lr", inst->vns_learning_rate);
+			printf("%-15s : %d\n", "--vns_jumps", inst->vns_jumps);
+		}
+		else if (strcmp(inst->method, "tabu") == 0)
+		{
+			printf("%-15s : %d\n", "--tabu-tenure", inst->tabu_tenure);
+			printf("%-15s : %d\n", "--tabu-min", inst->tabu_min);
+			printf("%-15s : %d\n", "--tabu-max", inst->tabu_max);
+			printf("%-15s: %d\n", "--tabu-noimprove", inst->tabu_noimprove);
+		}
+		else if (strcmp(inst->method, "hard_fix") == 0)
+		{
+			printf("%-15s : %.2f\n", "--hard_fixing_percentage", inst->hard_fixing_percentage);
+		}
 		printf("===========================\n\n");
 	}
 
@@ -529,9 +566,25 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("  -f, --file <filename>     Input file to load instance\n");
 		printf("  -m, --method <string>     Method to solve TSP (e.g., n_n, n_n+apply_two_opt)\n");
 		printf("  -p, --plot                Paramater to see and save the solution plot\n");
-
 		printf("  -tl,--time_limit <float>  Time limit in seconds\n");
+		printf("  -rs, --runs <int> 	    Number of runs (default: 1)\n");	
 		printf("  -h, --help                Show this help message\n");
+
+		printf("\nMethods parameters:\n");
+		printf("Greedy:\n");
+		printf("  -gs, 	  --greedy_starts <int> Number of greedy starts (default: 10)\n");
+		printf("VNS:\n");
+		printf("  -vkmin, --vns_kmin <int>   Minimum k for VNS (default: 1)\n");
+		printf("  -vkmax, --vns_kmax <int>   Maximum k (default: 5)\n");
+		printf("  -vlr,   --vns_lr <float>   Learning rate for VNS (default: 1.0)\n");
+		printf("  -vjps,  --vns_jumps <int>  Number of jumps for VNS (default: 0)\n");
+		printf("Tabu Search:\n");
+		printf("  -tten,    --tabu-tenure <int> 	Initial tabu tenure size (default: 0)\n");
+		printf("  -ttenmin, --tabu-min <int> 		Minimum tabu tenure size (default: 0)\n");
+		printf("  -ttenmax, --tabu-max <int> 		Maximum tabu tenure size (default: 0)\n");
+		printf("  -tnoimpr, --tabu-noimprove <int> 	No improve limit for Tabu (default: 0)\n");
+		printf("Hard Fixing CPLEX:\n");
+		printf("  -hf_p, --hard_fixing_percentage <float> Hard fixing percentage (default: 0.3)\n");
 
 		printf("\nExamples:\n");
 		printf("  ./main -r -n 50 -s 123 -m n_n -tl 10\n");
@@ -865,26 +918,50 @@ int tsp_compute_costs(instance *tsp)
 {
 	if (tsp->cost_matrix == NULL || tsp->xcoord == NULL || tsp->ycoord == NULL)
 	{
-		return -1;
+		print_error("Cost matrix, xcoord or ycoord is NULL");
+		return EXIT_FAILURE;
 	}
 
 	for (int i = 0; i < tsp->nnodes; i++)
 	{
 		for (int j = 0; j < tsp->nnodes; j++)
 		{
+			if (i == j)
+            {
+                tsp->cost_matrix[i][j] = 0; // Distance to itsself is 0
+                continue;
+            }
+
 			double deltax = tsp->xcoord[i] - tsp->xcoord[j];
 			double deltay = tsp->ycoord[i] - tsp->ycoord[j];
-			double dist = sqrt((deltax * deltax + deltay * deltay) / 10);
+			double dist_squared = deltax * deltax + deltay * deltay;
+            double dist;
+			//double dist = sqrt((deltax * deltax + deltay * deltay) / 10);
 
-			int round_d = (int)(dist + 0.5);
-			if ((double)round_d < dist)
-				round_d++;
+			if (tsp->edge_weight == 0) // ATT
+            {
+                dist = sqrt(dist_squared / 10.0);
+				int round_d = (int)(dist + 0.5);
+				if ((double)round_d < dist)
+					round_d++;
 
-			tsp->cost_matrix[i][j] = (int)round_d;
+				tsp->cost_matrix[i][j] = (int)round_d;
+			}
+			else if (tsp->edge_weight == 1) // EUC_2D
+			{
+				dist = sqrt(dist_squared);
+				tsp->cost_matrix[i][j] = (int)(dist + 0.5);
+			}
+
+			else
+			{
+				print_error("Unknown edge weight type");
+				return EXIT_FAILURE;
+			}
 		}
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 /**
@@ -937,7 +1014,7 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("Nearest Neighbor done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "two_opt") == 0)
+		else if (strcmp(method, "two_opt") == 0) // Two-opt heuristic
 		{
 			if (apply_two_opt(inst, sol))
 			{
@@ -949,7 +1026,7 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("Two Opt done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "random") == 0)
+		else if (strcmp(method, "random") == 0) // Random path generation
 		{
 			if (generate_random_path(inst, sol))
 			{
@@ -961,9 +1038,9 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("Random path done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "vns") == 0)
+		else if (strcmp(method, "vns") == 0) // Variable Neighbourhood Search (VNS)
 		{
-			if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
+			if (apply_greedy_search(inst, sol)) 
 			{
 				print_error("Error applying nearest neighbor heuristic");
 				free(method_str);
@@ -979,9 +1056,9 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("VNS done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "tabu") == 0)
+		else if (strcmp(method, "tabu") == 0) // Tabu Search
 		{
-			if (apply_greedy_search(inst, sol)) // Nearest neighbor heuristic
+			if (apply_greedy_search(inst, sol)) 
 			{
 				print_error("Error applying nearest neighbor heuristic");
 				free(method_str);
@@ -997,7 +1074,7 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("Tabu search done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "benders") == 0)
+		else if (strcmp(method, "benders") == 0) // Benders Decomposition
 		{
 			if (apply_cplex_benders(inst, sol))
 			{
@@ -1009,7 +1086,7 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "branch_and_cut") == 0)
+		else if (strcmp(method, "branch_and_cut") == 0) // Branch and Cut
 		{
 			if (apply_cplex_branchcut(inst, sol))
 			{
@@ -1021,7 +1098,7 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "hard_fix") == 0)
+		else if (strcmp(method, "hard_fix") == 0) // Hard Fixing
 		{
 			if (apply_cplex_hardfix(inst, sol))
 			{
@@ -1135,6 +1212,8 @@ void init(instance *inst)
 
 	inst->starting_time = second();
 
+	inst->edge_weight = 1;   // 0 ATT, 1 EUC_2D default
+
 	inst->greedy_starts = 10;
 
 	inst->vns_kmin = 1;
@@ -1146,6 +1225,8 @@ void init(instance *inst)
 	inst->tabu_max = 0;
 	inst->tabu_tenure = 0;
 	inst->tabu_noimprove = 0;
+
+	inst->hard_fixing_percentage = 0.30;
 
 	strcpy(inst->csv_filename, "");
 }

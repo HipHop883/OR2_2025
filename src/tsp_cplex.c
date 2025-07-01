@@ -994,7 +994,7 @@ int apply_cplex_branchcut(instance *inst, solution *sol)
  *
  * @return 0 if successful, 1 otherwise
  */
-int apply_cplex_hardfix(instance *inst, solution *sol)
+int apply_cplex_hardfix(instance *inst, solution *sol) 
 {
     const double start_time = second();
     double time_elapsed;
@@ -1055,7 +1055,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     }
 
     // Build a warm start directly
-    if (apply_greedy_search(inst, &initial_sol) != 0 || !initial_sol.initialized)
+    if (apply_two_opt(inst, &initial_sol) != 0 || !initial_sol.initialized)
     {
         print_error("Greedy warm start generation failed");
         CPXfreeprob(env, &lp);
@@ -1075,7 +1075,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     copy_sol(&initial_sol, &current_best);
 
     // === Hard fixing main loop ===
-    const double percentage = 0.3; // Fix 30% of the edges  /// TODO: MAKE THIS A PARAMETER ///
     int iteration = 0;
     int improved = 0;
     int n = inst->nnodes;
@@ -1143,7 +1142,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             }
 
             // Decide randomly whether to fix this edge
-            if (((double)rand() / RAND_MAX) < percentage)
+            if (((double)rand() / RAND_MAX) < inst->hard_fixing_percentage)
             {
                 int idx = xpos(from, to, inst);
                 double lb = 1.0; // Fix to 1 (edge must be used)

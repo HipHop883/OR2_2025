@@ -61,6 +61,7 @@ typedef struct
 	// Internal state
 	double **cost_matrix;
 	double starting_time;
+	int edge_weight; // 0 for ATT, 1 for EUC_2D
 
 	// Greedy params
 	int greedy_starts;
@@ -79,6 +80,9 @@ typedef struct
 
 	// CPLEX model metadata
 	int ncols;
+	
+	// Hard Fixing percentage
+	double hard_fixing_percentage;
 } instance;
 
 /**

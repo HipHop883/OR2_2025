@@ -543,6 +543,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			printf("%-15s : %.2f\n", "--vns_lr", inst->vns_learning_rate);
 			printf("%-15s : %d\n", "--vns_jumps", inst->vns_jumps);
 		}
+		/*
 		else if (strcmp(inst->method, "tabu") == 0)
 		{
 			printf("%-15s : %d\n", "--tabu-tenure", inst->tabu_tenure);
@@ -550,6 +551,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			printf("%-15s : %d\n", "--tabu-max", inst->tabu_max);
 			printf("%-15s: %d\n", "--tabu-noimprove", inst->tabu_noimprove);
 		}
+		*/
 		else if (strcmp(inst->method, "hard_fix") == 0)
 		{
 			printf("%-15s : %.2f\n", "--hard_fixing_percentage", inst->hard_fixing_percentage);

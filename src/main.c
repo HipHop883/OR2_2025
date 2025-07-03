@@ -123,7 +123,8 @@ int main(int argc, char **argv)
 
 	free_instance(&inst);
 
-	if (!strcmp(inst.method, "benders") || !strcmp(inst.method, "branch_and_cut"))
+	if (!strcmp(inst.method, "benders") || !strcmp(inst.method, "branch_and_cut") || 
+		!strcmp(inst.method, "tabu+benders") || !strcmp(inst.method, "two_opt+benders"))
 	{
 		update_perf_csv(&inst, execution_times, max_runs);
 	}

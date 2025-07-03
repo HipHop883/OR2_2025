@@ -992,18 +992,44 @@ int execute_selected_method(instance *inst, solution *sol)
 	}
 
 	char *method = strtok(method_str, "+"); // Divide the string in separate methods by the '+'
-
+/**
 	if (method != NULL)
 		inst->timelimit = inst->timelimit / inst->nmethods; // Time limit for each method
+ */
+	double total_weight = 0.0;
+	//Save the old timelimit to restor it after
+    double old_timelimit = inst->timelimit;
+
+	// First pass: sum total weight
+	while (method != NULL) {
+	    total_weight += get_method_weight(method);
+	    method = strtok(NULL, "+");
+	}
+	free(method_str);
+
+	method_str = strdup(inst->method); // re-duplicate
+	if (method_str == NULL)
+	{
+		print_error("Memory allocation failed");
+		free(sol->tour);
+		return EXIT_FAILURE;
+	}
+	method = strtok(method_str, "+");
 
 	while (method != NULL)
 	{
+		
 		double starting_time_method = second();
+		double weight = get_method_weight(method);
+    	double method_timelimit = old_timelimit * (weight / total_weight);
 		if (VERBOSE >= 50)
 		{
 			printf("\n----------------------------------\n");
 			printf("METHOD %s \n\n", method);
 		}
+
+    	inst->timelimit = method_timelimit;
+		printf("Time limit for this method: %.2f s\n", inst->timelimit);
 
 		if (strcmp(method, "n_n") == 0)
 		{
@@ -1146,6 +1172,9 @@ int execute_selected_method(instance *inst, solution *sol)
 	}
 
 	free(method_str);
+	
+	// Restore the old timelimit
+	inst->timelimit = old_timelimit;
 
 	// Save the cost of the best solution
 	evaluate_path_cost(inst, sol);
@@ -1382,3 +1411,23 @@ int apply_three_opt(instance *tsp, solution *sol)
 
 	return 0;
 }
+
+/**
+ * Get the time weight of a method
+ * 
+ * @param method_name name of the method
+ * @return the weight of the method
+ */
+double get_method_weight(const char *method_name) {
+    if (strcmp(method_name, "benders") == 0 || strcmp(method_name, "branch_and_cut") == 0  || 
+		strcmp(method_name, "hard_fix") == 0  || strcmp(method_name, "local_branch") == 0)
+        return 0.9;
+    if (strcmp(method_name, "tabu") == 0)
+        return 0.1;
+    if (strcmp(method_name, "n_n") == 0 || strcmp(method_name, "random") == 0 || strcmp(method_name, "two_opt") == 0)
+        return 0.1;
+    if (strcmp(method_name, "vns") == 0)
+        return 0.5;
+    return 1.0; // default weight
+}
+

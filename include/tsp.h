@@ -17,7 +17,7 @@
  *     - 70 verbose,
  *     - 100 cplex log
  */
-#define VERBOSE 50
+#define VERBOSE 70
 
 #define EPSILON 1e-9 // very small numerical tolerance
 #define XSMALL 1e-5	 // tolerance used to decide ingerality of 0-1 var.s
@@ -124,6 +124,8 @@ void reverse_path_segment(int i, int j, solution *sol);
 
 int tsp_compute_costs(instance *tsp);
 int execute_selected_method(instance *inst, solution *sol);
+double get_method_weight(const char *method_name);
+
 
 int apply_three_opt(instance *tsp, solution *sol);
 

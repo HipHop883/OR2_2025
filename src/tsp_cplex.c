@@ -752,10 +752,25 @@ int apply_cplex_benders(instance *inst, solution *sol)
 
     inst->ncols = CPXgetnumcols(env, lp);
 
+    // === Warm start ===
+    if (sol->initialized && sol->tour)
+    {
+        if (add_warm_start(env, lp, inst, sol))
+           fprintf(stderr, "Warning: failed to add warm start\n");
+        else if (VERBOSE >= 50)
+            printf("Warm start injected with cost &.2f\n", sol->cost);
+    }
+    else 
+    {
+        if (VERBOSE >= 50)
+            printf("No valid warm start solution provided.\n");
+    }
+
+/*
     // === Try warm start from two-opt ===
     solution warm_sol;
     warm_sol.tour = malloc((n + 1) * sizeof(int));
-    warm_sol.initialized = 0;
+    warm_sol.initialized = sol->initialized;
     if (!warm_sol.tour)
     {
         print_error("Memory allocation failed [warm_sol.tour]");
@@ -764,8 +779,12 @@ int apply_cplex_benders(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    if (apply_two_opt(inst, &warm_sol) == 0)
-    { 
+    if (warm_sol.initialized)
+    {   
+        copy_sol(sol, &warm_sol);
+
+//   if (apply_two_opt(inst, &warm_sol) == 0)
+//    { 
         if (add_warm_start(env, lp, inst, &warm_sol))
             fprintf(stderr, "Warning: failed to add warm start\n");
         else if (VERBOSE >= 50)
@@ -776,9 +795,9 @@ int apply_cplex_benders(instance *inst, solution *sol)
     else
     {
         printf("Warning: two-opt warm start failed\n");
-        free(warm_sol.tour);
+        free_sol(&warm_sol);
     }
-
+*/
     int *comp = malloc(n * sizeof(int));
     if (!comp)
     {
@@ -1043,7 +1062,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
 
     // === Generate initial solution using greedy heuristic ===
     solution initial_sol = {0};
-    initial_sol.initialized = 0;
+    initial_sol.initialized = sol->initialized;
 
     initial_sol.tour = malloc((inst->nnodes + 1) * sizeof(int));
     if (!initial_sol.tour)
@@ -1055,24 +1074,56 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     }
 
     // Build a warm start directly
-    if (apply_two_opt(inst, &initial_sol) != 0 || !initial_sol.initialized)
+    if (initial_sol.initialized)
+    {
+        copy_sol(sol, &initial_sol);
+    
+    /*if (apply_two_opt(inst, &initial_sol) != 0 || !initial_sol.initialized)
     {
         print_error("Greedy warm start generation failed");
         CPXfreeprob(env, &lp);
         CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
+        */
 
-    if (add_warm_start(env, lp, inst, &initial_sol))
-    {
-        print_error("Failed to add warm start");
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
+        if (add_warm_start(env, lp, inst, &initial_sol))
+        {
+            print_error("Failed to add warm start");
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
+            return EXIT_FAILURE;
+        }
+        else if (VERBOSE >= 50)
+            printf("Warm start injected with cost %.2f\n", initial_sol.cost);
+
+        // Copy as a starting point for Hard Fixing
+        copy_sol(&initial_sol, &current_best);
     }
+    else
+    {
+        // If no initial solution is provided
+        if (apply_two_opt(inst, &initial_sol) != 0 || !initial_sol.initialized)
+        {
+            print_error("Greedy warm start generation failed");
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
+            return EXIT_FAILURE;
+        }
+        if (add_warm_start(env, lp, inst, &initial_sol))
+        {
+            print_error("Failed to add warm start");
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
+            return EXIT_FAILURE;
+        }
+        else if (VERBOSE >= 50)
+            printf("Warm start injected with cost %.2f\n", initial_sol.cost);
 
-    // Copy as a starting point for Hard Fixing
-    copy_sol(&initial_sol, &current_best);
+        // Copy as a starting point for Hard Fixing
+        copy_sol(&initial_sol, &current_best);
+        
+    }
 
     // === Hard fixing main loop ===
     int iteration = 0;

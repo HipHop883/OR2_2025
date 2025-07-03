@@ -758,7 +758,7 @@ int apply_cplex_benders(instance *inst, solution *sol)
         if (add_warm_start(env, lp, inst, sol))
            fprintf(stderr, "Warning: failed to add warm start\n");
         else if (VERBOSE >= 50)
-            printf("Warm start injected with cost &.2f\n", sol->cost);
+            printf("Warm start injected with cost %.2f\n", sol->cost);
     }
     else 
     {

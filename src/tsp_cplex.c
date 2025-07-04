@@ -437,11 +437,14 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
  *
  * @return EXIT_SUCCESS if successful, EXIT_FAILURE otherwise
  */
-int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp, int ncomp)
+int patch_solution(const double *xstar_in, instance *inst, solution *sol)
 {
     int n = inst->nnodes;
 
-    // === Allocate adjacency structures ===
+    // === Allocate support data structures ===
+    double *xstar = malloc(inst->ncols * sizeof(double));
+    int *comp = malloc(n * sizeof(int));
+
     int **adj = malloc(n * sizeof(int *));
     int *degree = calloc(n, sizeof(int));
     if (!adj || !degree)
@@ -451,6 +454,12 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
         free(degree);
         return EXIT_FAILURE;
     }
+
+    int *visited;
+    int *tour;
+    int did_patch = 0;
+
+    memcpy(xstar, xstar_in, inst->ncols * sizeof(double));
 
     for (int i = 0; i < n; i++)
     {
@@ -480,106 +489,147 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
         }
     }
 
-    double best_extra_cost = CPX_INFBOUND;
-    int best_i = -1, best_j = -1, best_u = -1, best_v = -1;
+    int ncomp = build_components(xstar, comp, inst);
 
-    // === Search for best edge patch ===
-    for (int i = 0; i < n; i++)
+    while (ncomp > 1)
     {
-        if (degree[i] != MAX_DEGREE)
-            continue;
+        double best_extra_cost = CPX_INFBOUND;
+        int bi = -1, bj = -1, bu = -1, bv = -1;
 
-        int j = adj[i][0];
-        if (comp[i] != comp[j])
-            continue;
-
-        for (int u = 0; u < n; u++)
+        for (int i = 0; i < n; i++)
         {
-            if (u == i || u == j || comp[u] == comp[i])
-                continue;
-
-            for (int v = 0; v < n; v++)
+            for (int j = 0; j < n; j++)
             {
-                if (v == i || v == j || v == u || comp[v] == comp[i] || comp[v] == comp[u])
+                if (comp[i] == comp[j])
                     continue;
 
-                double removed_cost = inst->cost_matrix[i][j];
-                double added_cost = inst->cost_matrix[i][u] + inst->cost_matrix[j][v];
-                double extra = added_cost - removed_cost;
-
-                if (extra < best_extra_cost)
+                for (int di = 0; di < degree[i]; di++)
                 {
-                    best_extra_cost = extra;
-                    best_i = i;
-                    best_j = j;
-                    best_u = u;
-                    best_v = v;
+                    int u = adj[i][di];
+
+                    for (int dj = 0; dj < degree[j]; dj++)
+                    {
+                        int v = adj[j][dj];
+                        if (u == j && v == i)
+                            continue;
+                        if (u == v)
+                            continue;
+                        double extra_cost = inst->cost_matrix[i][j] + inst->cost_matrix[u][v] - inst->cost_matrix[i][u] - inst->cost_matrix[j][v];
+                        if (extra_cost < best_extra_cost)
+                        {
+                            best_extra_cost = extra_cost;
+                            bi = i;
+                            bj = j;
+                            bu = u;
+                            bv = v;
+                        }
+                    }
                 }
             }
         }
+
+        if (bi < 0)
+        {
+            if (VERBOSE >= 20)
+                printf("[PATCH] No patch found — fallback heuristic failed\n");
+
+            for (int i = 0; i < n; i++)
+                free(adj[i]);
+            free(adj);
+            free(degree);
+            return EXIT_FAILURE;
+        }
+
+        if (VERBOSE >= 30)
+            printf("[PATCH] Removing (%d,%d), adding (%d,%d) and (%d,%d) | Delta cost = %.2f\n", bi, bj, bi, bu, bj, bv, best_extra_cost);
+
+        // === Apply patch ===
+        for (int k = 0; k < degree[bi]; k++)
+        {
+            if (adj[bi][k] == bu)
+            {
+                adj[bi][k] = adj[bi][--degree[bi]];
+                break;
+            }
+        }
+        for (int k = 0; k < degree[bu]; k++)
+        {
+            if (adj[bu][k] == bi)
+            {
+                adj[bu][k] = adj[bu][--degree[bu]];
+                break;
+            }
+        }
+
+        for (int k = 0; k < degree[bj]; k++)
+        {
+            if (adj[bj][k] == bv)
+            {
+                adj[bj][k] = adj[bj][--degree[bj]];
+                break;
+            }
+        }
+        for (int k = 0; k < degree[bv]; k++)
+        {
+            if (adj[bv][k] == bj)
+            {
+                adj[bv][k] = adj[bv][--degree[bv]];
+                break;
+            }
+        }
+
+        adj[bi][degree[bi]++] = bj;
+        adj[bj][degree[bj]++] = bi;
+        adj[bu][degree[bu]++] = bv;
+        adj[bv][degree[bv]++] = bu;
+
+        did_patch = 1;
+
+        // === Rebuild xstar from adj ===
+        memset(xstar, 0, inst->ncols * sizeof(double));
+        for (int i = 0; i < n; i++)
+        {
+            for (int d = 0; d < degree[i]; d++)
+            {
+                int j = adj[i][d];
+                if (i < j)
+                    xstar[xpos(i, j, inst)] = 1.0;
+            }
+        }
+
+        // === Compute new ncomp ===
+        ncomp = build_components(xstar, comp, inst);
     }
 
-    if (best_i == -1)
+    if (!did_patch)
     {
-        if (VERBOSE >= 20)
-            printf("[PATCH] No patch found — fallback heuristic failed\n");
-
+        print_error("No valid patch found");
         for (int i = 0; i < n; i++)
             free(adj[i]);
         free(adj);
         free(degree);
+        free(comp);
+        free(xstar);
+        if (visited)
+            free(visited);
+
         return EXIT_FAILURE;
     }
-
-    if (VERBOSE >= 30)
-        printf("[PATCH] Removing (%d,%d), adding (%d,%d) and (%d,%d) | Delta cost = %.2f\n", best_i, best_j, best_i, best_u, best_j, best_v, best_extra_cost);
-
-    // === Apply patch ===
-    for (int d = 0; d < MAX_DEGREE; d++)
-    {
-        if (adj[best_i][d] == best_j)
-        {
-            adj[best_i][d] = best_u;
-            break;
-        }
-    }
-    for (int d = 0; d < MAX_DEGREE; d++)
-    {
-        if (adj[best_j][d] == best_i)
-        {
-            adj[best_j][d] = best_v;
-            break;
-        }
-    }
-
-    adj[best_u][degree[best_u]++] = best_i;
-    adj[best_v][degree[best_v]++] = best_j;
 
     // === Reconstruct tour ===
-    int *tour = malloc((n + 1) * sizeof(int));
-    int *visited = calloc(n, sizeof(int));
-    if (!tour || !visited)
-    {
-        print_error("Memory allocation failed [tour or visited]");
-        for (int i = 0; i < n; i++)
-            free(adj[i]);
-        free(adj);
-        free(degree);
-        free(tour);
-        free(visited);
-        return EXIT_FAILURE;
-    }
-
-    int current = 0;
-    tour[0] = current;
-    visited[current] = 1;
+    tour = malloc((n + 1) * sizeof(int));
+    visited = calloc(n, sizeof(int));
+    int curr = 0;
+    tour[0] = curr;
+    visited[curr] = 1;
 
     for (int k = 1; k < n; k++)
     {
-        int next = (visited[adj[current][0]] == 0) ? adj[current][0] : adj[current][1];
+        int a = adj[curr][0], b = adj[curr][1];
+        int next = visited[a] ? b : a;
         tour[k] = next;
         visited[next] = 1;
-        current = next;
+        curr = next;
     }
     tour[n] = tour[0];
 
@@ -588,14 +638,15 @@ int patch_solution(const double *xstar, instance *inst, solution *sol, int *comp
     sol->tour = tour;
     sol->initialized = 1;
     evaluate_path_cost(inst, sol);
-
     for (int i = 0; i < n; i++)
         free(adj[i]);
     free(adj);
     free(degree);
-    free(visited);
-
-    return EXIT_SUCCESS;
+    free(comp);
+    free(xstar);
+    if (visited)
+        free(visited);
+    return (sol->initialized ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 /**
@@ -756,48 +807,16 @@ int apply_cplex_benders(instance *inst, solution *sol)
     if (sol->initialized && sol->tour)
     {
         if (add_warm_start(env, lp, inst, sol))
-           fprintf(stderr, "Warning: failed to add warm start\n");
+            fprintf(stderr, "Warning: failed to add warm start\n");
         else if (VERBOSE >= 50)
             printf("Warm start injected with cost %.2f\n", sol->cost);
     }
-    else 
+    else
     {
         if (VERBOSE >= 50)
             printf("No valid warm start solution provided.\n");
     }
 
-/*
-    // === Try warm start from two-opt ===
-    solution warm_sol;
-    warm_sol.tour = malloc((n + 1) * sizeof(int));
-    warm_sol.initialized = sol->initialized;
-    if (!warm_sol.tour)
-    {
-        print_error("Memory allocation failed [warm_sol.tour]");
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
-    }
-
-    if (warm_sol.initialized)
-    {   
-        copy_sol(sol, &warm_sol);
-
-//   if (apply_two_opt(inst, &warm_sol) == 0)
-//    { 
-        if (add_warm_start(env, lp, inst, &warm_sol))
-            fprintf(stderr, "Warning: failed to add warm start\n");
-        else if (VERBOSE >= 50)
-            printf("Warm start injected with cost %.2f\n", warm_sol.cost);
-
-        free_sol(&warm_sol);
-    }
-    else
-    {
-        printf("Warning: two-opt warm start failed\n");
-        free_sol(&warm_sol);
-    }
-*/
     int *comp = malloc(n * sizeof(int));
     if (!comp)
     {
@@ -824,7 +843,7 @@ int apply_cplex_benders(instance *inst, solution *sol)
 
             if (ncomp > 1 && xstar)
             {
-                if (patch_solution(xstar, inst, sol, comp, ncomp))
+                if (patch_solution(xstar, inst, sol))
                 {
                     free(comp);
                     free(xstar);
@@ -853,7 +872,8 @@ int apply_cplex_benders(instance *inst, solution *sol)
 
         int ncols = CPXgetnumcols(env, lp);
 
-        if (xstar) free(xstar);
+        if (xstar)
+            free(xstar);
         xstar = calloc(ncols, sizeof(double));
 
         if (!xstar)
@@ -1013,7 +1033,7 @@ int apply_cplex_branchcut(instance *inst, solution *sol)
  *
  * @return 0 if successful, 1 otherwise
  */
-int apply_cplex_hardfix(instance *inst, solution *sol) 
+int apply_cplex_hardfix(instance *inst, solution *sol)
 {
     const double start_time = second();
     double time_elapsed;
@@ -1122,7 +1142,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
 
         // Copy as a starting point for Hard Fixing
         copy_sol(&initial_sol, &current_best);
-        
     }
 
     // === Hard fixing main loop ===
@@ -1297,7 +1316,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             patched_sol.initialized = 0;
             patched_sol.tour = NULL;
 
-            if (patch_solution(xstar, inst, &patched_sol, comp, ncomp) == EXIT_SUCCESS)
+            if (patch_solution(xstar, inst, &patched_sol) == EXIT_SUCCESS)
             {
                 // Check if patched solution is better than current best
                 if (patched_sol.initialized && patched_sol.cost < current_best.cost - EPSILON)
@@ -1667,7 +1686,7 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         if (ncomp > 1)
         {
             // Try to patch the solution into a valid tour
-            if (patch_solution(xstar, inst, &new_sol, comp, ncomp) != EXIT_SUCCESS)
+            if (patch_solution(xstar, inst, &new_sol) != EXIT_SUCCESS)
             {
                 if (VERBOSE >= 60)
                     printf("[LOC.BRANCH] Patching failed for %d components\n", ncomp);

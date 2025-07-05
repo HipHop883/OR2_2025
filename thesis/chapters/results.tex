@@ -1,39 +1,47 @@
-In this section, we present and analyze the results obtained from the experiments conducted on the methods introduced in the previous chapters. For each macro category, we implemented two algorithmic approaches. Our analysis is divided into two phases: first, we fine-tune the main parameters (when applicable), and then we compare the best-performing configurations within each category.
+In this section, we present and analyze the results obtained from the experiments conducted on the methods introduced in the previous chapters. For each macro-category, two algorithmic approaches were implemented. The analysis is divided into two phases: first, the main parameters are fine-tuned (when applicable), and then the best-performing configurations within each category are compared.
 
 \section{Methodology}
 
-Each group of algorithms will be analyzed independently following a consistent methodology. Three main parameters are considered in all experiments:
+Each group of algorithms is analyzed independently, following a consistent methodology. Three main parameters are considered throughout the experiments:
 \begin{itemize}
-    \item \textbf{Number of nodes:} This varies depending on the nature of the method (e.g., fewer nodes for exact methods, more for heuristics and metaheuristics).
-    \item \textbf{Time limit:} Fixed for each experiment to ensure comparability across algorithms.
-    \item \textbf{Number of runs:} Each configuration is tested on 20 different randomly generated instances to guarantee statistical significance.
+    \item \textbf{Number of nodes:} This varies depending on the method's nature (e.g., fewer nodes for exact methods, more for heuristics and metaheuristics).
+    \item \textbf{Time limit:} A fixed time budget is set for all experiments to ensure comparability.
+    \item \textbf{Number of runs:} Each configuration is tested on 20 randomly generated instances to ensure statistical significance.
 \end{itemize}
 
-To enable a rigorous comparison, we rely on \textbf{Performance Profiles}, a graphical tool that allows us to assess and visualize the comparative efficiency of different algorithms across a suite of problem instances.
+Specifically, the following settings were adopted:
+\begin{itemize}
+    \item \textbf{Heuristics:} 1000-node instances, 120-second time limit.
+    \item \textbf{Metaheuristics:} 1000-node instances, 120-second time limit.
+    \item \textbf{Exact methods:} 200-node instances, 120-second time limit.
+\end{itemize}
+
+Each test was repeated on 20 instances, initialized with distinct random seeds. To enable rigorous comparisons, we rely on \textbf{performance profiles}, a graphical benchmarking tool that allows us to assess and visualize the relative efficiency of different algorithms across a set of problem instances~\cite{dolan2002performance}.
 
 \subsection{Instance Generation}
 
-The TSP instances used in our experiments are generated randomly. Each instance consists of a set of points placed on a 2D grid $[0, 10\,000] \times [0, 10\,000]$, with coordinates sampled from an i.i.d. uniform distribution. The cost matrix for each instance is computed using the Euclidean distance between points, optionally rounded according to the ATT formula from TSPLIB.
+The TSP instances used in our experiments are generated randomly. Each instance consists of a set of points placed on a 2D grid $[0, 10\,000] \times [0, 10\,000]$, with coordinates sampled from an independent and identically distributed model. The cost matrix for each instance is computed using the Euclidean distance between points, optionally rounded according to the \emph{ATT} formula from TSPLIB~\cite{reinelt1995tsplib}.
 
 \subsection{Experimental Setup}
 
-All experiments were conducted on a machine equipped with an Intel Core i7-10510U processor and 16 GB of RAM. The exact methods were solved using \textbf{IBM ILOG CPLEX 22.1.2}, interfaced via its C API. Heuristic and metaheuristic algorithms were developed in C for performance, while Python was used to manage experiment automation and result visualization.
+The exact and matheuristic methods were solved using \textbf{IBM ILOG CPLEX 22.1.2}~\cite{cplex2023}, interfaced via its C API. Greedy and heuristic algorithms were implemented in C for performance reasons, while Python was used for result visualization and data processing.
+
+To ensure comparability, all algorithms within the same category were executed sequentially on the same hardware. However, different classes of methods were executed on different machines, as detailed below:
+
+\begin{center}
+\begin{tabular}{ c | c | c }
+  \textbf{Processor} & \textbf{RAM} & \textbf{Algorithms Executed} \\
+  \hline
+  Intel Core i7-10510U & 16 GB & Exact, Matheuristic \\
+  Intel Core i5-8265U  & 16 GB & Greedy, Heuristic \\
+\end{tabular}
+\end{center}
 
 \subsection{Performance Profiles}
 
-To compare the performance of different algorithms across a common set of instances, we used performance profiles. These were generated with a Python script developed by Domenico Salvagnin. The script processes a CSV table containing the results of each algorithm on each instance, and compares the performance of each algorithm to the best obtained on the same instance.
-This approach enables us to build plots that show, for each algorithm, how often it performs within a certain range of the best result, offering a clear visual summary of relative performance. For heuristics and metaheuristics, the comparison is based on the cost of the best solution found; for exact methods, on the time required to find the optimal solution.
+To compare algorithm performance across a common set of instances, we used performance profiles. These were generated using a Python script developed by Professor Domenico Salvagnin. The script processes a CSV file containing the results of each algorithm on each instance and compares the performance to the best value achieved on that instance.
 
-For each class of methods, the following parameters were used in the experiments:
-\begin{itemize}
-    \item \textbf{Heuristics:} 1000-node instances, time limit of 120 seconds.
-    \item \textbf{Metaheuristics:} 1000-node instances, time limit of 120 seconds.
-    \item \textbf{Exact methods:} 200-node instances, time limit of 120 seconds.
-    
-    
-\end{itemize}
-
-Each test was repeated over 20 instances, initialized with different random seeds. All results are reported in the form of performance profiles to ensure clarity and comparability.
+This approach enables the construction of plots that show, for each algorithm, the proportion of instances for which its performance is within a given factor of the best. For heuristic and metaheuristic methods, the comparison is based on the objective value of the best solution found; for exact methods, it is based on the time required to find the optimal solution.
 
 \section{Parameters tuning}
 

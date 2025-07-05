@@ -610,8 +610,6 @@ int patch_solution(const double *xstar_in, instance *inst, solution *sol)
         free(degree);
         free(comp);
         free(xstar);
-        if (visited)
-            free(visited);
 
         return EXIT_FAILURE;
     }
@@ -1038,9 +1036,15 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     const double start_time = second();
     double time_elapsed;
     solution current_best;
+    current_best.tour = NULL;
+    current_best.initialized = 0;   
+    current_best.cost = CPX_INFBOUND;
     int status = EXIT_FAILURE;
     double *xstar = NULL;
     int *comp = NULL;
+    static int *fixed_edges = NULL;
+    static int num_fixed_edges = 0;
+
 
     // === Initialize CPLEX environment ===
     int error;
@@ -1081,33 +1085,12 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     }
 
     // === Generate initial solution using greedy heuristic ===
-    solution initial_sol = {0};
-    initial_sol.initialized = sol->initialized;
-
-    initial_sol.tour = malloc((inst->nnodes + 1) * sizeof(int));
-    if (!initial_sol.tour)
-    {
-        print_error("Memory allocation failed for initial_sol.tour");
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
-    }
-
     // Build a warm start directly
-    if (initial_sol.initialized)
+    if (sol->initialized)
     {
-        copy_sol(sol, &initial_sol);
-    
-    /*if (apply_two_opt(inst, &initial_sol) != 0 || !initial_sol.initialized)
-    {
-        print_error("Greedy warm start generation failed");
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
-    }
-        */
+        copy_sol(sol, &current_best);
 
-        if (add_warm_start(env, lp, inst, &initial_sol))
+        if (add_warm_start(env, lp, inst, &current_best))
         {
             print_error("Failed to add warm start");
             CPXfreeprob(env, &lp);
@@ -1115,22 +1098,32 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             return EXIT_FAILURE;
         }
         else if (VERBOSE >= 50)
-            printf("Warm start injected with cost %.2f\n", initial_sol.cost);
+            printf("[HARDFIX] Initial warm start cost: %.2f\n", current_best.cost);
 
-        // Copy as a starting point for Hard Fixing
-        copy_sol(&initial_sol, &current_best);
     }
     else
     {
         // If no initial solution is provided
-        if (apply_two_opt(inst, &initial_sol) != 0 || !initial_sol.initialized)
-        {
-            print_error("Greedy warm start generation failed");
+        solution temp_two_opt;
+        temp_two_opt.tour = malloc((inst->nnodes + 1) * sizeof(int));
+        if (!temp_two_opt.tour) { 
+            print_error("Memory allocation failed for temp_two_opt.tour");
             CPXfreeprob(env, &lp);
             CPXcloseCPLEX(&env);
             return EXIT_FAILURE;
         }
-        if (add_warm_start(env, lp, inst, &initial_sol))
+        temp_two_opt.initialized = 0;
+
+        if (apply_two_opt(inst, &temp_two_opt) != 0 || !temp_two_opt.initialized)
+        {
+            print_error("Two-opt warm start generation failed");
+            free_sol(&temp_two_opt);
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
+            return EXIT_FAILURE;
+        }
+        copy_sol(&temp_two_opt, &current_best);
+        if (add_warm_start(env, lp, inst, &current_best))
         {
             print_error("Failed to add warm start");
             CPXfreeprob(env, &lp);
@@ -1138,10 +1131,9 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             return EXIT_FAILURE;
         }
         else if (VERBOSE >= 50)
-            printf("Warm start injected with cost %.2f\n", initial_sol.cost);
+            printf("Warm start injected with cost %.2f\n", current_best.cost);
 
-        // Copy as a starting point for Hard Fixing
-        copy_sol(&initial_sol, &current_best);
+        free_sol(&temp_two_opt);
     }
 
     // === Hard fixing main loop ===
@@ -1154,12 +1146,27 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     if (!comp)
     {
         print_error("Memory allocation failed for comp array");
-        free_sol(&initial_sol);
         free_sol(&current_best);
         CPXfreeprob(env, &lp);
         CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
+
+    if (!fixed_edges)
+    {
+        // Reset variable bounds to original (unfix all variables)
+        fixed_edges = malloc(inst->ncols * sizeof(int));
+        if (!fixed_edges)
+        {
+            print_error("Memory allocation failed for fixed_edges");
+            free(comp);
+            free_sol(&current_best);
+            CPXfreeprob(env, &lp);
+            CPXcloseCPLEX(&env);
+            return EXIT_FAILURE;
+        }
+    }
+
 
     while (1)
     {
@@ -1181,19 +1188,16 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF); // Turn on\off CPLEX output for iterations
         CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0);        // Minimal display
 
-        // Reset variable bounds to original (unfix all variables)
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < num_fixed_edges; i++) 
         {
-            for (int j = i + 1; j < n; j++)
+            double lb = 0.0;
+            if (CPXchgbds(env, lp, 1, &fixed_edges[i], "L", &lb))
             {
-                int idx = xpos(i, j, inst);
-                if (CPXchgbds(env, lp, 1, &idx, "L", &(double){0.0}))
-                {
-                    print_error("CPXchgbds error when unfixing variables");
-                    goto CLEANUP;
-                }
+                print_error("CPXchgbds error when unfixing variables");
+                goto CLEANUP;
             }
-        }
+        }   
+        num_fixed_edges = 0;
 
         // === Randomly fix edges from current_best solution ===
         int fixed_count = 0;
@@ -1222,6 +1226,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
                     print_error("CPXchgbds error when fixing variables");
                     goto CLEANUP;
                 }
+                fixed_edges[num_fixed_edges++] = idx;
                 fixed_count++;
             }
         }
@@ -1230,9 +1235,17 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             printf("[HARDFIX] Iter %2d | Fixed edges: %2d | Remaining time: %.2fs\n", iteration, fixed_count, inst->timelimit - time_elapsed);
 
         // Add MIP start from current best solution
-        if (add_warm_start(env, lp, inst, &current_best))
+        static int current_best_changed = 1; // Set to true initially
+
+        if (current_best_changed)
         {
-            fprintf(stderr, "Warning: Failed to add MIP start in iteration %d\n", iteration);
+
+            if (add_warm_start(env, lp, inst, &current_best))
+            {
+                fprintf(stderr, "Warning: Failed to add MIP start in iteration %d\n", iteration);
+            }
+
+            current_best_changed = 0;
         }
 
         // === Solve the restricted problem ===
@@ -1279,6 +1292,8 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             // Check if we improved
             if (new_sol.cost < current_best.cost - EPSILON)
             {
+                current_best_changed = 1;
+
                 improved++;
                 if (VERBOSE >= 10)
                     printf("[HARDFIX] Iteration %d: Improved from %.2f to %.2f (-%.2f)\n",
@@ -1292,6 +1307,17 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
                 printf("[HARDFIX] Iteration %d: No improvement (current best: %.2f)\n",
                        iteration, current_best.cost);
             }
+
+            // Adaptive tuning of fixing percentage
+            if (new_sol.cost < current_best.cost - EPSILON)
+            {
+                inst->hard_fixing_percentage = fmin(1.0, inst->hard_fixing_percentage + 0.02);
+            }
+            else
+            {
+                inst->hard_fixing_percentage = fmax(0.1, inst->hard_fixing_percentage - 0.01);
+            }
+
 
             free_sol(&new_sol);
         }
@@ -1332,16 +1358,29 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     }
 
     // Copy best solution to output
-    copy_sol(&current_best, sol);
-    status = EXIT_SUCCESS;
+    if (current_best.initialized)
+    {
+        copy_sol(&current_best, sol);
+        status = EXIT_SUCCESS;
+    }
+    else
+    {
+        print_error("No valid solution found during hard fixing");
+        status = EXIT_FAILURE;
+    }
 
 CLEANUP:
     if (xstar)
         free(xstar);
     if (comp)
         free(comp);
+    if (fixed_edges)
+    {
+        free(fixed_edges);
+        fixed_edges = NULL;
+    }
+
     free_sol(&current_best);
-    free_sol(&initial_sol);
     CPXfreeprob(env, &lp);
     CPXcloseCPLEX(&env);
 
@@ -1360,6 +1399,8 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
     const double start_time = second();
     double time_elapsed;
     solution current_best;
+    current_best.tour = NULL;
+
     int status = EXIT_FAILURE;
     double *xstar = NULL;
     int *comp = NULL;
@@ -1404,8 +1445,10 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
     }
 
     // === Generate initial solution using greedy heuristic ===
-    solution initial_sol = {0};
+    solution initial_sol;
     initial_sol.initialized = 0;
+    initial_sol.cost = CPX_INFBOUND;
+    initial_sol.tour = NULL;
 
     initial_sol.tour = malloc((n + 1) * sizeof(int));
     if (!initial_sol.tour)
@@ -1418,16 +1461,14 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
 
     if (sol->initialized) 
     {
-        initial_sol.cost = sol->cost;
-        memcpy(initial_sol.tour, sol->tour, sizeof(int) * (inst->nnodes + 1));
-        initial_sol.initialized = 1;
+        copy_sol(sol, &initial_sol);
     }    
     else 
     {
         if (apply_two_opt(inst, &initial_sol) != 0 || !initial_sol.initialized)
         {
             print_error("Two opt warm start generation failed");
-            free(initial_sol.tour);
+            free_sol(&initial_sol);
             CPXfreeprob(env, &lp);
             CPXcloseCPLEX(&env);
             return EXIT_FAILURE;
@@ -1442,6 +1483,8 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
+    else if (VERBOSE >= 50)
+        printf("[LOC.BRANCH] Initial warm start cost: %.2f\n", initial_sol.cost);
 
     // Copy as a starting point for Local Branching
     copy_sol(&initial_sol, &current_best);
@@ -1449,7 +1492,7 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
     // === Local Branching main loop ===
     int k = 20;                         // Initial neighborhood size (k-opt parameter)
     const int k_min = 5;                // Minimum neighborhood size
-    const int k_max = min(50, n/2);     // Maximum neighborhood size
+    const int k_max = min(50, n/2);     // Maximum neighborhood size, It is used to avoid a too large neighborhood
     const int node_limit = 1000;        // Node limit per iteration
     int iteration = 0;
     int improved = 0;
@@ -1567,56 +1610,31 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
             edge_in_solution[xpos(u, v, inst)] = 1;
         }
 
-        // Build the constraint: ∑(e: x_e^H = 0) x_e + ∑(e: x_e^H = 1) (1 - x_e) ≤ k
-        // This becomes: ∑(e: x_e^H = 0) x_e - ∑(e: x_e^H = 1) x_e ≤ k - |E^H|
-        // where |E^H| = n (number of edges in current solution)
-        
-        int nnz = 0;
-        int num_edges_in_solution = 0;
+        // Local branching constraint (Hamming distance ≤ k):
+        //    ∑_{e: x^H_e = 0} x_e  +  ∑_{e: x^H_e = 1} (1 - x_e)  ≤ k
 
-        for (int i = 0; i < n; i++) {
-            int u = current_best.tour[i];
-            int v = current_best.tour[i + 1];
-            int edge_idx = xpos(u, v, inst);
-        
-            indices[nnz] = edge_idx;
-            values[nnz] = -1.0;
+        int nnz = 0;
+        for (int e = 0; e < inst->ncols; e++)
+        {
+            indices[nnz] = e;
+            // if edge_in_solution[e]==1 → coeff = -1 (1 - x_e)
+            // otherwise coeff = +1 (x_e)
+            values[nnz] = edge_in_solution[e] ? -1.0 : 1.0;
             nnz++;
         }
+        double rhs   = (double)k;
+        char   sense = 'L';
+        int    rmatbeg[1] = { 0 };
 
-        // Consider only a limited number of bows NOT on the tour
-        int extra_edges_added = 0;
-        const int max_extra_edges = 10;
-
-        for (int i = 0; i < n && extra_edges_added < max_extra_edges; i++) {
-            for (int j = i + 1; j < n && extra_edges_added < max_extra_edges; j++) {
-                int edge_idx = xpos(i, j, inst);
-                if (!edge_in_solution[edge_idx]) {
-                    indices[nnz] = edge_idx;
-                    values[nnz] = 1.0;
-                    nnz++;
-                    extra_edges_added++;
-                }
-            }
-        }
-
-        num_edges_in_solution = n;  // only edges in the tour
-
-
-        // RHS = k - num_edges_in_solution
-        double rhs = (double)(k - num_edges_in_solution);
-        char sense = 'L'; // Less than or equal
-        char *rowname = "local_branching";
-        char *nameptr = rowname;
-
-        if (CPXaddrows(env, lp, 0, 1, nnz, &rhs, &sense, &(int){0}, indices, values, NULL, &nameptr))
+        if (CPXaddrows(env, lp, 0, 1, nnz, &rhs, &sense,
+                       rmatbeg, indices, values, NULL, NULL))
         {
             print_error("CPXaddrows error when adding local branching constraint");
             goto CLEANUP;
         }
 
         // Get the index of the newly added row
-        lb_row = CPXgetnumrows(env, lp) - 1;
+        lb_row = CPXgetnumrows(env, lp) -1;
 
         if (VERBOSE >= 60)
             printf("[LOC.BRANCH] Iteration %d: Added constraint with k = %d, RHS = %.0f\n", 
@@ -1739,7 +1757,7 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
                 printf("[LOC.BRANCH] Iteration %d: No improvement (current: %.2f, found: %.2f)\n",
                        iteration, current_best.cost, new_sol.cost);
 
-            // Adjust k based on the solution status (as per your notes)
+            // Adjust k based on the solution status
             if (is_optimal)
             {
                 // Solution is optimal but no improvement -> increase k

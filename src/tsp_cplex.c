@@ -969,6 +969,20 @@ int apply_cplex_branchcut(instance *inst, solution *sol)
 
     inst->ncols = CPXgetnumcols(env, lp);
 
+    // === Warm start ===
+    if (sol->initialized && sol->tour)
+    {
+        if (add_warm_start(env, lp, inst, sol))
+            fprintf(stderr, "Warning: failed to add warm start\n");
+        else if (VERBOSE >= 50)
+            printf("Warm start injected with cost %.2f\n", sol->cost);
+    }
+    else
+    {
+        if (VERBOSE >= 50)
+            printf("No valid warm start solution provided.\n");
+    }
+
     // === Set up callback for lazy constraints (SEC) ===
     CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
     if (CPXcallbacksetfunc(env, lp, contextid, my_callback, inst))

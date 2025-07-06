@@ -124,7 +124,7 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
     else
     {
         // TODO other methods
-        strcpy(instance_id, inst->method);
+        sprintf(instance_id, "%s_seed_%d", inst->method, inst->randomseed);
     }
 
     FILE *fp = fopen(csv_filename, "r");

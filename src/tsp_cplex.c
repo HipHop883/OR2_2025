@@ -1042,8 +1042,8 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     int status = EXIT_FAILURE;
     double *xstar = NULL;
     int *comp = NULL;
-    static int *fixed_edges = NULL;
-    static int num_fixed_edges = 0;
+    int *fixed_edges = NULL;
+    int num_fixed_edges = 0;
 
 
     // === Initialize CPLEX environment ===
@@ -1377,7 +1377,6 @@ CLEANUP:
     if (fixed_edges)
     {
         free(fixed_edges);
-        fixed_edges = NULL;
     }
 
     free_sol(&current_best);

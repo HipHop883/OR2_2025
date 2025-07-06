@@ -18,6 +18,10 @@ int apply_greedy_search(const instance *inst, solution *best_sol)
     double starting_time = second();
 
     solution current_sol;
+    current_sol.tour = NULL;
+    current_sol.cost = 0.0;
+    current_sol.initialized = 0;
+    
     current_sol.tour = (int *)malloc((inst->nnodes + 1) * sizeof(int));
     if (!current_sol.tour)
     {
@@ -107,7 +111,7 @@ int apply_nearest_neighbor(const instance *inst, solution *sol, int start_node)
     double time = second();
 
     int nnodes = inst->nnodes;
-    int *visited = (int *)calloc(nnodes, sizeof(int));
+    int *visited = (int *) calloc(nnodes, sizeof(int));
     int current = start_node;
     visited[current] = 1;
     sol->tour[0] = current;
@@ -129,7 +133,12 @@ int apply_nearest_neighbor(const instance *inst, solution *sol, int start_node)
                 }
             }
         }
-
+        if (next == -1) 
+        {
+            fprintf(stderr, "[ERROR] Nearest neighbor: no unvisited nodes found at i = %d\n", i);
+            free(visited);
+            return EXIT_FAILURE;
+        }
         visited[next] = 1;
         sol->tour[i] = next;
         current = next;

@@ -472,7 +472,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		}
 		else if (!strcmp(argv[i], "--hard_fixing_percentage") || !strcmp(argv[i], "-hf_p"))
 		{
-			if (i +1 < argc)
+			if (i + 1 < argc)
 			{
 				inst->hard_fixing_percentage = atof(argv[++i]);
 

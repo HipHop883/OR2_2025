@@ -132,5 +132,9 @@ int main(int argc, char **argv)
 	{
 		update_perf_csv(&inst, best_costs, max_runs);
 	}
+
+	free(best_costs);
+    free(execution_times);
+	
 	return EXIT_SUCCESS;
 }

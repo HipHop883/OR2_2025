@@ -28,3 +28,6 @@ tsp_solver
 .clang-format
 
 thesis/main.pdf
+src/py/*.pdf
+
+model.lp

@@ -992,20 +992,22 @@ int execute_selected_method(instance *inst, solution *sol)
 	}
 
 	char *method = strtok(method_str, "+"); // Divide the string in separate methods by the '+'
-/**
-	if (method != NULL)
-		inst->timelimit = inst->timelimit / inst->nmethods; // Time limit for each method
- */
+
 	double total_weight = 0.0;
-	//Save the old timelimit to restor it after
-    double old_timelimit = inst->timelimit;
+	// Save the old timelimit to restor it after
+	double old_timelimit = inst->timelimit;
+	double remaining_time = old_timelimit;
+	double remaining_weight = 0.0;
 
 	// First pass: sum total weight
-	while (method != NULL) {
-	    total_weight += get_method_weight(method);
-	    method = strtok(NULL, "+");
+	while (method != NULL)
+	{
+		total_weight += get_method_weight(method);
+		method = strtok(NULL, "+");
 	}
 	free(method_str);
+
+	remaining_weight = total_weight;
 
 	method_str = strdup(inst->method); // re-duplicate
 	if (method_str == NULL)
@@ -1018,18 +1020,19 @@ int execute_selected_method(instance *inst, solution *sol)
 
 	while (method != NULL)
 	{
-		
-		double starting_time_method = second();
 		double weight = get_method_weight(method);
-    	double method_timelimit = old_timelimit * (weight / total_weight);
+		double slice = remaining_time * (weight / remaining_weight);
+		inst->timelimit = slice;
+
 		if (VERBOSE >= 50)
 		{
 			printf("\n----------------------------------\n");
 			printf("METHOD %s \n\n", method);
 		}
 
-    	inst->timelimit = method_timelimit;
 		printf("Time limit for this method: %.2f s\n", inst->timelimit);
+
+		double starting_time_method = second();
 
 		if (strcmp(method, "n_n") == 0)
 		{
@@ -1068,7 +1071,7 @@ int execute_selected_method(instance *inst, solution *sol)
 		}
 		else if (strcmp(method, "vns") == 0) // Variable Neighbourhood Search (VNS)
 		{
-			if (apply_greedy_search(inst, sol)) 
+			if (apply_greedy_search(inst, sol))
 			{
 				print_error("Error applying nearest neighbor heuristic");
 				free(method_str);
@@ -1086,7 +1089,7 @@ int execute_selected_method(instance *inst, solution *sol)
 		}
 		else if (strcmp(method, "tabu") == 0) // Tabu Search
 		{
-			if (apply_greedy_search(inst, sol)) 
+			if (apply_greedy_search(inst, sol))
 			{
 				print_error("Error applying nearest neighbor heuristic");
 				free(method_str);
@@ -1158,21 +1161,22 @@ int execute_selected_method(instance *inst, solution *sol)
 			return EXIT_FAILURE;
 		}
 
-		/*
-		if (check_time(inst, starting_time))
+		double used = second() - starting_time_method;
+		remaining_time -= used;
+		remaining_weight -= weight;
+		if (remaining_time <= 0.0)
 		{
-			free(method_str);
-			evaluate_path_cost(inst, sol);
-			return EXIT_SUCCESS;
+			if (VERBOSE >= 50)
+				printf("Time pool exhausted—halting remaining methods\n");
+			break;
 		}
-			*/
 
 		evaluate_path_cost(inst, sol);
 		method = strtok(NULL, "+"); // Get the next method
 	}
 
 	free(method_str);
-	
+
 	// Restore the old timelimit
 	inst->timelimit = old_timelimit;
 
@@ -1414,20 +1418,20 @@ int apply_three_opt(instance *tsp, solution *sol)
 
 /**
  * Get the time weight of a method
- * 
+ *
  * @param method_name name of the method
  * @return the weight of the method
  */
-double get_method_weight(const char *method_name) {
-    if (strcmp(method_name, "benders") == 0 || strcmp(method_name, "branch_and_cut") == 0  || 
-		strcmp(method_name, "hard_fix") == 0  || strcmp(method_name, "local_branch") == 0)
-        return 0.9;
-    if (strcmp(method_name, "tabu") == 0)
-        return 0.1;
-    if (strcmp(method_name, "n_n") == 0 || strcmp(method_name, "random") == 0 || strcmp(method_name, "two_opt") == 0)
-        return 0.1;
-    if (strcmp(method_name, "vns") == 0)
-        return 0.5;
-    return 1.0; // default weight
+double get_method_weight(const char *method_name)
+{
+	if (strcmp(method_name, "benders") == 0 || strcmp(method_name, "branch_and_cut") == 0 ||
+		strcmp(method_name, "hard_fix") == 0 || strcmp(method_name, "local_branch") == 0)
+		return 0.9;
+	if (strcmp(method_name, "tabu") == 0)
+		return 0.1;
+	if (strcmp(method_name, "n_n") == 0 || strcmp(method_name, "random") == 0 || strcmp(method_name, "two_opt") == 0)
+		return 0.1;
+	if (strcmp(method_name, "vns") == 0)
+		return 0.5;
+	return 1.0; // default weight
 }
-

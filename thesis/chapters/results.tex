@@ -163,7 +163,7 @@ One more interesting comparison is to check how an approach as simple as the Nea
 \end{figure}
 
 \subsection{Best Heuristic - Short Time Budget}
-
+\label{ssec:short-heuristic}
 All CPLEX-based exact methods are initialized with a heuristic solution obtained by allocating 10\% of the total time limit to the heuristic. To identify the most effective warm-start configuration, we therefore evaluate our top Tabu Search settings using a reduced time budget of 12 seconds. The best-performing configuration from this experiment will be used to warm-start the exact methods, which are compared in the next chapter. Since the instances of exact methods will be smaller, we are now searching for percentages of the number of nodes to set the tenure size, rather than absolute values.
 
 From Figure \ref{fig:fast-heuristic} we can see that the best-performing configuration now is the one with a tenure size of around 28\% of the number of nodes and a minimum size of 2\%. This is a sigificant difference from the previous experiments, where the bigger tenure size was the best, this is likely due to the fact that with a short time limit the algorithm needs to explore more and thus a smaller tenure size allows for more diversification.
@@ -174,3 +174,26 @@ From Figure \ref{fig:fast-heuristic} we can see that the best-performing configu
   \caption{Tabu Search performance profiles under a 12-second time limit.}
   \label{fig:fast-heuristic}
 \end{figure}
+
+\subsection{Best Exact Method}
+
+This section compares the Exact Methods introduced in Chapter \ref{chap:exact-methods}. While these methods do not involve any fine-tuning, we still explore variations in their configurations to evaluate performance differences. Specifically, we examine three different approaches for initializing the solver:
+
+\begin{itemize}
+\item \textbf{No Warm Start}: In this baseline approach, CPLEX performs the optimization from scratch without any preprocessing or initial solution.
+\item \textbf{Heuristic Warm Start}: As discussed in Section \ref{ssec:short-heuristic}, we identified the best configuration for a time-limited heuristic. The solution obtained from this heuristic is used as the starting point for the exact solver.
+\item \textbf{Two-Opt Warm Start}: We observed that a simple greedy solution refined with the two-opt technique yields a reasonable solution in under one second. Although typically worse than the heuristic solution, we aim to test whether this quick-start approach can help the exact method reach optimality faster.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{exact_profiles.pdf}
+  \caption{Exact Methods performance profiles.}
+  \label{fig:exact}
+\end{figure}
+
+Figure~\ref{fig:exact} shows the performance profiles of the exact solver under different initialization strategies. The standard \textbf{Branch-and-Cut} method performs best overall, solving most instances quickly and reliably. Its version initialized with a \textbf{Two-Opt} solution performs comparably, and slightly better on some instances, suggesting that this quick-start approach can help without adding overhead.
+
+Interestingly, \textbf{Two-Opt} also provides a noticeable improvement when combined with \textbf{Benders}, making it significantly more effective than the standard Benders configuration. In contrast, warm starts using the \textbf{Tabu} heuristic degrade performance, likely because they consume more time while providing solutions that are not sufficiently better to justify the delay.
+
+Overall, standard configurations, especially Branch-and-Cut, are highly effective. Lightweight warm starts like Two-Opt may offer modest improvements, particularly for Benders, while heavier ones like Tabu are counterproductive.

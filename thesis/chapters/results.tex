@@ -192,8 +192,10 @@ This section compares the Exact Methods introduced in Chapter \ref{chap:exact-me
   \label{fig:exact}
 \end{figure}
 
-Figure~\ref{fig:exact} shows the performance profiles of the exact solver under different initialization strategies. The standard \textbf{Branch-and-Cut} method performs best overall, solving most instances quickly and reliably. Its version initialized with a \textbf{Two-Opt} solution performs comparably, and slightly better on some instances, suggesting that this quick-start approach can help without adding overhead.
+Figure~\ref{fig:exact} shows the performance profiles of the exact solver under different initialization strategies. The standard \textbf{Branch-and-Cut} method performs best overall, solving the highest fraction of instances quickly and consistently across all time ratios. Its variant initialized with a \textbf{Two-Opt} solution performs comparably in the long run but lags slightly in early time windows, indicating that the warm start introduces some initial overhead without clear benefits in this setting.
 
-Interestingly, \textbf{Two-Opt} also provides a noticeable improvement when combined with \textbf{Benders}, making it significantly more effective than the standard Benders configuration. In contrast, warm starts using the \textbf{Tabu} heuristic degrade performance, likely because they consume more time while providing solutions that are not sufficiently better to justify the delay.
+In contrast, \textbf{Two-Opt} offers a more tangible advantage when paired with \textbf{Benders}. While it initially solves slightly fewer instances than plain Benders, it eventually overtakes it, demonstrating that lightweight local search can improve convergence over time.
 
-Overall, standard configurations, especially Branch-and-Cut, are highly effective. Lightweight warm starts like Two-Opt may offer modest improvements, particularly for Benders, while heavier ones like Tabu are counterproductive.
+Warm starts based on the \textbf{Tabu} heuristic consistently underperform. Whether combined with Benders or Branch-and-Cut, these configurations solve fewer instances across all time ratios, likely due to the higher overhead of Tabu not being compensated by solution quality.
+
+Overall, default configurations—particularly Branch-and-Cut—remain highly effective. Lightweight warm starts like Two-Opt may be beneficial, especially for Benders, but more expensive ones like Tabu tend to degrade performance.

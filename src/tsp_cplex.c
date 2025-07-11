@@ -1058,7 +1058,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     int *comp = NULL;
     int *fixed_edges = NULL;
     int num_fixed_edges = 0;
-
+    int consecutive_no_improvement = 0;
 
     // === Initialize CPLEX environment ===
     int error;
@@ -1076,6 +1076,9 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
+
+    //CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, 1);      // Focus on primal bound improvement 
+    //CPXsetintparam(env, CPX_PARAM_RINSHEUR, 10);        // Enable RINS heuristic every 10 nodes
 
     // === Build initial model ===
     if (build_model(inst, env, lp))
@@ -1181,7 +1184,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         }
     }
 
-
     while (1)
     {
         iteration++;
@@ -1195,10 +1197,18 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             break;
         }
 
+        if (consecutive_no_improvement >= 3 && inst->hard_fixing_percentage < 0.8) 
+        {
+            printf("[HARDFIX] Fallback interno: fixing_percentage => 0.8\n");
+            inst->hard_fixing_percentage = 0.8;
+            consecutive_no_improvement = 0;
+        }
+
         double remaining_time = inst->timelimit - time_elapsed;
+        double local_limit = fmin(30.0, remaining_time);
 
         // Configure time limit for the subproblem
-        CPXsetdblparam(env, CPX_PARAM_TILIM, remaining_time);
+        CPXsetdblparam(env, CPX_PARAM_TILIM, local_limit);
         CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF); // Turn on\off CPLEX output for iterations
         CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0);        // Minimal display
 
@@ -1246,7 +1256,8 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         }
 
         if (VERBOSE >= 50)
-            printf("[HARDFIX] Iter %2d | Fixed edges: %2d | Remaining time: %.2fs\n", iteration, fixed_count, inst->timelimit - time_elapsed);
+            printf("[HARDFIX] Iter %2d | Fixed edges: %2d | Remaining time: %.2fs\n",
+                    iteration, fixed_count, inst->timelimit - time_elapsed);
 
         // Add MIP start from current best solution
         static int current_best_changed = 1; // Set to true initially
@@ -1309,6 +1320,8 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
                 current_best_changed = 1;
 
                 improved++;
+                consecutive_no_improvement = 0;
+
                 if (VERBOSE >= 10)
                     printf("[HARDFIX] Iteration %d: Improved from %.2f to %.2f (-%.2f)\n",
                            iteration, current_best.cost, new_sol.cost, current_best.cost - new_sol.cost);
@@ -1316,22 +1329,23 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
                 free_sol(&current_best);
                 copy_sol(&new_sol, &current_best);
             }
-            else if (VERBOSE >= 70)
+            else 
             {
-                printf("[HARDFIX] Iteration %d: No improvement (current best: %.2f)\n",
-                       iteration, current_best.cost);
+                consecutive_no_improvement++;
+                if (VERBOSE >= 70)
+                    printf("[HARDFIX] Iteration %d: No improvement (current best: %.2f)\n",
+                        iteration, current_best.cost);
             }
 
             // Adaptive tuning of fixing percentage
             if (new_sol.cost < current_best.cost - EPSILON)
             {
-                inst->hard_fixing_percentage = fmin(1.0, inst->hard_fixing_percentage + 0.02);
+                inst->hard_fixing_percentage = fmin(0.9, inst->hard_fixing_percentage + 0.05);
             }
             else
             {
-                inst->hard_fixing_percentage = fmax(0.1, inst->hard_fixing_percentage - 0.01);
+                inst->hard_fixing_percentage = fmax(0.2, inst->hard_fixing_percentage - 0.05);
             }
-
 
             free_sol(&new_sol);
         }
@@ -1448,6 +1462,7 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
     inst->ncols = CPXgetnumcols(env, lp);
 
     // === Set up callback for lazy constraints (SEC) ===
+    /*
     CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
     if (CPXcallbacksetfunc(env, lp, contextid, my_callback, inst))
     {
@@ -1456,6 +1471,7 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         CPXcloseCPLEX(&env);
         return EXIT_FAILURE;
     }
+        */
 
     // === Generate initial solution using greedy heuristic ===
     solution initial_sol;
@@ -1503,10 +1519,11 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
     copy_sol(&initial_sol, &current_best);
 
     // === Local Branching main loop ===
-    int k = 20;                         // Initial neighborhood size (k-opt parameter)
-    const int k_min = 5;                // Minimum neighborhood size
-    const int k_max = min(50, n/2);     // Maximum neighborhood size, It is used to avoid a too large neighborhood
-    const int node_limit = 10000;        // Node limit per iteration
+
+    int k = 100;                        // Initial neighborhood size (k-opt parameter)
+    const int k_min = 50;               // Minimum neighborhood size
+    const int k_max = min(300, n/2);    // Maximum neighborhood size, It is used to avoid a too large neighborhood
+    const int node_limit = 1000;        // Node limit per iteration
     int iteration = 0;
     int improved = 0;
     int consecutive_no_improvement = 0;
@@ -1591,11 +1608,11 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
                         iteration - 1, improved);
             break;
         }
-
-        double remaining_time = inst->timelimit - time_elapsed;
+        
+        double sub_time_limit = min(60.0, inst->timelimit - time_elapsed);  // max 30s per iter
 
         // Configure parameters for the subproblem
-        CPXsetdblparam(env, CPX_PARAM_TILIM, remaining_time);
+        CPXsetdblparam(env, CPX_PARAM_TILIM, sub_time_limit);
         CPXsetintparam(env, CPX_PARAM_NODELIM, node_limit); // Limit nodes per iteration
         CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF);
         CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0);
@@ -1624,7 +1641,7 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         }
 
         // Local branching constraint (Hamming distance ≤ k):
-        //    ∑_{e: x^H_e = 0} x_e  +  ∑_{e: x^H_e = 1} (1 - x_e)  ≤ k
+        //  ∑_{e: x^H_e = 0} x_e  +  ∑_{e: x^H_e = 1} (1 - x_e)  ≤ k
 
         int nnz = 0;
         for (int e = 0; e < inst->ncols; e++)
@@ -1654,12 +1671,18 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
                    iteration, k, rhs);
 
         // Add MIP start from current best solution
-        if (add_warm_start(env, lp, inst, &current_best))
+        if (iteration % 2 == 0) 
         {
-            if (VERBOSE >= 70)
-                fprintf(stderr, "Warning: Failed to add MIP start in iteration %d\n", iteration);
+            // Jump warm start every 3 iterations
+            CPXdelmipstarts(env, lp, 0, CPXgetnummipstarts(env, lp));
+        } else 
+        {
+            if (add_warm_start(env, lp, inst, &current_best))
+            {
+                if (VERBOSE >= 70)
+                    fprintf(stderr, "Warning: Failed to add MIP start in iteration %d\n", iteration);
+            }
         }
-
         // === Solve the restricted problem ===
         if (CPXmipopt(env, lp))
         {
@@ -1746,72 +1769,63 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
             }
         }
 
-        // Check if we improved
+        int found_improvement = 0;
+
         if (new_sol.cost < current_best.cost - EPSILON)
         {
             improved++;
             consecutive_no_improvement = 0;
-            
+            found_improvement = 1;
+        
             if (VERBOSE >= 20)
                 printf("[LOC.BRANCH] Iter %d: Improved from %.2f to %.2f (k=%d)\n", 
                        iteration, current_best.cost, new_sol.cost, k);
-
+                
             free_sol(&current_best);
             copy_sol(&new_sol, &current_best);
-
-            // Reset k after improvement
-            k = 20; // Reset to initial value, not k_min
         }
         else
         {
             consecutive_no_improvement++;
-            
             if (VERBOSE >= 70)
                 printf("[LOC.BRANCH] Iteration %d: No improvement (current: %.2f, found: %.2f)\n",
                        iteration, current_best.cost, new_sol.cost);
+        }
 
-            // Adjust k based on the solution status
-            if (is_optimal)
-            {
-                // Solution is optimal but no improvement -> increase k
-                k = min(k + 3, k_max);
-                if (VERBOSE >= 60)
-                    printf("[LOC.BRANCH] Optimal without improvement, increasing k to %d\n", k);
-            }
-            else if (is_time_limit)
-            {
-                // Time limit reached -> decrease k
-                k = max(k - 2, k_min);
-                if (VERBOSE >= 60)
-                    printf("[LOC.BRANCH] Time limit reached, decreasing k to %d\n", k);
-            }
+        if (found_improvement) 
+        {
+            k = max(k_min, k - 10);  
+            if (VERBOSE >= 60)
+                printf("[LOC.BRANCH] Improvement found, reduction k to %d\n", k);
+        } 
+        else 
+        {
+            k = min(k + 20, k_max);  
+            if (VERBOSE >= 60)
+                printf("[LOC.BRANCH] No improvement, expanding k to %d\n", k);
         }
 
         free_sol(&new_sol);
 
-        // Termination conditions
-        if (k >= k_max && consecutive_no_improvement >= 3)
+        if (consecutive_no_improvement >= 10) 
         {
-            if (VERBOSE >= 30)
-                printf("[LOC.BRANCH] Reached maximum k with no improvement, terminating\n");
-            break;
-        }
-
-        if (consecutive_no_improvement >= 10)
-        {
-            if (VERBOSE >= 30)
-                printf("[LOC.BRANCH] Too many iterations without improvement, terminating\n");
-            if (k < k_max - 10)
+            if (k < k_max) 
             {
+                if (VERBOSE >= 30)
+                    printf("[LOC.BRANCH] No improvement in 10 iterations, setting k = k_max (%d) and retrying\n", k_max);
                 k = k_max;
                 consecutive_no_improvement = 0;
                 continue;
+            } 
+            else 
+            {
+                if (VERBOSE >= 30)
+                    printf("[LOC.BRANCH] No improvement with k = k_max, terminating\n");
+                break;
             }
-    break;
-            break;
-        }
-    }
-
+        }    
+    }  
+    
     // Copy best solution to output
     copy_sol(&current_best, sol);
     status = EXIT_SUCCESS;

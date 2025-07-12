@@ -1,6 +1,6 @@
 A metaheuristic is a high-level, abstract problem-solving strategy designed to efficiently explore and exploit large solution spaces 
 in complex optimization problems. Unlike algorithms tailored to specific instances, metaheuristics are general-purpose frameworks 
-that guide subordinate heuristics—leveraging iterative improvement, intelligent search patterns, and adaptive behavior to find near-optimal solutions.
+that guide subordinate heuristics leveraging iterative improvement, intelligent search patterns, and adaptive behavior to find near-optimal solutions.
 
 In our experiments, we employ metaheuristics that use the \textit{2-opt} algorithm as a foundational local search heuristic. 
 Specifically, we take greedy solutions refined by 2-opt as initial configurations and further enhance them using one of two metaheuristic methods: 
@@ -101,8 +101,7 @@ The VNS algorithm iteratively improves a solution using 2-opt until no better ne
 to perturb the solution and continues the search. This avoids complete restarts (as in multistart heuristics) and ensures better locality preservation.
 
 The number of kicks is randomly selected within a fixed range $[k_{\text{min}}, k_{\text{max}}]$ and scaled by a learning factor. 
-This value is further adjusted based on the number of iterations since the last improvement, allowing the algorithm to increase its exploration 
-as it stagnates. This trade-off is analyzed experimentally in Section~\ref{sec:results}.\todo{trade off analysis nella sezione dei rsiultati}
+This value is further adjusted based on the number of iterations since the last improvement, allowing the algorithm to increase its exploration as it stagnates, this trade-off is analyzed experimentally in Section~\ref{ssec:vns-tuning}.
 
 \subsection{3-Opt Kick Structure}
 

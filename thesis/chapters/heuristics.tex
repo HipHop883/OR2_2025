@@ -1,7 +1,7 @@
 A heuristic is a practical problem-solving technique designed to produce good-enough solutions within a reasonable time frame, 
-especially when exact methods are too slow or infeasible. Given the NP-hard nature of the Travelling Salesman Problem (TSP), 
+especially when exact methods are too slow or infeasible. Given the NP-hard nature of the Travelling Salesman Problem, 
 computing the optimal solution can be computationally expensive even for moderately sized instances. For this reason, heuristic methods 
-play a crucial role in tackling the problem efficiently. Heuristics do not guarantee optimality, but they can often yield solutions 
+play a crucial role in tackling the problem efficiently. Heuristics do not guarantee optimality, but they can often provide solutions 
 that are sufficiently close to the best possible one. This trade-off between accuracy and speed makes heuristics particularly valuable 
 when timely decision-making is more important than absolute precision.
 
@@ -130,8 +130,7 @@ After identifying such a pair of edges, the segment of the tour between nodes $p
 As shown in Figure~\ref{fig:2optmove}, this operation is particularly useful in Euclidean instances, where removing intersecting edges 
 usually improves the tour cost significantly. The process is repeated iteratively: at each step, the algorithm scans the tour looking 
 for a pair of edges satisfying the inequality. If found, the edges are swapped and the search continues. 
-When no further improvement can be found, the procedure terminates. This yields a solution that is often significantly better than the initial one, 
-although not necessarily optimal.
+When no further improvement can be found, the procedure terminates. This leads to a solution that is often significantly better than the initial one, reaching a local optima.
 
 To improve the Nearest Neighbor result, the 2-opt heuristic is applied as a post-processing step to the best tour found among all possible NN starting nodes. This selective refinement avoids unnecessary computation while still producing a significantly improved solution.
 

@@ -488,6 +488,24 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
+		else if (!strcmp(argv[i], "--hard_fixing_local_time") || !strcmp(argv[i], "-hf_lt"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->hard_fixing_local_time = atof(argv[++i]);
+
+				if (inst->hard_fixing_percentage < 0)
+				{
+					fprintf(stderr, "Error: Hard fixing local time limit must be positive\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: Hard fixing local time limit is missing\n");
+				help = 1;
+			}
+		}
 	}
 
 	// Validation
@@ -555,6 +573,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		else if (strcmp(inst->method, "hard_fix") == 0)
 		{
 			printf("%-15s : %.2f\n", "--hard_fixing_percentage", inst->hard_fixing_percentage);
+			printf("%-15s : %.2f\n", "--hard_fixing_local_time", inst->hard_fixing_local_time);
 		}
 		printf("===========================\n\n");
 	}
@@ -569,7 +588,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("  -m, --method <string>     Method to solve TSP (e.g., n_n, n_n+apply_two_opt)\n");
 		printf("  -p, --plot                Paramater to see and save the solution plot\n");
 		printf("  -tl,--time_limit <float>  Time limit in seconds\n");
-		printf("  -rs, --runs <int> 	    Number of runs (default: 1)\n");	
+		printf("  -rs, --runs <int> 	    Number of runs (default: 1)\n");
 		printf("  -h, --help                Show this help message\n");
 
 		printf("\nMethods parameters:\n");
@@ -587,6 +606,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("  -tnoimpr, --tabu-noimprove <int> 	No improve limit for Tabu (default: 50)\n");
 		printf("Hard Fixing CPLEX:\n");
 		printf("  -hf_p, --hard_fixing_percentage <float> Hard fixing percentage (default: 0.3)\n");
+		printf("  -hf_lt, --hard_fixing_local_time <float> Hard fixing local time limit at each iteration (default: 15sec)\n");
 
 		printf("\nExamples:\n");
 		printf("  ./main -r -n 50 -s 123 -m n_n -tl 10\n");
@@ -1247,7 +1267,7 @@ void init(instance *inst)
 
 	inst->starting_time = second();
 
-	inst->edge_weight = 1;   // 0 ATT, 1 EUC_2D default
+	inst->edge_weight = 1; // 0 ATT, 1 EUC_2D default
 
 	inst->greedy_starts = 10;
 
@@ -1262,6 +1282,7 @@ void init(instance *inst)
 	inst->tabu_noimprove = 0;
 
 	inst->hard_fixing_percentage = 0.30;
+	inst->hard_fixing_local_time= 15.0;
 
 	strcpy(inst->csv_filename, "");
 }

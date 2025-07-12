@@ -80,9 +80,10 @@ typedef struct
 
 	// CPLEX model metadata
 	int ncols;
-	
-	// Hard Fixing percentage
+
+	// Hard Fixing params
 	double hard_fixing_percentage;
+	double hard_fixing_local_time;
 } instance;
 
 /**
@@ -125,7 +126,6 @@ void reverse_path_segment(int i, int j, solution *sol);
 int tsp_compute_costs(instance *tsp);
 int execute_selected_method(instance *inst, solution *sol);
 double get_method_weight(const char *method_name);
-
 
 int apply_three_opt(instance *tsp, solution *sol);
 

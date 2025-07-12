@@ -1049,10 +1049,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
 {
     const double start_time = second();
     double time_elapsed;
-    solution current_best;
-    current_best.tour = NULL;
-    current_best.initialized = 0;   
-    current_best.cost = CPX_INFBOUND;
+    solution current_best = {.tour = NULL, .initialized = 0, .cost = CPX_INFBOUND};
     int status = EXIT_FAILURE;
     double *xstar = NULL;
     int *comp = NULL;
@@ -1077,80 +1074,61 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    //CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, 1);      // Focus on primal bound improvement 
-    //CPXsetintparam(env, CPX_PARAM_RINSHEUR, 10);        // Enable RINS heuristic every 10 nodes
+    // CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, 1);      // Focus on primal bound improvement
+    // CPXsetintparam(env, CPX_PARAM_RINSHEUR, 10);        // Enable RINS heuristic every 10 nodes
 
     // === Build initial model ===
     if (build_model(inst, env, lp))
-    {
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
-    }
-
-    // Store number of columns (variables)
+        goto CLEAN_BASIC;
     inst->ncols = CPXgetnumcols(env, lp);
+
+    fixed_edges = malloc(inst->ncols * sizeof *fixed_edges);
+    if (!fixed_edges)
+    {
+        print_error("Out of memory");
+        goto CLEAN_BASIC;
+    }
 
     // === Set up callback for lazy constraints (SEC) ===
     CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
     if (CPXcallbacksetfunc(env, lp, contextid, my_callback, inst))
     {
         print_error("CPXcallbacksetfunc error");
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
+        goto CLEAN_BASIC;
     }
 
-    // === Generate initial solution using greedy heuristic ===
-    // Build a warm start directly
+    // === Warm start ===
     if (sol->initialized)
     {
         copy_sol(sol, &current_best);
-
         if (add_warm_start(env, lp, inst, &current_best))
         {
-            print_error("Failed to add warm start");
-            CPXfreeprob(env, &lp);
-            CPXcloseCPLEX(&env);
-            return EXIT_FAILURE;
+            print_error("Warm start failed");
+            goto CLEAN_BASIC;
         }
-        else if (VERBOSE >= 50)
+        if (VERBOSE >= 50)
             printf("[HARDFIX] Initial warm start cost: %.2f\n", current_best.cost);
-
     }
     else
     {
-        // If no initial solution is provided
-        solution temp_two_opt;
-        temp_two_opt.tour = malloc((inst->nnodes + 1) * sizeof(int));
-        if (!temp_two_opt.tour) { 
-            print_error("Memory allocation failed for temp_two_opt.tour");
-            CPXfreeprob(env, &lp);
-            CPXcloseCPLEX(&env);
-            return EXIT_FAILURE;
-        }
-        temp_two_opt.initialized = 0;
-
-        if (apply_two_opt(inst, &temp_two_opt) != 0 || !temp_two_opt.initialized)
+        solution temp;
+        temp.tour = malloc((inst->nnodes + 1) * sizeof *temp.tour);
+        temp.initialized = 0;
+        if (!temp.tour || apply_two_opt(inst, &temp) != 0 || !temp.initialized)
         {
-            print_error("Two-opt warm start generation failed");
-            free_sol(&temp_two_opt);
-            CPXfreeprob(env, &lp);
-            CPXcloseCPLEX(&env);
-            return EXIT_FAILURE;
+            print_error("Two-opt failed");
+            free_sol(&temp);
+            goto CLEAN_BASIC;
         }
-        copy_sol(&temp_two_opt, &current_best);
+        copy_sol(&temp, &current_best);
+        free_sol(&temp);
         if (add_warm_start(env, lp, inst, &current_best))
         {
-            print_error("Failed to add warm start");
-            CPXfreeprob(env, &lp);
-            CPXcloseCPLEX(&env);
-            return EXIT_FAILURE;
+            print_error("Warm start failed");
+            goto CLEAN_BASIC;
         }
-        else if (VERBOSE >= 50)
-            printf("Warm start injected with cost %.2f\n", current_best.cost);
-
-        free_sol(&temp_two_opt);
+        if (VERBOSE >= 50)
+            printf("[HARDFIX] Warm start cost: %.2f\n", current_best.cost);
     }
 
     // === Hard fixing main loop ===
@@ -1162,45 +1140,26 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     comp = malloc(n * sizeof(int));
     if (!comp)
     {
-        print_error("Memory allocation failed for comp array");
-        free_sol(&current_best);
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
+        print_error("Out of memory");
+        goto CLEAN_BASIC;
     }
 
-    if (!fixed_edges)
-    {
-        // Reset variable bounds to original (unfix all variables)
-        fixed_edges = malloc(inst->ncols * sizeof(int));
-        if (!fixed_edges)
-        {
-            print_error("Memory allocation failed for fixed_edges");
-            free(comp);
-            free_sol(&current_best);
-            CPXfreeprob(env, &lp);
-            CPXcloseCPLEX(&env);
-            return EXIT_FAILURE;
-        }
-    }
-
+    double percentage = inst->hard_fixing_percentage;
     while (1)
     {
         iteration++;
         time_elapsed = second() - start_time;
-
-        // Check time limit
         if (time_elapsed >= inst->timelimit)
         {
-            printf("[HARDFIX] Time limit reached after %d iterations (%d improvements)\n",
+            printf("[HARDFIX] Time limit reached after %d iters (%d improvements)\n",
                    iteration - 1, improved);
             break;
         }
 
-        if (consecutive_no_improvement >= 3 && inst->hard_fixing_percentage < 0.8) 
+        if (consecutive_no_improvement >= 3 && percentage < 0.8)
         {
-            printf("[HARDFIX] Fallback interno: fixing_percentage => 0.8\n");
-            inst->hard_fixing_percentage = 0.8;
+            printf("[HARDFIX] Fallback: +10%% fixing percentage\n");
+            percentage += 0.1;
             consecutive_no_improvement = 0;
         }
 
@@ -1212,7 +1171,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         CPXsetintparam(env, CPX_PARAM_SCRIND, VERBOSE >= 100 ? CPX_ON : CPX_OFF); // Turn on\off CPLEX output for iterations
         CPXsetintparam(env, CPX_PARAM_MIPDISPLAY, VERBOSE >= 100 ? 4 : 0);        // Minimal display
 
-        for (int i = 0; i < num_fixed_edges; i++) 
+        for (int i = 0; i < num_fixed_edges; i++)
         {
             double lb = 0.0;
             if (CPXchgbds(env, lp, 1, &fixed_edges[i], "L", &lb))
@@ -1220,7 +1179,7 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
                 print_error("CPXchgbds error when unfixing variables");
                 goto CLEANUP;
             }
-        }   
+        }
         num_fixed_edges = 0;
 
         // === Randomly fix edges from current_best solution ===
@@ -1257,11 +1216,9 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
 
         if (VERBOSE >= 50)
             printf("[HARDFIX] Iter %2d | Fixed edges: %2d | Remaining time: %.2fs\n",
-                    iteration, fixed_count, inst->timelimit - time_elapsed);
+                   iteration, fixed_count, inst->timelimit - time_elapsed);
 
-        // Add MIP start from current best solution
-        static int current_best_changed = 1; // Set to true initially
-
+        // Re-inject MIP start if needed
         if (current_best_changed)
         {
 
@@ -1318,35 +1275,25 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             if (new_sol.cost < current_best.cost - EPSILON)
             {
                 current_best_changed = 1;
-
                 improved++;
                 consecutive_no_improvement = 0;
-
                 if (VERBOSE >= 10)
                     printf("[HARDFIX] Iteration %d: Improved from %.2f to %.2f (-%.2f)\n",
                            iteration, current_best.cost, new_sol.cost, current_best.cost - new_sol.cost);
 
+                percentage = fmin(0.9, percentage + 0.05);
+
                 free_sol(&current_best);
                 copy_sol(&new_sol, &current_best);
             }
-            else 
+            else
             {
                 consecutive_no_improvement++;
                 if (VERBOSE >= 70)
                     printf("[HARDFIX] Iteration %d: No improvement (current best: %.2f)\n",
-                        iteration, current_best.cost);
+                           iteration, current_best.cost);
+                percentage = fmax(0.2, percentage - 0.05);
             }
-
-            // Adaptive tuning of fixing percentage
-            if (new_sol.cost < current_best.cost - EPSILON)
-            {
-                inst->hard_fixing_percentage = fmin(0.9, inst->hard_fixing_percentage + 0.05);
-            }
-            else
-            {
-                inst->hard_fixing_percentage = fmax(0.2, inst->hard_fixing_percentage - 0.05);
-            }
-
             free_sol(&new_sol);
         }
         else if (VERBOSE >= 50)
@@ -1403,14 +1350,12 @@ CLEANUP:
     if (comp)
         free(comp);
     if (fixed_edges)
-    {
         free(fixed_edges);
-    }
 
     free_sol(&current_best);
+CLEAN_BASIC:
     CPXfreeprob(env, &lp);
     CPXcloseCPLEX(&env);
-
     return status;
 }
 

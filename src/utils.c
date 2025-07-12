@@ -121,6 +121,11 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
     {
         sprintf(instance_id, "branch_and_cut_seed_%d", inst->randomseed);
     }
+    else if (!strcmp(inst->method, "tabu+hard_fix"))
+    {
+        sprintf(instance_id, "hard_fix_%.2lf_local_tl_%.2lf_seed_%d",
+                inst->hard_fixing_percentage, inst->hard_fixing_local_time, inst->randomseed);
+    }
     else
     {
         // TODO other methods
@@ -331,7 +336,7 @@ void copy_sol(const solution *src, solution *dst)
     while (src->tour[n] != src->tour[0] || n == 0) {
         n++;
     }
-    
+
     free_sol(dst);
     dst->tour = malloc((n + 1) * sizeof(int));
     

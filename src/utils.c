@@ -126,6 +126,11 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
         sprintf(instance_id, "hard_fix_%.2lf_local_tl_%.2lf_seed_%d",
                 inst->hard_fixing_percentage, inst->hard_fixing_local_time, inst->randomseed);
     }
+    else if (!strcmp(inst->method, "tabu+local_branch"))
+    {
+        sprintf(instance_id, "local_branch_k_%d_step_%d_seed_%d",
+                inst->local_branch_k, inst->local_branch_step, inst->randomseed);
+    }
     else
     {
         // TODO other methods
@@ -328,20 +333,24 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
  */
 void copy_sol(const solution *src, solution *dst)
 {
-    if (!src || !src->initialized || !src->tour) {
+    if (!src || !src->initialized || !src->tour)
+    {
         return;
     }
-    
+
     int n = 0;
-    while (src->tour[n] != src->tour[0] || n == 0) {
+    while (src->tour[n] != src->tour[0] || n == 0)
+    {
         n++;
     }
 
     free_sol(dst);
     dst->tour = malloc((n + 1) * sizeof(int));
-    
-    if (dst->tour) {
-        for (int i = 0; i <= n; i++) {
+
+    if (dst->tour)
+    {
+        for (int i = 0; i <= n; i++)
+        {
             dst->tour[i] = src->tour[i];
         }
         dst->initialized = 1;

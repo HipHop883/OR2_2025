@@ -1590,21 +1590,16 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
 
         // Local branching constraint (Hamming distance ≤ k):
         //  ∑_{e: x^H_e = 0} x_e  +  ∑_{e: x^H_e = 1} (1 - x_e)  ≤ k
-
-        int nnz = 0;
         for (int e = 0; e < inst->ncols; e++)
         {
-            indices[nnz] = e;
-            // if edge_in_solution[e]==1 → coeff = -1 (1 - x_e)
-            // otherwise coeff = +1 (x_e)
-            values[nnz] = edge_in_solution[e] ? -1.0 : 1.0;
-            nnz++;
+            indices[e] = e;
+            values[e] = edge_in_solution[e] ? 1.0 : 0.0;
         }
-        double rhs = (double)k;
-        char sense = 'L';
+        double rhs = (double)n - k;
+        char sense = 'G';
         int rmatbeg[1] = {0};
 
-        if (CPXaddrows(env, lp, 0, 1, nnz, &rhs, &sense,
+        if (CPXaddrows(env, lp, 0, 1, inst->ncols, &rhs, &sense,
                        rmatbeg, indices, values, NULL, NULL))
         {
             print_error("CPXaddrows error when adding local branching constraint");

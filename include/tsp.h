@@ -84,6 +84,10 @@ typedef struct
 	// Hard Fixing params
 	double hard_fixing_percentage;
 	double hard_fixing_local_time;
+
+	// Local Branching params
+	int local_branch_k;
+	int local_branch_step;
 } instance;
 
 /**

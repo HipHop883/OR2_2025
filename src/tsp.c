@@ -506,6 +506,42 @@ int parse_command_line(int argc, char **argv, instance *inst)
 				help = 1;
 			}
 		}
+		else if (!strcmp(argv[i], "--local_branch_k") || !strcmp(argv[i], "-lb_k"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->local_branch_k = atof(argv[++i]);
+
+				if (inst->local_branch_k < 0)
+				{
+					fprintf(stderr, "Error: Local Branching initial K must be positive\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: Local Branching initial K is missing\n");
+				help = 1;
+			}
+		}
+		else if (!strcmp(argv[i], "--local_branch_step") || !strcmp(argv[i], "-lb_s"))
+		{
+			if (i + 1 < argc)
+			{
+				inst->local_branch_step = atof(argv[++i]);
+
+				if (inst->local_branch_step < 0)
+				{
+					fprintf(stderr, "Error: Local Branching K step must be positive\n");
+					help = 1;
+				}
+			}
+			else
+			{
+				fprintf(stderr, "Error: Local Branching K step is missing\n");
+				help = 1;
+			}
+		}
 	}
 
 	// Validation
@@ -575,6 +611,11 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			printf("%-15s : %.2f\n", "--hard_fixing_percentage", inst->hard_fixing_percentage);
 			printf("%-15s : %.2f\n", "--hard_fixing_local_time", inst->hard_fixing_local_time);
 		}
+		else if (strcmp(inst->method, "local_branch") == 0)
+		{
+			printf("%-15s : %d\n", "--local_branch_k", inst->local_branch_k);
+			printf("%-15s : %d\n", "--local_branch_step", inst->local_branch_step);
+		}
 		printf("===========================\n\n");
 	}
 
@@ -607,6 +648,9 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("Hard Fixing CPLEX:\n");
 		printf("  -hf_p, --hard_fixing_percentage <float> Hard fixing percentage (default: 0.3)\n");
 		printf("  -hf_lt, --hard_fixing_local_time <float> Hard fixing local time limit at each iteration (default: 15sec)\n");
+		printf("Local Branching CPLEX:\n");
+		printf("  -lb_k, --local_branch_k    <int> Local Branching initial K (default: 5)\n");
+		printf("  -lb_s, --local_branch_step <int> Local Branching K step (default: 5)\n");
 
 		printf("\nExamples:\n");
 		printf("  ./main -r -n 50 -s 123 -m n_n -tl 10\n");
@@ -1282,7 +1326,10 @@ void init(instance *inst)
 	inst->tabu_noimprove = 0;
 
 	inst->hard_fixing_percentage = 0.30;
-	inst->hard_fixing_local_time= 15.0;
+	inst->hard_fixing_local_time = 15.0;
+
+	inst->local_branch_k = 5;
+	inst->local_branch_step = 5;
 
 	strcpy(inst->csv_filename, "");
 }

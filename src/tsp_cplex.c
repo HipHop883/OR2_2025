@@ -1468,8 +1468,8 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
 
     // === Local Branching main loop ===
 
-    int k = 100;                       // Initial neighborhood size (k-opt parameter)
-    const int k_min = 50;              // Minimum neighborhood size
+    int k = inst->local_branch_k;      // Initial neighborhood size (k-opt parameter)
+    const int k_min = 10;              // Minimum neighborhood size
     const int k_max = min(300, n / 2); // Maximum neighborhood size, It is used to avoid a too large neighborhood
     const int node_limit = 1000;       // Node limit per iteration
     int iteration = 0;
@@ -1738,13 +1738,13 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
 
         if (found_improvement)
         {
-            k = max(k_min, k - 10);
+            k = max(k_min, k - inst->local_branch_step);
             if (VERBOSE >= 60)
                 printf("[LOC.BRANCH] Improvement found, reduction k to %d\n", k);
         }
         else
         {
-            k = min(k + 20, k_max);
+            k = min(k + inst->local_branch_step, k_max);
             if (VERBOSE >= 60)
                 printf("[LOC.BRANCH] No improvement, expanding k to %d\n", k);
         }

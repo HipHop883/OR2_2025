@@ -138,6 +138,31 @@ Results presented in Figure \ref{fig:vns-profiles} suggest that a fixed number o
   \label{fig:vns-profiles}
 \end{figure}
 
+\subsection{Hard Fixing}
+\label{ssec:hard-fixing}
+
+The Hard Fixing method depends on two key parameters: the proportion of edges to fix and the local time limit allocated to CPLEX for solving each subproblem. In preliminary experiments on 1,000-node instances with a global time limit of 180 s, we observed that fixing fewer than 50\% of the arcs provided no appreciable benefit, as the CPLEX time limits were too restrictive. Consequently, we concentrated our study on fixing between 60\% and 80\% of the arcs. We also varied the local time limit to strike a balance between the number of iterations executed per run and the time CPLEX requires to solve each resulting subgraph, all proportionally scaled to the overall 180 seconds budget.
+
+Figure \ref{fig:hf-profiles-general} shows that fixing 70\% of the arcs yields a more robust performance than the 60\% configurations, while variations in the local time limit have only a marginal impact on the shape of the profile. To fine-tune the method, we therefore fixed the local time limit at 30 seconds, identified as the most robust among those tested, and extended our comparison to include the 80\% fixing level.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{hf_profiles.pdf}
+  \caption{Performance profiles for Hard Fixing with varying fixing ratios and local time limits.}
+  \label{fig:hf-profiles-general}
+\end{figure}
+
+Figure \ref{fig:hf-profiles-30sec} compares the three fixing ratios with the local time limit held constant at 30 ssecond. It confirms that constraining the arcs too tightly degrades performance, whereas the 70\% fixing level still achieves the highest coverage across those tested.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{hf_profiles2.pdf}
+  \caption{Performance profiles for Hard Fixing with a fixed 30 s local time limit.}
+  \label{fig:hf-profiles-30sec}
+\end{figure}
+
+Overall, the combination of fixing 70\% of the arcs and allowing a 30 sec local solve time delivers the best trade-off between solution quality and robustness.
+
 \section{Methods comparison}
 
 \subsection{Best Heuristic - Full time limit}
@@ -199,3 +224,4 @@ In contrast, \textbf{Two-Opt} offers a more tangible advantage when paired with 
 Warm starts based on the \textbf{Tabu} heuristic consistently underperform. Whether combined with Benders or Branch-and-Cut, these configurations solve fewer instances across all time ratios, likely due to the higher overhead of Tabu not being compensated by solution quality.
 
 Overall, default configurations—particularly Branch-and-Cut—remain highly effective. Lightweight warm starts like Two-Opt may be beneficial, especially for Benders, but more expensive ones like Tabu tend to degrade performance.
+

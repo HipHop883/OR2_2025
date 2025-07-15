@@ -9,9 +9,7 @@ setting = -1
 OS := $(shell uname)
 
 ifndef CPLEX_HOME
-    $(warning CPLEX_HOME is not set. Please enter the path to your CPLEX installation:)
-    $(shell read CPLEX_HOME_INPUT; export CPLEX_HOME=$$CPLEX_HOME_INPUT)
-    CPLEX_HOME := $(shell echo $$CPLEX_HOME) # Update the makefile variable
+  $(error CPLEX_HOME is not set. Please set the path to your CPLEX installation and run the script again)
 endif
 
 ifeq ($(OS),Linux)

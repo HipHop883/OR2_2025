@@ -15,7 +15,7 @@ In the context of the TSP, the algorithm starts from an initial node and, at eac
 This process continues until all nodes have been visited exactly once, and the cycle is closed by returning to the starting point.
 However, the quality of the solution obtained using this method depends heavily on the starting node, as different starting points may lead to significantly 
 different tours.
-While NN is fast and easy to implement, its performance depends heavily on the starting node and often produces suboptimal solutions. Still, it often produces a reasonable approximation in a fraction of the time required by exact methods, making it suitable for large instances where exact algorithms are computationally expensive.
+While NN is fast and easy to implement, often produces suboptimal solutions. Still, it often produces a reasonable approximation in a fraction of the time required by exact methods, making it suitable for large instances where exact algorithms are computationally expensive.
 
 \begin{algorithm}
 \caption{Nearest Neighbor Heuristic}
@@ -60,14 +60,8 @@ in the opposite way, with the goal of reducing the overall cost of the cycle.
 Formally, we can interpret 2-opt as a particular case of a more general class of heuristics known as \textit{k-opt}, 
 where $k$ edges are removed and reconnected to form a new valid tour. In the 2-opt case, we identify two edges $(p_i, p_{i+1})$ 
 and $(p_j, p_{j+1})$ such that replacing them with $(p_i, p_j)$ and $(p_{i+1}, p_{j+1})$, while reversing the intermediate segment between $p_{i+1}$ and $p_j$. 
-The necessary condition for this move to be beneficial is:
 
-The 2-opt move is beneficial only if replacing the two selected edges reduces the overall tour cost. 
-Consider the current edges \((p_i, p_{i+1})\) and \((p_j, p_{j+1})\). 
-We propose replacing them with \((p_i, p_j)\) and \((p_{i+1}, p_{j+1})\), 
-which effectively reverses the intermediate segment of the tour.
-
-The move is accepted if the total cost decreases, i.e., if:
+The 2-opt move is beneficial and accepted only if replacing the two selected edges reduces the overall tour cost, i.e., if:
 
 \begin{equation}
     c(p_i, p_{i+1}) + c(p_j, p_{j+1}) > c(p_i, p_j) + c(p_{i+1}, p_{j+1})

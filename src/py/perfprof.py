@@ -19,10 +19,11 @@ dashes = ['-',  # solid line
 	'-',
 	'--',
 	'-.',  # dash-dot line
-	':']  # dotted line
+	':',
+	'-']  # dotted line
 
-markers = ['+', 'x', 's', '^', 'o', 'd', 'v', 'p']
-colors = ['r', 'b', 'y', 'g', 'm', 'c', 'k', 'orange']
+markers = ['+', 'x', 's', '^', 'o', 'd', 'v', 'p', '+']
+colors = ['r', 'b', 'y', 'g', 'm', 'c', 'k', 'orange', 'g']
 
 
 class CmdLineParser(object):

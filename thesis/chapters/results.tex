@@ -163,6 +163,20 @@ Figure \ref{fig:hf-profiles-30sec} compares the three fixing ratios with the loc
 
 Overall, the combination of fixing 70\% of the arcs and allowing a 30 sec local solve time delivers the best trade-off between solution quality and robustness.
 
+\subsection{Local Branching}
+\label{ssec:local-branch}
+
+We evaluate the impact of two tuning parameters on the Local Branching heuristic: the initial neighborhood size \(K\) and the incremental step by which \(K\) is adjusted at each iteration. Figure~\ref{fig:lb-profiles} presents performance profiles comparing various \((K,\text{step})\) configurations under a fixed time budget.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{lb_profiles.pdf}
+  \caption{Performance profiles for Local Branching across different choices of \(K\) and step size.}
+  \label{fig:lb-profiles}
+\end{figure}
+
+The results show that larger neighborhoods yield more consistent improvements: configurations with \(K=30\) uniformly outperform those with \(K=20\) and \(K=10\). Likewise, a step size of 20 delivers the fastest early gains, although its marginal benefit diminishes over longer runs. Overall, the combination \(K=30\) and \(\text{step}=20\) achieves the best final costs under our time constraint.  
+
 \section{Methods comparison}
 
 \subsection{Best Heuristic - Full time limit}

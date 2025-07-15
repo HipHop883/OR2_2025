@@ -653,8 +653,8 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("  -lb_s, --local_branch_step <int> Local Branching K step (default: 5)\n");
 
 		printf("\nExamples:\n");
-		printf("  ./main -r -n 50 -s 123 -m n_n -tl 10\n");
-		printf("  ./main -f instance.txt -m random -tl 20\n\n");
+		printf("  ./tsp_solver -r -n 50 -s 123 -m n_n -tl 10\n");
+		printf("  ./tsp_solver -f instance.txt -m random -tl 20\n\n");
 
 		return EXIT_FAILURE;
 	}

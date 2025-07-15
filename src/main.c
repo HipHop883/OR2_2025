@@ -35,9 +35,8 @@ int main(int argc, char **argv)
 
 	instance inst;
 	init(&inst);
-	solution sol; // Safe init
+	solution sol;
 
-	// Parse command line
 	if (parse_command_line(argc, argv, &inst))
 	{
 		print_error("Error parsing command line");
@@ -50,7 +49,6 @@ int main(int argc, char **argv)
 	{
 		set_seed(master_seed + i);
 
-		// Load problem instance
 		if (load_instance(&inst))
 		{
 			print_error("Error reading input");
@@ -63,7 +61,7 @@ int main(int argc, char **argv)
 		printf("Number of nodes: %d\n", inst.nnodes);
 
 		double t1 = second();
-		// Run the method and print the cost of the solution
+
 		if (execute_selected_method(&inst, &sol))
 		{
 			print_error("Error running method\n");
@@ -75,7 +73,6 @@ int main(int argc, char **argv)
 
 		double elapsed_time = second() - t1;
 
-		// Print final cost
 		printf("Total tour cost: %.2lf\n", sol.cost);
 
 		execution_times[i] = elapsed_time;
@@ -88,14 +85,14 @@ int main(int argc, char **argv)
 			if (gnuplotPipe)
 			{
 				char filename[256];
-				sprintf(filename, "plot/TSP_%s.png", inst.method); // Create the file name (es. TSP_2opt.png)
+				sprintf(filename, "plot/TSP_%s.png", inst.method);
 				fprintf(gnuplotPipe, "set terminal png\n");
 				fprintf(gnuplotPipe, "set output '%s'\n", filename);
 				fprintf(gnuplotPipe, "set xlabel 'X'\n");
 				fprintf(gnuplotPipe, "set ylabel 'Y'\n");
 				fprintf(gnuplotPipe, "set grid\n");
-				fprintf(gnuplotPipe, "set key top right\n");		 // Enable legend and set position
-				fprintf(gnuplotPipe, "set termoption noenhanced\n"); // Disables the interpretation of subscript characters
+				fprintf(gnuplotPipe, "set key top right\n");
+				fprintf(gnuplotPipe, "set termoption noenhanced\n");
 				fprintf(gnuplotPipe, "plot '-' with linespoints lt rgb 'red' lw 2 pt 7 ps 1.5 title 'TSP-%s (Cost: %.2lf)'\n", inst.method, sol.cost);
 				for (int i = 0; i <= inst.nnodes; i++)
 				{
@@ -135,7 +132,7 @@ int main(int argc, char **argv)
 	}
 
 	free(best_costs);
-    free(execution_times);
-	
+	free(execution_times);
+
 	return EXIT_SUCCESS;
 }

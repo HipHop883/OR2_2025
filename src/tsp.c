@@ -12,7 +12,6 @@
  */
 int load_instance(instance *inst)
 {
-	// No need to check anything, we already do it parsing command line arguments
 	if (strcmp(inst->input_file, "NULL") == 0)
 	{
 		generate_random_nodes(inst, inst->nnodes);
@@ -34,9 +33,7 @@ int load_instance(instance *inst)
 		char *token1;
 		char *token2;
 
-		int active_section = 0; // =0 GENERAL SETTINGS, =1 NODE_COORD_SECTION
-
-		// int do_print = ( VERBOSE >= 1000 );
+		int active_section = 0; // = 0 GENERAL SETTINGS, = 1 NODE_COORD_SECTION
 
 		while (fgets(line, sizeof(line), fin) != NULL)
 		{
@@ -45,8 +42,12 @@ int load_instance(instance *inst)
 				printf("%s", line);
 				fflush(NULL);
 			}
+
 			if (strlen(line) <= 1)
-				continue; // skip empty lines
+			{
+				continue;
+			}
+
 			par_name = strtok(line, " :");
 			if (VERBOSE >= 3000)
 			{
@@ -64,7 +65,6 @@ int load_instance(instance *inst)
 			{
 				active_section = 0;
 				token1 = strtok(NULL, "");
-				// if ( VERBOSE >= 10 ) printf(" ... solving instance %s with model %d\n\n", token1, inst->model_type);
 				continue;
 			}
 
@@ -105,9 +105,12 @@ int load_instance(instance *inst)
 			if (strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0)
 			{
 				token1 = strtok(NULL, " :");
-				if (strncmp(token1, "ATT", 3) == 0) inst->edge_weight = 0;		
-				else if (strncmp(token1, "EUC_2D", 6) == 0) inst->edge_weight = 1;
-				else inst->edge_weight = -1;
+				if (strncmp(token1, "ATT", 3) == 0)
+					inst->edge_weight = 0;
+				else if (strncmp(token1, "EUC_2D", 6) == 0)
+					inst->edge_weight = 1;
+				else
+					inst->edge_weight = -1;
 
 				active_section = 0;
 				continue;
@@ -130,7 +133,7 @@ int load_instance(instance *inst)
 				break;
 			}
 
-			if (active_section == 1) // within NODE_COORD_SECTION
+			if (active_section == 1)
 			{
 				int i = atoi(par_name) - 1;
 				if (i < 0 || i >= inst->nnodes)
@@ -142,7 +145,7 @@ int load_instance(instance *inst)
 				token2 = strtok(NULL, " :,");
 				inst->xcoord[i] = atof(token1);
 				inst->ycoord[i] = atof(token2);
-				// if ( do_print ) printf(" ... node %4d at coordinates ( %15.7lf , %15.7lf )\n", i+1, inst->xcoord[i], inst->ycoord[i]);
+
 				continue;
 			}
 
@@ -152,7 +155,6 @@ int load_instance(instance *inst)
 		fclose(fin);
 	}
 
-	// Compute cost matrix
 	if (tsp_compute_costs(inst) != 0)
 	{
 		print_error("Error computing cost matrix");
@@ -182,7 +184,7 @@ int parse_command_line(int argc, char **argv, instance *inst)
 		printf("Running %s with %d parameters\n", argv[0], argc - 1);
 
 	int help = 0;
-	int source = -1; // 0 for rand, 1 for input file
+	int source = -1; // = 0 rand, = 1 input file
 	int isset_seed = 0;
 	int isset_nnodes = 0;
 
@@ -806,7 +808,6 @@ int check_time(const instance *inst, double starting_time)
 	double current_time = second();
 	if (current_time - starting_time > inst->timelimit)
 	{
-		// print_error("Time limit reached\n");
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
@@ -862,7 +863,7 @@ int evaluate_path_cost(const instance *inst, solution *sol)
 	if (VERBOSE >= 80)
 		printf("Cost from node %d to node %d: %lf\n", sol->tour[inst->nnodes - 1], sol->tour[0], return_cost);
 	cost_p += return_cost;
-	// printf("Total cost: %lf\n", cost_p);
+
 	sol->cost = cost_p; // update the cost of the solution
 
 	return EXIT_SUCCESS;
@@ -884,9 +885,8 @@ int apply_two_opt(const instance *inst, solution *sol)
 
 	double starting_time = second();
 
-	if (!sol->initialized) // Check if solution is not initialized
+	if (!sol->initialized)
 	{
-		// Generate a random path if the solution is not initialized
 		if (generate_random_path(inst, sol) != EXIT_SUCCESS)
 		{
 			print_error("Failed to generate random path in two_opt");
@@ -900,14 +900,14 @@ int apply_two_opt(const instance *inst, solution *sol)
 		printf("Applying two-opt heuristic...\n");
 	}
 	int nnodes = inst->nnodes;
-	int improved = 1;			  // flag to indicate if the path has been improved
-	double best_cost = sol->cost; // Initialize with the current cost
+	int improved = 1;
+	double best_cost = sol->cost;
 	while (improved)
 	{
 		if (check_time(inst, starting_time))
 			return EXIT_SUCCESS;
 
-		improved = 0; // reset the flag
+		improved = 0;
 		for (int i = 0; i < nnodes - 1; i++)
 		{
 			for (int j = i + 1; j < nnodes; j++)
@@ -915,12 +915,12 @@ int apply_two_opt(const instance *inst, solution *sol)
 				double delta_cost = path_cost_delta(i, j, sol, inst);
 				if (delta_cost < 0)
 				{
-					reverse_path_segment(i, j, sol); // swap nodes i and j
-					improved = 1;					 // set the flag
-					sol->cost += delta_cost;		 // Update the cost
+					reverse_path_segment(i, j, sol);
+					improved = 1;
+					sol->cost += delta_cost;
 					if (sol->cost < best_cost)
 					{
-						best_cost = sol->cost; // Update the best cost
+						best_cost = sol->cost;
 					}
 				}
 			}
@@ -934,7 +934,7 @@ int apply_two_opt(const instance *inst, solution *sol)
 		printf("--------------------------------------------\n");
 	}
 
-	if (!sol->initialized) // Mark as initialized only if not already initialized
+	if (!sol->initialized)
 	{
 		sol->initialized = 1;
 	}
@@ -993,20 +993,19 @@ int tsp_compute_costs(instance *tsp)
 		for (int j = 0; j < tsp->nnodes; j++)
 		{
 			if (i == j)
-            {
-                tsp->cost_matrix[i][j] = 0; // Distance to itsself is 0
-                continue;
-            }
+			{
+				tsp->cost_matrix[i][j] = 0; // Distance to itsself is 0
+				continue;
+			}
 
 			double deltax = tsp->xcoord[i] - tsp->xcoord[j];
 			double deltay = tsp->ycoord[i] - tsp->ycoord[j];
 			double dist_squared = deltax * deltax + deltay * deltay;
-            double dist;
-			//double dist = sqrt((deltax * deltax + deltay * deltay) / 10);
+			double dist;
 
 			if (tsp->edge_weight == 0) // ATT
-            {
-                dist = sqrt(dist_squared / 10.0);
+			{
+				dist = sqrt(dist_squared / 10.0);
 				int round_d = (int)(dist + 0.5);
 				if ((double)round_d < dist)
 					round_d++;
@@ -1045,9 +1044,9 @@ int execute_selected_method(instance *inst, solution *sol)
 		print_error("Memory allocation failed for sol->tour");
 		return EXIT_FAILURE;
 	}
-	sol->initialized = 0; // Initialized to 0 (false)
+	sol->initialized = 0;
 
-	char *method_str = strdup(inst->method); // Double the string to not modify it directly
+	char *method_str = strdup(inst->method);
 	if (method_str == NULL)
 	{
 		print_error("Memory allocation failed");
@@ -1058,12 +1057,10 @@ int execute_selected_method(instance *inst, solution *sol)
 	char *method = strtok(method_str, "+"); // Divide the string in separate methods by the '+'
 
 	double total_weight = 0.0;
-	// Save the old timelimit to restor it after
 	double old_timelimit = inst->timelimit;
 	double remaining_time = old_timelimit;
 	double remaining_weight = 0.0;
 
-	// First pass: sum total weight
 	while (method != NULL)
 	{
 		total_weight += get_method_weight(method);
@@ -1073,7 +1070,7 @@ int execute_selected_method(instance *inst, solution *sol)
 
 	remaining_weight = total_weight;
 
-	method_str = strdup(inst->method); // re-duplicate
+	method_str = strdup(inst->method);
 	if (method_str == NULL)
 	{
 		print_error("Memory allocation failed");
@@ -1205,7 +1202,7 @@ int execute_selected_method(instance *inst, solution *sol)
 			if (VERBOSE >= 50)
 				printf("CPLEX done in %lf seconds\n\n", second() - starting_time_method);
 		}
-		else if (strcmp(method, "local_branch") == 0)
+		else if (strcmp(method, "local_branch") == 0) // Local Branching
 		{
 			if (apply_cplex_localbranch(inst, sol))
 			{
@@ -1236,22 +1233,20 @@ int execute_selected_method(instance *inst, solution *sol)
 		}
 
 		evaluate_path_cost(inst, sol);
-		method = strtok(NULL, "+"); // Get the next method
+		method = strtok(NULL, "+");
 	}
 
 	free(method_str);
 
-	// Restore the old timelimit
 	inst->timelimit = old_timelimit;
 
-	// Save the cost of the best solution
 	evaluate_path_cost(inst, sol);
+
 	return EXIT_SUCCESS;
 }
 
 void allocate_buffers(instance *tsp)
 {
-	// Libera se già allocato (difensivo, opzionale se sicuro altrove)
 	if (tsp->xcoord)
 	{
 		free(tsp->xcoord);
@@ -1300,8 +1295,6 @@ void init(instance *inst)
 	inst->ycoord = NULL;
 
 	inst->cost_matrix = NULL;
-	// inst->best_sol.tour = NULL;
-	// inst->best_sol.cost = CPX_INFBOUND;
 
 	strcpy(inst->input_file, "NULL");
 	strcpy(inst->method, "NULL");
@@ -1431,9 +1424,9 @@ static void apply_three_opt_move(instance *tsp, int *src_tour, int *dst_tour, in
 		break;
 	}
 
-	copy_segment(dst_tour, src_tour, &pos, i + 1, j, reverse_A);		  // Segment A
-	copy_segment(dst_tour, src_tour, &pos, j + 1, k, reverse_B);		  // Segment B
-	copy_segment(dst_tour, src_tour, &pos, k + 1, nnodes - 1, reverse_C); // Segment C
+	copy_segment(dst_tour, src_tour, &pos, i + 1, j, reverse_A);
+	copy_segment(dst_tour, src_tour, &pos, j + 1, k, reverse_B);
+	copy_segment(dst_tour, src_tour, &pos, k + 1, nnodes - 1, reverse_C);
 
 	dst_tour[nnodes] = dst_tour[0]; // Close tour
 }

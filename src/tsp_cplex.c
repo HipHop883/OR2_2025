@@ -207,7 +207,6 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
     if (VERBOSE >= 50)
         printf("[CPLEX] Tour reconstructed successfully from xstar\n");
 
-    // === Finalize ===
     free_sol(sol);
     sol->tour = tour;
     sol->initialized = 1;
@@ -386,7 +385,6 @@ int add_warm_start(CPXENVptr env, CPXLPptr lp, const instance *inst, const solut
         return EXIT_FAILURE;
     }
 
-    // Set all indices
     for (int i = 0; i < ncols; ++i)
         indices[i] = i;
 
@@ -597,7 +595,6 @@ int patch_solution(const double *xstar_in, instance *inst, solution *sol)
             }
         }
 
-        // === Compute new ncomp ===
         ncomp = build_components(xstar, comp, inst);
     }
 
@@ -631,7 +628,6 @@ int patch_solution(const double *xstar_in, instance *inst, solution *sol)
     }
     tour[n] = tour[0];
 
-    // === Finalize solution ===
     free_sol(sol);
     sol->tour = tour;
     sol->initialized = 1;
@@ -663,7 +659,6 @@ static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contexti
     int izero = 0;
     char sense = 'L';
 
-    // === Allocate memory for solution vector ===
     double *xstar = malloc(inst->ncols * sizeof(double));
     if (!xstar)
     {
@@ -828,7 +823,6 @@ int apply_cplex_benders(instance *inst, solution *sol)
     int ncomp = -1;
     int iteration = 0;
 
-    // === Main optimization loop ===
     while (1)
     {
         iteration++;
@@ -924,7 +918,6 @@ int apply_cplex_benders(instance *inst, solution *sol)
     if (VERBOSE >= 10)
         printf("[BENDERS] Optimization finished. Final cost: %.2f\n", sol->cost);
 
-    // === Cleanup ===
     free(comp);
     free(xstar);
     CPXfreeprob(env, &lp);
@@ -1030,7 +1023,6 @@ int apply_cplex_branchcut(instance *inst, solution *sol)
     if (VERBOSE >= 10)
         printf("[BRANCHCUT] Optimization complete. Final cost: %.2f\n", sol->cost);
 
-    // === Cleanup ===
     free(xstar);
     CPXfreeprob(env, &lp);
     CPXcloseCPLEX(&env);
@@ -1138,7 +1130,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
     int current_best_changed = 1;
     double percentage = inst->hard_fixing_percentage;
 
-    // Allocate memory for component tracking (for potential patching)
     comp = malloc(n * sizeof(int));
     if (!comp)
     {
@@ -1184,7 +1175,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         // === Randomly fix edges from current_best solution ===
         int fixed_count = 0;
 
-        // First extract the edges from the current best tour
         for (int i = 0; i < n; i++)
         {
             int from = current_best.tour[i];
@@ -1217,7 +1207,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
             printf("[HARDFIX] Iter %2d | Fixed edges: %2d | Remaining time: %.2fs\n",
                    iteration, fixed_count, inst->timelimit - time_elapsed);
 
-        // Re-inject MIP start if needed
         if (current_best_changed)
         {
 
@@ -1276,7 +1265,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
                 goto CLEANUP;
             }
 
-            // Check if we improved
             if (new_sol.cost < current_best.cost - EPSILON)
             {
                 current_best_changed = 1;
@@ -1305,7 +1293,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         }
     }
 
-    // === Time expired - Check final solution and try patching if needed ===
     if (xstar)
     {
         int ncomp = build_components(xstar, comp, inst);
@@ -1335,7 +1322,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         }
     }
 
-    // Copy best solution to output
     if (current_best.initialized)
     {
         copy_sol(&current_best, sol);
@@ -1406,20 +1392,7 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    // Store number of columns (variables)
     inst->ncols = CPXgetnumcols(env, lp);
-
-    // === Set up callback for lazy constraints (SEC) ===
-    /*
-    CPXLONG contextid = CPX_CALLBACKCONTEXT_CANDIDATE;
-    if (CPXcallbacksetfunc(env, lp, contextid, my_callback, inst))
-    {
-        print_error("CPXcallbacksetfunc error");
-        CPXfreeprob(env, &lp);
-        CPXcloseCPLEX(&env);
-        return EXIT_FAILURE;
-    }
-        */
 
     // === Generate initial solution using greedy heuristic ===
     solution initial_sol;
@@ -1463,7 +1436,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
     else if (VERBOSE >= 50)
         printf("[LOC.BRANCH] Initial warm start cost: %.2f\n", initial_sol.cost);
 
-    // Copy as a starting point for Local Branching
     copy_sol(&initial_sol, &current_best);
 
     // === Local Branching main loop ===
@@ -1476,7 +1448,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
     int improved = 0;
     int consecutive_no_improvement = 0;
 
-    // Allocate memory for component tracking (for potential patching)
     comp = malloc(n * sizeof(int));
     if (!comp)
     {
@@ -1488,7 +1459,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    // Allocate memory for local branching constraint
     int *indices = malloc(inst->ncols * sizeof(int));
     double *values = malloc(inst->ncols * sizeof(double));
     if (!indices || !values)
@@ -1506,7 +1476,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    // Allocate memory for xstar
     xstar = calloc(inst->ncols, sizeof(double));
     if (!xstar)
     {
@@ -1521,7 +1490,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    // Pre-allocate array to track edges in current solution
     int *edge_in_solution = calloc(inst->ncols, sizeof(int));
     if (!edge_in_solution)
     {
@@ -1537,7 +1505,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    // Constraint row number
     int lb_row = -1;
 
     if (VERBOSE >= 30)
@@ -1548,7 +1515,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         iteration++;
         time_elapsed = second() - start_time;
 
-        // Check time limit
         if (time_elapsed >= inst->timelimit)
         {
             if (VERBOSE >= 30)
@@ -1577,7 +1543,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         }
 
         // === Create local branching constraint ===
-        // Reset edge tracking array
         memset(edge_in_solution, 0, inst->ncols * sizeof(int));
 
         // Mark edges in current solution
@@ -1589,7 +1554,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         }
 
         // Local branching constraint (Hamming distance ≤ k):
-        //  ∑_{e: x^H_e = 0} x_e  +  ∑_{e: x^H_e = 1} (1 - x_e)  ≤ k
         for (int e = 0; e < inst->ncols; e++)
         {
             indices[e] = e;
@@ -1606,17 +1570,14 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
             goto CLEANUP;
         }
 
-        // Get the index of the newly added row
         lb_row = CPXgetnumrows(env, lp) - 1;
 
         if (VERBOSE >= 60)
             printf("[LOC.BRANCH] Iteration %d: Added constraint with k = %d, RHS = %.0f\n",
                    iteration, k, rhs);
 
-        // Add MIP start from current best solution
         if (iteration % 2 == 0)
         {
-            // Jump warm start every 3 iterations
             CPXdelmipstarts(env, lp, 0, CPXgetnummipstarts(env, lp));
         }
         else
@@ -1634,7 +1595,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
             goto CLEANUP;
         }
 
-        // Check solution status
         int sol_stat = CPXgetstat(env, lp);
         int is_optimal = (sol_stat == CPXMIP_OPTIMAL || sol_stat == CPXMIP_OPTIMAL_TOL);
         int is_feasible = is_optimal || (sol_stat == CPXMIP_TIME_LIM_FEAS) || (sol_stat == CPXMIP_NODE_LIM_FEAS);
@@ -1646,18 +1606,15 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
 
         if (!is_feasible)
         {
-            // Problem was infeasible or no solution found
             consecutive_no_improvement++;
 
             if (VERBOSE >= 50)
                 printf("[LOC.BRANCH] No feasible solution found (status = %d)\n", sol_stat);
 
-            // Increase k when no feasible solution is found
             k = min(k + 5, k_max);
             if (VERBOSE >= 60)
                 printf("[LOC.BRANCH] Increasing k to %d due to infeasibility\n", k);
 
-            // If k reaches maximum, terminate
             if (k >= k_max)
             {
                 if (VERBOSE >= 50)
@@ -1667,30 +1624,25 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
             continue;
         }
 
-        // Extract the solution
         if (CPXgetx(env, lp, xstar, 0, inst->ncols - 1))
         {
             print_error("CPXgetx error");
             goto CLEANUP;
         }
 
-        // Build the solution
         solution new_sol;
         new_sol.initialized = 0;
         new_sol.tour = NULL;
 
-        // Check if the solution is a valid tour
         int ncomp = build_components(xstar, comp, inst);
         if (ncomp > 1)
         {
-            // Try to patch the solution into a valid tour
             if (patch_solution(xstar, inst, &new_sol) != EXIT_SUCCESS)
             {
                 if (VERBOSE >= 60)
                     printf("[LOC.BRANCH] Patching failed for %d components\n", ncomp);
                 consecutive_no_improvement++;
 
-                // Adjust k and continue
                 if (is_optimal)
                     k = min(k + 8, k_max);
                 else if (is_time_limit)
@@ -1704,7 +1656,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         }
         else
         {
-            // Build solution from valid tour
             if (build_solution(xstar, inst, &new_sol) != EXIT_SUCCESS)
             {
                 print_error("Failed to build solution");
@@ -1770,7 +1721,6 @@ int apply_cplex_localbranch(instance *inst, solution *sol)
         }
     }
 
-    // Copy best solution to output
     copy_sol(&current_best, sol);
     status = EXIT_SUCCESS;
 

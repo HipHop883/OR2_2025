@@ -60,7 +60,6 @@ static int resize_tabu_list(tabuList *tabu, int new_tenure)
         }
     }
 
-    // Resize the array
     int **new_list = realloc(tabu->tabu_list, sizeof(int *) * new_tenure);
     if (!new_list)
     {
@@ -228,14 +227,13 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     current_sol->cost = CPX_INFBOUND;
     best_sol->cost = CPX_INFBOUND;
 
-    if (sol->initialized) // Check if already initialized
+    if (sol->initialized)
     {
-        current_sol->cost = sol->cost; // Use the existing cost
+        current_sol->cost = sol->cost;
         memcpy(current_sol->tour, sol->tour, sizeof(int) * (inst->nnodes + 1));
     }
     else
     {
-        // Otherwise, it generates a random path
         if (generate_random_path(inst, current_sol))
         {
             print_error("Random path failed in vns");
@@ -343,7 +341,7 @@ int apply_heuristic_vns(instance *inst, solution *sol)
 
     memcpy(sol->tour, best_sol->tour, sizeof(int) * (inst->nnodes + 1));
     sol->cost = best_sol->cost;
-    sol->initialized = 1; // Mark as initiliazed
+    sol->initialized = 1;
 
     free(current_sol->tour);
     free(current_sol);

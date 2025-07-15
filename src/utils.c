@@ -153,7 +153,6 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
         fclose(fp);
     }
 
-    // Process header.
     char header[1024] = "";
     int num_cols = 0;   // current number of algorithms (columns)
     int col_index = -1; // column index for instance_id (1-indexed, as header fields 1..n)
@@ -237,7 +236,7 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
                 tokens[token_count++] = tok;
                 tok = strtok_r(NULL, ",", &saveptr2);
             }
-            if (token_count > 0) // Check if at least one token was found
+            if (token_count > 0)
             {
                 sprintf(new_row, "%s", tokens[0]);
                 for (int j = 1; j <= num_cols; j++)

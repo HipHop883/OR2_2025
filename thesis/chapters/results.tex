@@ -239,3 +239,16 @@ Warm starts based on the \textbf{Tabu} heuristic consistently underperform. Whet
 
 Overall, default configurations—particularly Branch-and-Cut—remain highly effective. Lightweight warm starts like Two-Opt may be beneficial, especially for Benders, but more expensive ones like Tabu tend to degrade performance.
 
+\subsection{Best Matheuristic}
+\label{ssec:best-matheu}
+
+In this section we compare the matheuristic methods from Chapter~\ref{chap:matheuristics} after parameter tuning. Figure~\ref{fig:matheu} clearly shows that Hard Fixing clearly outperforms Local Branching.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{matheu.pdf}
+  \caption{Performance profiles for the tuned matheuristics.}
+  \label{fig:matheu}
+\end{figure}
+
+These results can be attributed to Hard Fixing's strategy of locking in high-quality variable assignments, which focuses the solver on the most promising regions of the search space and produces strong incumbents much faster than the incremental neighborhood adjustments of Local Branching.  

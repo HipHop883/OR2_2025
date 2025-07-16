@@ -4,6 +4,14 @@
 
 #define DIVIDER "-----------------------------------------------------------"
 
+/**
+ * Check if swapping edge (i,j) is currently tabu.
+ *
+ * @param tabu  Pointer to the tabu list structure.
+ * @param i     First node index of the candidate 2-opt move.
+ * @param j     Second node index of the candidate 2-opt move.
+ * @return      1 if (i,j) is in the tabu list, 0 otherwise
+ */
 static int is_tabu_move(tabuList *tabu, int i, int j)
 {
     if (i > j)
@@ -19,6 +27,14 @@ static int is_tabu_move(tabuList *tabu, int i, int j)
     return EXIT_SUCCESS;
 }
 
+/**
+ * Add the 2-opt move (i,j) to the tabu list, eliminating the oldest entry
+ * when the list reaches its tenure size.
+ *
+ * @param tabu  Pointer to the tabu list structure.
+ * @param i     First node index of the move to forbid.
+ * @param j     Second node index of the move to forbid.
+ */
 static void add_tabu_move(tabuList *tabu, int i, int j)
 {
     if (i > j)
@@ -46,6 +62,13 @@ static void add_tabu_move(tabuList *tabu, int i, int j)
     }
 }
 
+/**
+ * Change the maximum size of the tabu list, reallocating storage.
+ *
+ * @param tabu         Pointer to the tabu list structure.
+ * @param new_tenure   Desired new tenure (max entries).
+ * @return             0 on success, -1 on allocation error.
+ */
 static int resize_tabu_list(tabuList *tabu, int new_tenure)
 {
     if (new_tenure == tabu->tenure)
@@ -90,6 +113,11 @@ static int resize_tabu_list(tabuList *tabu, int new_tenure)
     return 0;
 }
 
+/**
+ * Free all memory associated with a tabuList, including its internal arrays.
+ *
+ * @param tabu  Pointer to the tabu list to destroy.
+ */
 static void free_tabu(tabuList *tabu)
 {
     if (!tabu)
@@ -108,6 +136,16 @@ static void free_tabu(tabuList *tabu)
     free(tabu);
 }
 
+/**
+ * Search all admissible 2-opt moves and perform the best non-tabu (or
+ * tabu under aspiration) swap on sol.
+ *
+ * @param inst      Pointer to the TSP instance (provides cost_matrix, nnodes).
+ * @param sol       Pointer to the current solution to modify.
+ * @param best_sol  Pointer to the best solution found so far.
+ * @param tabu      Pointer to the tabu list controlling forbidden moves.
+ * @return          0 on success, -1 if no valid move was found.
+ */
 static int best_2opt_not_tabu(instance *inst, solution *sol, solution *best_sol, tabuList *tabu)
 {
     int nnodes = inst->nnodes;
@@ -146,6 +184,12 @@ static int best_2opt_not_tabu(instance *inst, solution *sol, solution *best_sol,
     return 0;
 }
 
+/**
+ * Allocate and initialize a new tabuList structure based on instance parameters.
+ *
+ * @param inst  Pointer to the TSP instance (provides tabu_min, tabu_max, nnodes).
+ * @return      Pointer to a freshly allocated tabuList, or NULL on error.
+ */
 static tabuList *init_tabu_list(instance *inst)
 {
     tabuList *tabu = (tabuList *)malloc(sizeof(tabuList));
@@ -188,11 +232,11 @@ static tabuList *init_tabu_list(instance *inst)
 }
 
 /**
- * Solve the TSP instance using the VNS algorithm. Starting from a greedy solution, we apply
- * intensification (2-opt improvement) and diversification (3-opt kicks) until the time limit is reached.
- * @param tsp TSP instance
- * @param sol solution
- * @return 0 if the solution is found, 1 otherwise
+ * Solve the TSP instance using the Variable Neighbourhood Search (VNS).
+ *
+ * @param inst  Pointer to the TSP instance (provides cost_matrix, timelimit, VNS params).
+ * @param sol   Pointer to a solution struct: on return, sol->tour and sol->cost hold the best found.
+ * @return      0 if completed under time limit, 1 otherwise.
  */
 int apply_heuristic_vns(instance *inst, solution *sol)
 {
@@ -351,6 +395,13 @@ int apply_heuristic_vns(instance *inst, solution *sol)
     return EXIT_SUCCESS;
 }
 
+/**
+ * Solve the TSP instance using Tabu Search.
+ *
+ * @param inst  Pointer to the TSP instance (provides cost_matrix, timelimit, tabu params).
+ * @param sol   Pointer to a solution struct: on return, sol->tour and sol->cost are best found.
+ * @return      0 if terminated by time limit, 1 otherwise.
+ */
 int apply_heuristic_tabu(instance *inst, solution *sol)
 {
     FILE *log_file = NULL;

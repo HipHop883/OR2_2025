@@ -8,6 +8,7 @@
 
 /**
  * Get current time in seconds
+ *
  * @return current time in seconds
  */
 double second()
@@ -16,8 +17,10 @@ double second()
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + 1.0e-9 * ts.tv_nsec;
 }
+
 /**
  * Set the random seed and run rome random numbers to improve randomness
+ *
  * @param seed the seed to set
  */
 void set_seed(int seed)
@@ -30,6 +33,7 @@ void set_seed(int seed)
 
 /**
  * Generate a random number between 0 and 1
+ *
  * @return a random number between 0 and 1
  */
 double rand01()
@@ -39,9 +43,10 @@ double rand01()
 
 /**
  * Compare two integers for qsort
+ *
  * @param a integer a
  * @param b integer b
- * @return the difference between a and b
+ * @return -1 if a < b, 0 if equal, +1 if a > b
  */
 int compar(const void *a, const void *b)
 {
@@ -49,8 +54,10 @@ int compar(const void *a, const void *b)
     int bv = *(int *)b;
     return (av > bv) - (av < bv);
 }
+
 /**
  * Get the number of runs to perform from the command line arguments
+ *
  * @param argc number of arguments
  * @param argv array of arguments
  * @return the number of runs, default is 1
@@ -133,7 +140,7 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
     }
     else
     {
-        // TODO other methods
+        // Other methods
         sprintf(instance_id, "%s_seed_%d", inst->method, inst->randomseed);
     }
 

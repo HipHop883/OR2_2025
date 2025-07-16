@@ -356,3 +356,33 @@ void copy_sol(const solution *src, solution *dst)
         dst->cost = src->cost;
     }
 }
+
+/**
+ * Checks whether the given method string (with sub-methods separated by '+')
+ * contains exactly one of the target methods: "benders" or "branch_and_cut".
+ *
+ * @param method a string of one or more method names concatenated with '+'
+ * @return 1 if any of the '+'-separated tokens is exactly "benders" or "branch_and_cut", 0 otherwise
+ */
+int is_exact_method(const char *method)
+{
+    char *copy = strdup(method);
+    if (!copy)
+        return 0;
+
+    int found = 0;
+    char *saveptr = NULL;
+    char *tok = strtok_r(copy, "+", &saveptr);
+    while (tok)
+    {
+        if (strcmp(tok, "benders") == 0 || strcmp(tok, "branch_and_cut") == 0)
+        {
+            found = 1;
+            break;
+        }
+        tok = strtok_r(NULL, "+", &saveptr);
+    }
+
+    free(copy);
+    return found;
+}

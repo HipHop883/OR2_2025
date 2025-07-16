@@ -15,7 +15,8 @@
 #endif
 
 /**
- * Calculates the index of the variable x(i, j) in the CPLEX model
+ * Compute the flattened index of binary decision variable x(i,j) in the CPLEX model.
+ *
  * @param i index of node i
  * @param j index of node j
  * @param inst instance
@@ -40,7 +41,8 @@ static inline int xpos(int i, int j, const instance *inst)
 }
 
 /**
- * Builds the CPLEX model
+ * Construct the base CPLEX MIP model for the symmetric TSP.
+ *
  * @param inst instance
  * @param env CPLEX environment
  * @param lp CPLEX problem
@@ -125,7 +127,8 @@ int build_model(instance *inst, CPXENVptr env, CPXLPptr lp)
 }
 
 /**
- * Builds the solution from the xstar vector
+ * Extract a feasible tour from the optimized binary solution vector.
+ *
  * @param xstar solution vector
  * @param inst instance
  * @param sol solution to be filled
@@ -222,7 +225,8 @@ int build_solution(const double *xstar, instance *inst, solution *sol)
 }
 
 /**
- * Add SEC constraints to the model
+ * Add all required Subtour Elimination (SEC) constraints for components.
+ *
  * @param env CPLEX environment
  * @param lp CPLEX problem
  * @param comp component array
@@ -296,7 +300,8 @@ int add_sec(CPXENVptr env, CPXLPptr lp, int *comp, int ncomp, instance *inst)
 }
 
 /**
- * Assigns components to each node based on the solution vector xstar using the BFS algorithm
+ * Identify connected components in the current solution xstar via breadth-first search (BFS).
+ *
  * @param xstar solution vector
  * @param comp component array to be filled
  * @param inst instance
@@ -351,7 +356,7 @@ int build_components(const double *xstar, int *comp, instance *inst)
 }
 
 /**
- * Adds a warm start to the CPLEX model using the provided solution
+ * Injects a warm start to the CPLEX model using the provided solution
  *
  * @param env CPLEX environment
  * @param lp CPLEX problem
@@ -644,7 +649,8 @@ int patch_solution(const double *xstar_in, instance *inst, solution *sol)
 }
 
 /**
- * Callback function for CPLEX to add SEC constraints
+ * CPLEX callback to detect subtours in candidate MIP solutions and add lazy SEC cuts.
+ *
  * @param context CPLEX callback context
  * @param contextid context ID
  * @param userhandle user data
@@ -759,7 +765,10 @@ static int CPXPUBLIC my_callback(CPXCALLBACKCONTEXTptr context, CPXLONG contexti
 }
 
 /**
- * Apply CPLEX to solve the TSP instance using the Benders decomposition method
+ * Apply CPLEX to solve the TSP instance using the Benders decomposition method:
+ * build model, solve MIP, extract components, add SEC if subtours exist, and repeat
+ * until one component remains.
+ *
  * @param inst instance
  * @param sol solution
  * @return 0 if successful, 1 otherwise
@@ -927,7 +936,8 @@ int apply_cplex_benders(instance *inst, solution *sol)
 }
 
 /**
- * Apply CPLEX to solve the TSP instance using Branch and Cut method
+ * Solve TSP via Branch-and-Cut with lazy callback SEC enforcement.
+ *
  * @param inst instance
  * @param sol solution
  *
@@ -1032,6 +1042,7 @@ int apply_cplex_branchcut(instance *inst, solution *sol)
 
 /**
  * Apply CPLEX to solve the TSP instance using Hard Fixing heuristic
+ *
  * @param inst instance
  * @param sol solution to be filled and used as starting point
  *
@@ -1350,6 +1361,7 @@ CLEAN_BASIC:
 
 /**
  * Apply CPLEX to solve the TSP instance using Local Branching (Soft Fixing) heuristic
+ *
  * @param inst instance
  * @param sol solution to be filled and used as starting point
  *

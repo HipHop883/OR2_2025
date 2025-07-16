@@ -5,7 +5,8 @@
 #include "tsp_cplex.h"
 
 /**
- * Load instance data from file or generate randomly
+ * Load TSP instance data, either from a TSPLIB-style file or by generating
+ * random coordinates.
  *
  * @param inst instance
  * @return 0 if the input data is read successfully, 1 otherwise
@@ -165,14 +166,16 @@ int load_instance(instance *inst)
 }
 
 /**
- * Print error message
+ * Print an error message to stderr, prefixed with "ERROR:".
+ *
  * @param err_message error message
  * @return void
  */
 void print_error(const char *err_message) { fprintf(stderr, "ERROR: %s \n\n", err_message); }
 
 /**
- * Parse command line
+ * Parse command-line flags and populate the instance with the data provided.
+ *
  * @param argc number of arguments
  * @param argv arguments
  * @param inst instance
@@ -665,7 +668,8 @@ int parse_command_line(int argc, char **argv, instance *inst)
 }
 
 /**
- * Generate random nodes
+ * Generate a set of random nodes in a grid MAX_X * MAX_Y
+ *
  * @param inst instance
  * @param nnodes number of nodes
  * @return void
@@ -699,7 +703,8 @@ void generate_random_nodes(instance *inst, int nnodes)
 }
 
 /**
- * Free instance
+ * Free instance data structures
+ *
  * @param inst instance
  * @return void
  */
@@ -720,7 +725,8 @@ void free_instance(instance *inst)
 }
 
 /**
- * Free solution
+ * Free solution data structures
+ *
  * @param sol solution
  * @return void
  */
@@ -735,6 +741,7 @@ void free_sol(solution *sol)
 
 /**
  * Generate a random path using the Fisher-Yates shuffle algorithm
+ *
  * @param inst the instance
  * @param sol path of the solution
  * @return 0 if the random path is generated successfully, 1 otherwise
@@ -769,7 +776,8 @@ int generate_random_path(const instance *inst, solution *sol)
 }
 
 /**
- * Print path
+ * Print the solution path as a sequence of nodes
+ *
  * @param inst instance
  * @param sol solution path
  * @return void
@@ -785,7 +793,8 @@ void print_solution_path(const instance *inst, const solution *sol)
 }
 
 /**
- * Print nodes
+ * Print all nodes with their coordinates
+ *
  * @param inst instance
  * @return void
  */
@@ -798,7 +807,8 @@ void print_node_coordinates(instance *inst)
 }
 
 /**
- * Check time
+ * Check if the execution time limit has been reached
+ *
  * @param inst instance
  * @param time starting_time
  * @return 0 if the time limit is not reached, 1 otherwise
@@ -814,7 +824,8 @@ int check_time(const instance *inst, double starting_time)
 }
 
 /**
- * Write path file
+ * Write solution path to file
+ *
  * @param inst instance
  * @param sol solution path
  * @param filename filename
@@ -840,7 +851,8 @@ int write_path_to_file(const instance *inst, const solution *sol, const char *fi
 }
 
 /**
- * cost of the path
+ * Compute the cost of the provided path
+ *
  * @param inst instance
  * @param sol solution path
  * @return 0 if the cost of the path is calculated successfully, 1 otherwise
@@ -870,7 +882,8 @@ int evaluate_path_cost(const instance *inst, solution *sol)
 }
 
 /**
- * Two-opt heuristic
+ * Apply the 2-opt local optimization heuristic to the current tour.
+ *
  * @param inst instance
  * @param sol solution path
  * @return 0 if the two-opt heuristic is applied successfully, 1 otherwise
@@ -945,7 +958,8 @@ int apply_two_opt(const instance *inst, solution *sol)
 }
 
 /**
- * Calculate the change in the cost of the path when swapping nodes i and j
+ * Calculate the delta in the cost of the path when swapping nodes i and j in the tour
+ *
  * @param i node i
  * @param j node j
  * @param sol solution path
@@ -959,6 +973,7 @@ double path_cost_delta(int i, int j, const solution *sol, const instance *inst)
 
 /**
  * Swap nodes i and j in the path
+ *
  * @param i node i
  * @param j node j
  * @param sol solution path
@@ -977,6 +992,7 @@ void reverse_path_segment(int i, int j, solution *sol)
 
 /**
  * Compute the cost matrix
+ *
  * @param tsp instance
  * @return 0 if the cost matrix is computed successfully, 1 otherwise
  */
@@ -1030,7 +1046,8 @@ int tsp_compute_costs(instance *tsp)
 }
 
 /**
- * Run the method
+ * Run the selected set of methods
+ *
  * @param inst instance
  * @param sol solution path
  * @return 0 if the method is run successfully, 1 otherwise
@@ -1245,6 +1262,12 @@ int execute_selected_method(instance *inst, solution *sol)
 	return EXIT_SUCCESS;
 }
 
+/**
+ * Allocate or reallocate the coordinate and cost‐matrix buffers
+ * for an instance, freeing any previous allocations.
+ *
+ * @param tsp  Pointer to the TSP instance whose buffers should be (re)allocated.
+ */
 void allocate_buffers(instance *tsp)
 {
 	if (tsp->xcoord)
@@ -1286,6 +1309,11 @@ void allocate_buffers(instance *tsp)
 	}
 }
 
+/**
+ * Initialize all fields of a TSP instance to default values.
+ *
+ * @param inst  Pointer to the instance to initialize.
+ */
 void init(instance *inst)
 {
 	memset(inst, 0, sizeof(instance));
@@ -1328,7 +1356,8 @@ void init(instance *inst)
 }
 
 /**
- * Generate random indices for a 3-opt move.
+ * Generate three distinct random cut indices i < j < k
+ * for a 3-opt move on a tour.
  *
  * @param tsp Pointer to the TSP instance
  * @param i Pointer to store index i
@@ -1432,7 +1461,7 @@ static void apply_three_opt_move(instance *tsp, int *src_tour, int *dst_tour, in
 }
 
 /**
- * Apply the 3-opt heuristic to a solution. *
+ * Apply the 3-opt heuristic to a solution.
  * Randomly selects a valid (i, j, k) triple and evaluates all 7 possible
  * 3-opt reconnection types. Applies the best one (lowest total cost).
  *
@@ -1478,7 +1507,8 @@ int apply_three_opt(instance *tsp, solution *sol)
 }
 
 /**
- * Get the time weight of a method
+ * Get the relative time weight of a single method, used to
+ * partition the total time limit among multiple sub‐methods.
  *
  * @param method_name name of the method
  * @return the weight of the method

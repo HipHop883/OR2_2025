@@ -96,13 +96,13 @@ typedef struct
  */
 enum ThreeOptType
 {
-	TYPE_0, ///< Identity
-	TYPE_1, ///< Reverse A
-	TYPE_2, ///< Reverse B
-	TYPE_3, ///< Reverse C
-	TYPE_4, ///< Reverse A and B
-	TYPE_5, ///< Reverse A and C
-	TYPE_6	///< Reverse B and C
+	TYPE_0, // Identity
+	TYPE_1, // Reverse A
+	TYPE_2, // Reverse B
+	TYPE_3, // Reverse C
+	TYPE_4, // Reverse A and B
+	TYPE_5, // Reverse A and C
+	TYPE_6	// Reverse B and C
 };
 
 void init(instance *inst);

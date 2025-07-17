@@ -4,7 +4,7 @@ In this section, we present and analyze the results obtained from the experiment
 
 Each group of algorithms is analyzed independently, following a consistent methodology. Three main parameters are considered throughout the experiments:
 \begin{itemize}
-    \item \textbf{Number of nodes:} This varies depending on the method's nature (e.g., fewer nodes for exact methods, more for heuristics and metaheuristics).
+    \item \textbf{Number of nodes:} This varies depending on the method's nature (e.g., fewer nodes for exact methods).
     \item \textbf{Time limit:} A fixed time budget is set for all experiments to ensure comparability.
     \item \textbf{Number of runs:} Each configuration is tested on 20 randomly generated instances to ensure statistical significance.
 \end{itemize}
@@ -25,7 +25,7 @@ The TSP instances used in our experiments are generated randomly. Each instance 
 
 \subsection{Experimental Setup}
 
-The exact and matheuristic methods were solved using \textbf{IBM ILOG CPLEX 22.1.2}~\cite{cplex2023}, interfaced via its C API. Greedy and heuristic algorithms were implemented in C for performance reasons, while Python was used for result visualization and data processing.
+All the methods have been implemented in C and the Exact and Matheuristic methods are built on top of \textbf{IBM ILOG CPLEX 22.1.2}~\cite{cplex2023}, interfaced via its C API. Python was used for result visualization and data processing.
 
 To ensure comparability, all algorithms within the same category were executed sequentially on the same hardware. However, different classes of methods were executed on different machines, as detailed below:
 
@@ -46,6 +46,8 @@ This approach enables the construction of plots that show, for each algorithm, t
 
 \section{Parameters tuning}
 
+Before comparing each method against another, we first explore a range of possible configurations for each algorithm to identify those that perform best under our fixed time and node constraints. This process follows the experimental methodology described above.
+
 \subsection{Nearest Neighbor - Greedy}
 \label{ssec:nn-tuning}
 
@@ -62,13 +64,13 @@ In the case of Nearest Neighbor method we don't have any parameters to tune, but
 \label{ssec:tabu-tuning}
 As discussed in Section~\ref{sec:tabu}, Tabu Search relies on a short-term memory of forbidden moves, whose size is governed by the base tenure \(T\).  In many works one selects a single ratio \(\alpha\) and sets \(T=\frac{N_{\mathrm{nodes}}}{\alpha}\), but this hides the fact that the method can be tuned more flexibly by independently controlling the dynamic bounds \(T_{\min}\) and \(T_{\max}\).
 
-In our implementation we therefore allow the user to specify all parameters directly, allowing also for setting the cutoff for forced diversification, \(N_{\mathrm{ni}}\). Conceptually, however, it is still suggested to leverage the ratio \(\alpha\) to derive the base tenure \(T\).
+In our implementation we therefore let the user to specify all parameters directly as absolute values, allowing also for setting the cutoff for forced diversification, \(N_{\mathrm{ni}}\). Conceptually, however, it is still suggested to leverage the ratio \(\alpha\) to derive the tenure dimensions \(T\), \(T_{\min}\) and \(T_{\max}\).
 
-Table~\ref{tab:tabu-configs} reports the eight configurations where we tried to span as many different search behaviors as possible.
+Table~\ref{tab:tabu-configs} reports the eight configurations where we tried to span as many different search behaviors as possible on our instance.
 
 \begin{table}[H]
   \centering
-  \caption{Tabu search configurations}
+  \caption{Tabu Search configurations}
   \label{tab:tabu-configs}
   \resizebox{\textwidth}{!}{%
   \begin{tabular}{|c|c|c|c|l|}
@@ -88,7 +90,7 @@ Table~\ref{tab:tabu-configs} reports the eight configurations where we tried to 
   }
 \end{table}
 
-Results highlight that configurations with a large base tenure and a wide dynamic span tend to converge more quickly to high-quality incumbents. In particular:
+Results presented in Figure \ref{fig:tabu-profiles} highlight that configurations with a large base tenure and a wide dynamic span tend to converge more quickly to high-quality incumbents. In particular:
 \begin{itemize}
   \item \emph{High base tenure}: retaining a long short-term memory before forcing diversification produces the best overall performance, by exploiting promising regions.
   \item \emph{Wide dynamic window}: allowing the tabu tenure to expand and contract over a large interval helps escape local optima when progress stalls.
@@ -179,6 +181,8 @@ We evaluate the impact of two tuning parameters on the Local Branching heuristic
 The results show that larger neighborhoods yield more consistent improvements: configurations with \(K=30\) uniformly outperform those with \(K=20\) and \(K=10\). Likewise, a step size of 20 delivers the fastest early gains, although its marginal benefit diminishes over longer runs. Overall, the combination \(K=30\) and \(\text{step}=20\) achieves the best final costs under our time constraint.  
 
 \section{Methods comparison}
+
+After introducing theoretically and tuning each method we're now ready to compare each family of methods to state whether one can be considered better than another. It is important to note that the results may be influenced by factors such as random seed selection, implementation quality, and hardware differences; thus, the findings should not be interpreted as absolute but rather as indicative of relative performance within our experimental framework. 
 
 \subsection{Best Heuristic - Full time limit}
 

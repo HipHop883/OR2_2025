@@ -9,7 +9,7 @@ In the context of the TSP, matheuristics provide a valuable compromise: they all
 
 Hard Fixing is a matheuristic strategy designed to balance the exploration power of mathematical programming with the speed of heuristics. The method is based on iteratively solving reduced Mixed Integer Programming (MIP) models where a subset of the decision variables is fixed, while the remaining ones are left free for optimization.
 
-The process begins with the construction of an initial feasible tour using a greedy heuristic; this tour serves as the starting point for the fixing phase. At each iteration, a percentage of edges from the current best solution is selected and fixed — that is, their corresponding variables are constrained to be part of the tour (\( x_{ij} = 1 \)). The remaining variables are left unfixed, and CPLEX is invoked to solve the restricted problem with a reduced time limit.
+The process begins with the construction of an initial feasible tour; this solution serves as the starting point for the fixing phase. At each iteration, a percentage of edges from the current best solution is selected and fixed — that is, their corresponding variables are constrained to be part of the tour (\( x_{ij} = 1 \)). The remaining variables are left unfixed, and CPLEX is invoked to solve the restricted problem with a reduced time limit.
 
 Edges are selected for fixing probabilistically: each edge in the tour has a fixed probability (e.g., 30\%) of being selected. This randomized selection introduces diversification, allowing the algorithm to explore different neighborhoods at each iteration.
 
@@ -55,14 +55,14 @@ The parameter \( k \) controls the size of the neighborhood:
     \item intermediate values like \( k = 20 \) often balance intensification and diversification effectively.
 \end{itemize}
 
-The method begins with a greedy solution and iteratively solves restricted models using CPLEX. At each iteration:
+The method begins with an heuristic solution and iteratively solves restricted models using CPLEX. At each iteration:
 \begin{itemize}
     \item If a better solution is found, \( k \) is reset to its initial value.
     \item If no improvement is found, \( k \) is increased to allow broader exploration.
     \item The search is bounded by a global time limit, and each subproblem is further limited by a maximum number of branch-and-bound nodes.
 \end{itemize}
 
-If the resulting solution is disconnected, a fallback patching heuristic is applied (see Section~\ref{ssec:patching}).
+If the resulting solution is disconnected, the fallback patching heuristic presented in Section~\ref{ssec:patching} is applied.
 
 \subsection{Pseudocode}
 

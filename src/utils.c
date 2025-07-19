@@ -128,12 +128,12 @@ void update_perf_csv(const instance *inst, double *run_results, int num_runs)
     {
         sprintf(instance_id, "branch_and_cut_seed_%d", inst->randomseed);
     }
-    else if (!strcmp(inst->method, "tabu+hard_fix"))
+    else if (strstr(inst->method, "hard_fix"))
     {
         sprintf(instance_id, "hard_fix_%.2lf_local_tl_%.2lf_seed_%d",
                 inst->hard_fixing_percentage, inst->hard_fixing_local_time, inst->randomseed);
     }
-    else if (!strcmp(inst->method, "tabu+local_branch"))
+    else if (strstr(inst->method, "local_branch"))
     {
         sprintf(instance_id, "local_branch_k_%d_step_%d_seed_%d",
                 inst->local_branch_k, inst->local_branch_step, inst->randomseed);
@@ -373,23 +373,6 @@ void copy_sol(const solution *src, solution *dst)
  */
 int is_exact_method(const char *method)
 {
-    char *copy = strdup(method);
-    if (!copy)
-        return 0;
-
-    int found = 0;
-    char *saveptr = NULL;
-    char *tok = strtok_r(copy, "+", &saveptr);
-    while (tok)
-    {
-        if (strcmp(tok, "benders") == 0 || strcmp(tok, "branch_and_cut") == 0)
-        {
-            found = 1;
-            break;
-        }
-        tok = strtok_r(NULL, "+", &saveptr);
-    }
-
-    free(copy);
-    return found;
+    return (strstr(method, "benders") != NULL ||
+            strstr(method, "branch_and_cut") != NULL);
 }

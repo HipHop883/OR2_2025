@@ -105,34 +105,28 @@ enum ThreeOptType
 	TYPE_6	// Reverse B and C
 };
 
-void init(instance *inst);
-int parse_command_line(int argc, char **argv, instance *inst);
+double get_method_weight(const char *method_name);
+double path_cost_delta(int i, int j, const solution *sol, const instance *inst);
 
-int load_instance(instance *inst);
 void allocate_buffers(instance *inst);
 void free_instance(instance *inst);
 void free_sol(solution *sol);
-
 void generate_random_nodes(instance *inst, int nnodes);
-int generate_random_path(const instance *inst, solution *sol);
-int check_time(const instance *inst, double starting_time);
-
-void print_solution_path(const instance *inst, const solution *sol);
+void init(instance *inst);
+void print_error(const char *err_message);
 void print_node_coordinates(instance *inst);
-int write_path_to_file(const instance *inst, const solution *sol, const char *filename);
-
-int evaluate_path_cost(const instance *inst, solution *sol);
-
-int apply_two_opt(const instance *inst, solution *sol);
-double path_cost_delta(int i, int j, const solution *sol, const instance *inst);
+void print_solution_path(const instance *inst, const solution *sol);
 void reverse_path_segment(int i, int j, solution *sol);
 
-int tsp_compute_costs(instance *tsp);
-int execute_selected_method(instance *inst, solution *sol);
-double get_method_weight(const char *method_name);
-
 int apply_three_opt(instance *tsp, solution *sol);
-
-void print_error(const char *err_message);
+int apply_two_opt(const instance *inst, solution *sol);
+int check_time(const instance *inst, double starting_time);
+int evaluate_path_cost(const instance *inst, solution *sol);
+int execute_selected_method(instance *inst, solution *sol);
+int generate_random_path(const instance *inst, solution *sol);
+int load_instance(instance *inst);
+int parse_command_line(int argc, char **argv, instance *inst);
+int tsp_compute_costs(instance *tsp);
+int write_path_to_file(const instance *inst, const solution *sol, const char *filename);
 
 #endif /* TSP_H_ */

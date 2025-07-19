@@ -18,7 +18,7 @@ typedef struct
     int iterations_without_improvement;
 } tabuList;
 
-int apply_heuristic_vns(instance *tsp, solution *sol);
 int apply_heuristic_tabu(instance *inst, solution *sol);
+int apply_heuristic_vns(instance *tsp, solution *sol);
 
-#endif // TSP_HEURISTICS_H_
+#endif /* TSP_HEURISTICS_H_ */

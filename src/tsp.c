@@ -3,6 +3,7 @@
 #include "tsp_heuristics.h"
 #include "tsp_greedy.h"
 #include "tsp_cplex.h"
+#include <string.h>
 
 /**
  * Load TSP instance data, either from a TSPLIB-style file or by generating
@@ -593,30 +594,28 @@ int parse_command_line(int argc, char **argv, instance *inst)
 			printf("%-15s : %d\n", "--nnodes", inst->nnodes);
 		printf("%-15s : %d\n", "--seed", inst->randomseed);
 		printf("%-15s : %.2f\n", "--time_limit", inst->timelimit);
-		if (strcmp(inst->method, "n_n") == 0)
+		if (strstr(inst->method, "n_n"))
 			printf("%-15s : %d\n", "--greedy_starts", inst->greedy_starts);
-		else if (strcmp(inst->method, "vns") == 0)
+		if (strstr(inst->method, "vns"))
 		{
 			printf("%-15s : %d\n", "--vns_kmin", inst->vns_kmin);
 			printf("%-15s : %d\n", "--vns_kmax", inst->vns_kmax);
 			printf("%-15s : %.2f\n", "--vns_lr", inst->vns_learning_rate);
 			printf("%-15s : %d\n", "--vns_jumps", inst->vns_jumps);
 		}
-		/*
-		else if (strcmp(inst->method, "tabu") == 0)
+		if (strstr(inst->method, "tabu"))
 		{
 			printf("%-15s : %d\n", "--tabu-tenure", inst->tabu_tenure);
 			printf("%-15s : %d\n", "--tabu-min", inst->tabu_min);
 			printf("%-15s : %d\n", "--tabu-max", inst->tabu_max);
 			printf("%-15s: %d\n", "--tabu-noimprove", inst->tabu_noimprove);
 		}
-		*/
-		else if (strcmp(inst->method, "hard_fix") == 0)
+		if (strstr(inst->method, "hard_fix"))
 		{
 			printf("%-15s : %.2f\n", "--hard_fixing_percentage", inst->hard_fixing_percentage);
 			printf("%-15s : %.2f\n", "--hard_fixing_local_time", inst->hard_fixing_local_time);
 		}
-		else if (strcmp(inst->method, "local_branch") == 0)
+		if (strstr(inst->method, "local_branch"))
 		{
 			printf("%-15s : %d\n", "--local_branch_k", inst->local_branch_k);
 			printf("%-15s : %d\n", "--local_branch_step", inst->local_branch_step);

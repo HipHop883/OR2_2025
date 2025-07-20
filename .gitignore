@@ -27,7 +27,7 @@ tsp_solver
 *.fls
 .clang-format
 
-thesis/main.pdf
+# thesis/main.pdf
 src/py/*.pdf
 
 model.lp

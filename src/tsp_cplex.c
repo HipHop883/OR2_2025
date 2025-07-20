@@ -1077,9 +1077,6 @@ int apply_cplex_hardfix(instance *inst, solution *sol)
         return EXIT_FAILURE;
     }
 
-    // CPXsetintparam(env, CPX_PARAM_MIPEMPHASIS, 1);      // Focus on primal bound improvement
-    // CPXsetintparam(env, CPX_PARAM_RINSHEUR, 10);        // Enable RINS heuristic every 10 nodes
-
     // === Build initial model ===
     if (build_model(inst, env, lp))
         goto CLEAN_BASIC;
